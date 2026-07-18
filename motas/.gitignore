@@ -1,0 +1,4 @@
+# Bench artifacts (./build-mota.sh, ./build-bl.sh)
+
+*
+!.gitignore
