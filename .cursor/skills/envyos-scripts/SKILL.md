@@ -24,17 +24,18 @@ Initialize submodules: `git submodule update --init --recursive`
 
 ## Versioning
 
-- Canonical semver file: **`envyos/envyos/VERSION`** (e.g. `0.1.0`)
-- Helpers: **`envyos/envyos/version.sh`** — `normalize_version`, `previous_patch_version`
+- Canonical semver: **`VERSION`** at ota repo root (e.g. `0.1.0`)
+- Helpers: **`scripts/version.sh`** — `read_version_file`, `normalize_version`, `previous_patch_version`
 - **Not** upstream MeshCore `v1.17.x` tags
-- `build-mota.sh` passes `-DFIRMWARE_VERSION='"v0.1.0"'` via `PLATFORMIO_BUILD_FLAGS`
+- `build-mota.sh` reads `VERSION` by default; passes `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS`
 
 ```bash
 ./scripts/build-mota.sh --list-targets
-./scripts/build-mota.sh v0.1.0
-./scripts/build-mota.sh v0.1.1
-./scripts/build-mota.sh v0.1.0 --target wismesh-tag-repeater
+./scripts/build-mota.sh                    # version from ./VERSION
+./scripts/build-mota.sh v0.1.1             # override for one-off build
+./scripts/build-mota.sh --target wismesh-tag-repeater
 ./scripts/build-mota.sh v0.1.2 --base v0.1.0
+./scripts/build-mota.sh --hex-only           # stock MeshCore — hex/uf2 only, no .mota
 ```
 
 ## `scripts/targets.txt`

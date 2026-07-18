@@ -12,7 +12,7 @@ description: >-
 
 EnvyOS is MeshEnvy's integration distro of [MeshCore](https://github.com/meshcore-dev/MeshCore). **`envyos/main` is the head branch** — it always contains the merged union of EnvyOS features, even when those features also exist as open PRs upstream.
 
-Firmware lives in `envyos/` inside the `ota` repo. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `envyos/envyos/VERSION`).
+Firmware lives in `envyos/` inside the `ota` repo. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `VERSION` at ota repo root).
 
 ## Git remotes
 
@@ -93,12 +93,12 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
-- **Canonical file:** `envyos/envyos/VERSION` (currently `0.1.0`)
-- **Build by tag:** `./scripts/build-mota.sh v0.1.0` → `motas/v0.1.0/`; `./scripts/build-mota.sh v0.1.1` auto-deltas from `v0.1.0` if present
-- **PlatformIO default:** `-DFIRMWARE_VERSION='"v0.1.0"'` in `envyos/platformio.ini`
+- **Canonical file:** `VERSION` at ota repo root (e.g. `0.1.0`)
+- **Build:** `./scripts/build-mota.sh` reads `VERSION` → `motas/v0.1.0/`; `./scripts/build-mota.sh v0.1.1` overrides for one-off builds and auto-deltas from prior patch if present
+- **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
 - **Explicit delta base:** `./scripts/build-mota.sh v0.1.2 --base v0.1.0`
 
-Bump `envyos/envyos/VERSION` for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
+Bump `VERSION` at repo root for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
 
 ## Agent checklist
 

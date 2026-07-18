@@ -7,7 +7,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | Path | Role |
 |------|------|
 | `envyos/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); branch **`envyos/main`** is distro head |
-| `envyos/envyos/` | Distro version (`VERSION`, `version.sh`) — **not** upstream MeshCore tags |
+| `VERSION` | Canonical distro semver (e.g. `0.1.0`) — **not** upstream MeshCore tags |
 | `motas/` | Built firmware + `.mota` outputs (`motas/<version>/`) |
 | `vendor/motatool/` | Rust CLI — pack/serve `.mota`, USB serial to companion |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
@@ -33,10 +33,13 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 ## Versioning
 
-- Canonical: `envyos/envyos/VERSION` (e.g. `0.1.0`) → tags `v0.1.0`, `v0.1.1`, …
+- Canonical: **`VERSION`** at repo root (e.g. `0.1.0`) → tags `v0.1.0`, `v0.1.1`, …
+- Helpers: **`scripts/version.sh`** — `read_version_file`, `normalize_version`, `previous_patch_version`
 - **Not** upstream `companion-v1.17.x` scheme
-- `./scripts/build-mota.sh v0.1.0` → `motas/v0.1.0/<slug>/` for each line in `scripts/targets.txt`; patch builds auto-delta per target from previous patch if present
-- PlatformIO: `-DFIRMWARE_VERSION='"v0.1.0"'` in `envyos/platformio.ini`
+- `./scripts/build-mota.sh` → reads `VERSION`, builds all `scripts/targets.txt` → `motas/v0.1.0/<slug>/`
+- Override: `./scripts/build-mota.sh v0.1.1` (without editing `VERSION`)
+- Stock MeshCore (no EndF/OTA): `./scripts/build-mota.sh --hex-only` → hex/uf2 only, no `.mota`
+- `-DFIRMWARE_VERSION` stamped via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
 
 ## OTA targets (`scripts/targets.txt`)
 
@@ -48,6 +51,10 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
 
 Add a line to `targets.txt` to ship another board/role.
+
+## Mesh / next-hop retry
+
+Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (control `0xA0`, ~10 B). Upstream waits (`hop.retry.ms`, default 1500 ms) then retries (`hop.retry`, default 2). **Retry only for next hops that previously sent HOP_ACK** (runtime capability table; stock repeaters stay single-shot). CLI: `set hop.retry`, `set hop.retry.ms`. Branch: `feature/next-hop-retry` → upstream PR to `meshcore-dev/MeshCore`.
 
 ## OTA bench (WisMesh Tag)
 
@@ -64,9 +71,10 @@ Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.m
 ```bash
 ./scripts/build-bl.sh                    # OTAFIX UF2 → motas/bootloader/
 ./scripts/build-mota.sh --list-targets     # show scripts/targets.txt
-./scripts/build-mota.sh v0.1.0             # all targets → motas/v0.1.0/<slug>/
-./scripts/build-mota.sh v0.1.1             # + in-place deltas from v0.1.0 (per target)
-./scripts/build-mota.sh v0.1.0 --target wismesh-tag-repeater
+./scripts/build-mota.sh                    # all targets → motas/<VERSION>/<slug>/
+./scripts/build-mota.sh v0.1.1             # override + in-place deltas from prior patch if present
+./scripts/build-mota.sh --target wismesh-tag-repeater
+./scripts/build-mota.sh --hex-only         # stock MeshCore branch, no OTA
 ./scripts/run-mota.sh /dev/cu.usbmodem1444301
 ./scripts/run-mota.sh /dev/cu.… ./motas/v0.1.1   # serves all .mota under dir (recursive)
 ```

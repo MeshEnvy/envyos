@@ -21,7 +21,7 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Area | Examples |
 |------|----------|
 | Distro git | `envyos/main`, remotes (`origin`/`vk496`/`meshcore`), feature-branch workflow |
-| Versioning | `envyos/envyos/VERSION`, `envyos/envyos/version.sh`, `-DFIRMWARE_VERSION` in `platformio.ini` |
+| Versioning | `VERSION` (repo root), `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
 | Firmware tree | `envyos/` layout, env names, variant boards, `ENABLE_OTA` flags |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
 | Build outputs | `motas/<version>/` layout, `scripts/build-mota.sh` / `scripts/build-bl.sh` behavior |
