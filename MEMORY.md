@@ -62,6 +62,15 @@ Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.m
 
 When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio.ini`, OTA test mocks.
 
+## Agent skills
+
+| Skill | When to load |
+|-------|----------------|
+| `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
+| `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
+| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
+| `motatool` | `.mota` build, deltas, verify, serve |
+
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
