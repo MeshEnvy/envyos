@@ -13,6 +13,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vk-otafix/` | nRF52 bootloader with in-place delta apply (OTAFIX) |
 | `build-mota.sh` | Build WisMesh Tag repeater + full/delta `.mota` |
 | `build-bl.sh` | Build OTAFIX bootloader → `motas/bootloader/` |
+| `run-mota.sh` | `motatool serve` over USB serial — `./run-mota.sh /dev/cu.…` |
 
 ## Git remotes (`vk496-ota/`)
 
@@ -47,7 +48,8 @@ Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.m
 ./build-bl.sh                    # OTAFIX UF2 → motas/bootloader/
 ./build-mota.sh v0.1.0           # full build → motas/v0.1.0/
 ./build-mota.sh v0.1.1           # + in-place delta from v0.1.0
-motatool serve --dir ./motas/v0.1.1 --serial /dev/cu.… -v
+./run-mota.sh /dev/cu.usbmodem1444301
+./run-mota.sh /dev/cu.… ./motas/v0.1.1   # optional subdir
 ```
 
 ## Conflict hotspots
