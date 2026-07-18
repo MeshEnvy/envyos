@@ -12,7 +12,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vendor/motatool/` | Rust CLI — pack/serve `.mota`, USB serial to companion |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
 | `vendor/otafix/` | nRF52 OTAFIX bootloader — in-place delta apply (`origin` MeshEnvy, `vk496` upstream) |
-| `scripts/` | Bench scripts — `build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
+| `scripts/` | Bench scripts — `build-mota.sh`, `build-bl.sh`, `run-mota.sh`, `targets.txt` |
 
 ## Git remotes (`envyos/`)
 
@@ -35,16 +35,27 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 - Canonical: `envyos/envyos/VERSION` (e.g. `0.1.0`) → tags `v0.1.0`, `v0.1.1`, …
 - **Not** upstream `companion-v1.17.x` scheme
-- `./scripts/build-mota.sh v0.1.0` → `motas/v0.1.0/`; patch builds auto-delta from previous patch if present
+- `./scripts/build-mota.sh v0.1.0` → `motas/v0.1.0/<slug>/` for each line in `scripts/targets.txt`; patch builds auto-delta per target from previous patch if present
 - PlatformIO: `-DFIRMWARE_VERSION='"v0.1.0"'` in `envyos/platformio.ini`
+
+## OTA targets (`scripts/targets.txt`)
+
+| Slug | PlatformIO env | Role |
+|------|----------------|------|
+| `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
+| `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
+| `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
+| `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
+
+Add a line to `targets.txt` to ship another board/role.
 
 ## OTA bench (WisMesh Tag)
 
 | Tag | Role | Bootloader |
 |-----|------|------------|
 | A (seeder) | OTA-capable build + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
-| B (router) | `RAK_WisMesh_Tag_repeater` — device under test | **vendor/otafix required** |
-| C (client) | Companion — remote `ota` CLI over mesh | stock OK |
+| B (router) | `wismesh-tag-repeater` — device under test | **vendor/otafix required** |
+| C (client) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
 
 Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C remote admin.
 
@@ -52,10 +63,12 @@ Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.m
 
 ```bash
 ./scripts/build-bl.sh                    # OTAFIX UF2 → motas/bootloader/
-./scripts/build-mota.sh v0.1.0           # full build → motas/v0.1.0/
-./scripts/build-mota.sh v0.1.1           # + in-place delta from v0.1.0
+./scripts/build-mota.sh --list-targets     # show scripts/targets.txt
+./scripts/build-mota.sh v0.1.0             # all targets → motas/v0.1.0/<slug>/
+./scripts/build-mota.sh v0.1.1             # + in-place deltas from v0.1.0 (per target)
+./scripts/build-mota.sh v0.1.0 --target wismesh-tag-repeater
 ./scripts/run-mota.sh /dev/cu.usbmodem1444301
-./scripts/run-mota.sh /dev/cu.… ./motas/v0.1.1   # optional subdir
+./scripts/run-mota.sh /dev/cu.… ./motas/v0.1.1   # serves all .mota under dir (recursive)
 ```
 
 ## Conflict hotspots

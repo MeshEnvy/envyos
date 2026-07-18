@@ -30,31 +30,52 @@ Initialize submodules: `git submodule update --init --recursive`
 - `build-mota.sh` passes `-DFIRMWARE_VERSION='"v0.1.0"'` via `PLATFORMIO_BUILD_FLAGS`
 
 ```bash
-./scripts/build-mota.sh v0.1.0    # → motas/v0.1.0/
-./scripts/build-mota.sh v0.1.1    # auto-delta from v0.1.0 if motas/v0.1.0/firmware.hex exists
-./scripts/build-mota.sh v0.1.2 --base v0.1.0   # explicit delta base
+./scripts/build-mota.sh --list-targets
+./scripts/build-mota.sh v0.1.0
+./scripts/build-mota.sh v0.1.1
+./scripts/build-mota.sh v0.1.0 --target wismesh-tag-repeater
+./scripts/build-mota.sh v0.1.2 --base v0.1.0
 ```
+
+## `scripts/targets.txt`
+
+Target map for **`build-mota.sh`**. One line per shipped board/role:
+
+```text
+slug  platformio_env  [description…]
+```
+
+| Slug | PlatformIO env |
+|------|----------------|
+| `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` |
+| `rak4631-repeater` | `RAK_4631_repeater` |
+| `rak4631-client-ble` | `RAK_4631_companion_radio_ble` |
+| `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` |
+
+Output: `motas/<ver>/<slug>/`. Default build = **all lines**. Override with `--target <slug>` (repeatable) or `--targets-file`.
 
 ## `scripts/build-mota.sh`
 
-Builds **`RAK_WisMesh_Tag_repeater`** from `envyos/` and packages `.mota` into `motas/<version>/`.
+Builds OTA firmware from `envyos/` and packages `.mota` into `motas/<version>/<slug>/`.
 
-**Steps:**
+**Steps (per target):**
 
-1. `pio run -e RAK_WisMesh_Tag_repeater` (+ `create_uf2`)
-2. Copy `firmware.hex`, `.uf2`, `.zip` → `motas/<ver>/`
+1. `pio run -e <env>` (+ `create_uf2`)
+2. Copy `firmware.hex`, `.uf2`, `.zip` → `motas/<ver>/<slug>/`
 3. `motatool build --fw … --out-dir` → full `.mota`
 4. If base version exists: `motatool build --base <prev.hex> --fw … --patch-type in-place` → `delta_from_<base>.mota`
 
-**Output layout (`motas/<ver>/`):**
+**Output layout (`motas/<ver>/<slug>/`):**
 
 | File | Purpose |
 |------|---------|
-| `firmware.hex` | **Keep as delta base** for next patch |
+| `firmware.hex` | **Keep as delta base** for next patch (same slug) |
 | `firmware.uf2` | USB drag-flash (initial flash or recovery) |
 | `fw_*_full_*.mota` | Full OTA image |
 | `delta_from_v0.1.0.mota` | In-place patch from prior version |
 | `version.txt` | Normalized tag |
+
+Legacy flat layout (`motas/<ver>/firmware.hex`) still works as a delta base for `wismesh-tag-repeater`.
 
 `motas/` is gitignored except `.gitignore` — artifacts stay local.
 
@@ -96,7 +117,8 @@ Default dir: `./motas` (recursive `.mota` scan). Sends `ota folder on` on serial
 # flash motas/bootloader/*.uf2 on Tag B
 
 ./scripts/build-mota.sh v0.1.0
-# flash Tag B from motas/v0.1.0/firmware.uf2
+# flash Tag B from motas/v0.1.0/wismesh-tag-repeater/firmware.uf2
+# flash Tag C from motas/v0.1.0/wismesh-tag-client-ble/firmware.uf2
 
 ./scripts/build-mota.sh v0.1.1
 # produces delta_from_v0.1.0.mota
