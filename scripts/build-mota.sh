@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Build EnvyOS OTA firmware + .mota for targets listed in scripts/targets.txt.
+# Build firmware (+ optional .mota) for targets listed in scripts/targets.txt.
 #
 # Usage:
-#   ./scripts/build-mota.sh v0.1.0
-#   ./scripts/build-mota.sh v0.1.1
-#   ./scripts/build-mota.sh v0.1.0 --target wismesh-tag-repeater
+#   ./scripts/build-mota.sh                    # version from ./VERSION
+#   ./scripts/build-mota.sh v0.1.1             # override version for this build
+#   ./scripts/build-mota.sh --target wismesh-tag-repeater
 #   ./scripts/build-mota.sh v0.1.2 --base v0.1.0
+#   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
 #   ./scripts/build-mota.sh --list-targets
 #
-# Requires: PlatformIO (`pio`), and either `motatool` on PATH or ./vendor/motatool/ built with cargo.
+# Requires: PlatformIO (`pio`). Full .mota packaging also needs motatool on PATH or ./vendor/motatool/.
 
 set -euo pipefail
 
@@ -16,8 +17,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MC="$ROOT/envyos"
 OUT_ROOT="$ROOT/motas"
 TARGETS_FILE="$ROOT/scripts/targets.txt"
-# shellcheck source=envyos/envyos/version.sh
-source "$MC/envyos/version.sh"
+# shellcheck source=scripts/version.sh
+source "$ROOT/scripts/version.sh"
 
 TARGET_SLUGS=()
 TARGET_ENVS=()
@@ -25,20 +26,22 @@ TARGET_DESCS=()
 
 usage() {
   cat >&2 <<EOF
-usage: $0 <version> [--target <slug>]… [--base <version>] [--targets-file <path>]
+usage: $0 [version] [--target <slug>]… [--base <version>] [--hex-only] [--targets-file <path>]
        $0 --list-targets [--targets-file <path>]
 
-  version         EnvyOS firmware tag, e.g. v0.1.0 or 0.1.0
+  version         Optional override; default is ./VERSION (e.g. v0.1.0 or 0.1.0)
   --target        Build one target slug (repeatable; default: all in targets file)
   --base          Optional hex base for in-place deltas (default: previous patch if present)
+  --hex-only      Build hex/uf2 only — skip .mota packaging (stock MeshCore without EndF/OTA)
   --targets-file  Target map (default: scripts/targets.txt)
   --list-targets  Print configured targets and exit
 
 examples:
-  $0 v0.1.0
+  $0
   $0 v0.1.1
-  $0 v0.1.0 --target wismesh-tag-repeater --target rak4631-repeater
+  $0 --target wismesh-tag-repeater --target rak4631-repeater
   $0 v0.1.2 --base v0.1.0
+  $0 --hex-only
   $0 --list-targets
 EOF
   exit 2
@@ -174,8 +177,7 @@ build_target() {
   local env_name="$2"
   local out="$OUT_ROOT/$VER/$slug"
   local build_dir="$MC/.pio/build/$env_name"
-  local mt
-  mt="$(motatool_bin)"
+  local mt=""
 
   echo "==> $VER  target=$slug  env=$env_name"
 
@@ -200,31 +202,37 @@ build_target() {
   printf '%s\n' "$VER" >"$out/version.txt"
 
   echo "    saved $out/firmware.hex (+ uf2/zip if present)"
-  echo "==> packaging .mota ($slug) with $mt"
 
-  "$mt" build --fw "$out/firmware.hex" --out-dir "$out"
-  echo "    full .mota → $out/"
+  if [[ "$HEX_ONLY" -eq 1 ]]; then
+    echo "    (--hex-only: skipping .mota packaging)"
+  else
+    mt="$(motatool_bin)"
+    echo "==> packaging .mota ($slug) with $mt"
 
-  local base_ver="$BASE_VER"
-  if [[ -z "$base_ver" ]]; then
-    PREV="$(previous_patch_version "$VER" || true)"
-    if [[ -n "$PREV" ]] && resolve_base_hex "$slug" "$PREV" >/dev/null; then
-      base_ver="$PREV"
+    "$mt" build --fw "$out/firmware.hex" --out-dir "$out"
+    echo "    full .mota → $out/"
+
+    local base_ver="$BASE_VER"
+    if [[ -z "$base_ver" ]]; then
+      PREV="$(previous_patch_version "$VER" || true)"
+      if [[ -n "$PREV" ]] && resolve_base_hex "$slug" "$PREV" >/dev/null; then
+        base_ver="$PREV"
+      fi
     fi
-  fi
 
-  if [[ -n "$base_ver" ]]; then
-    local base_hex
-    base_hex="$(resolve_base_hex "$slug" "$base_ver")" || {
-      echo "error: need base hex for $slug delta ($base_ver) — build $base_ver first or pass --base" >&2
-      exit 1
-    }
-    local delta_out="$out/delta_from_${base_ver}.mota"
-    echo "==> in-place delta ($slug) $base_ver → $VER"
-    echo "    base: $base_hex"
-    echo "    fw:   $out/firmware.hex"
-    "$mt" build --base "$base_hex" --fw "$out/firmware.hex" --patch-type in-place --out "$delta_out"
-    echo "    delta: $delta_out"
+    if [[ -n "$base_ver" ]]; then
+      local base_hex
+      base_hex="$(resolve_base_hex "$slug" "$base_ver")" || {
+        echo "error: need base hex for $slug delta ($base_ver) — build $base_ver first or pass --base" >&2
+        exit 1
+      }
+      local delta_out="$out/delta_from_${base_ver}.mota"
+      echo "==> in-place delta ($slug) $base_ver → $VER"
+      echo "    base: $base_hex"
+      echo "    fw:   $out/firmware.hex"
+      "$mt" build --base "$base_hex" --fw "$out/firmware.hex" --patch-type in-place --out "$delta_out"
+      echo "    delta: $delta_out"
+    fi
   fi
 
   echo "==> done $VER/$slug"
@@ -232,11 +240,16 @@ build_target() {
 }
 
 LIST_ONLY=0
+HEX_ONLY=0
 VER=""
 BASE_VER=""
 SELECTED=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --hex-only)
+      HEX_ONLY=1
+      shift
+      ;;
     --list-targets)
       LIST_ONLY=1
       shift
@@ -275,7 +288,9 @@ if [[ "$LIST_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-[[ -n "$VER" ]] || usage
+if [[ -z "$VER" ]]; then
+  VER="$(read_version_file)" || usage
+fi
 
 load_targets "$TARGETS_FILE"
 
@@ -304,8 +319,12 @@ fi
 mkdir -p "$OUT"
 printf '%s\n' "$VER" >"$OUT/version.txt"
 
-MT="$(motatool_bin)"
-echo "motatool: $MT"
+if [[ "$HEX_ONLY" -eq 1 ]]; then
+  echo "mode: hex-only (no .mota)"
+else
+  MT="$(motatool_bin)"
+  echo "motatool: $MT"
+fi
 echo "targets: ${BUILD_SLUGS[*]}"
 
 export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${VER}\"'"
