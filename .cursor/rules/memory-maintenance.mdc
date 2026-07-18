@@ -1,0 +1,44 @@
+---
+description: Read MEMORY.md before substantive work; update it in the same change set when EnvyOS architecture shifts
+alwaysApply: true
+---
+
+# MEMORY.md — read first, update always
+
+[MEMORY.md](MEMORY.md) is the living source of truth for **EnvyOS** — MeshEnvy's MeshCore distro for repeaters (OTA over LoRa, routing improvements, and other MeshEnvy enhancements). Agents must **use** it for context and **maintain** it as work proceeds.
+
+## Read (start of task)
+
+Before planning or coding on firmware, OTA, motatool, build scripts, bootloader, mesh routing, distro git workflow, or bench/dev setup:
+
+1. **Read MEMORY.md** — prefer it over chat history or assumptions about older repo shapes.
+2. If MEMORY and code disagree, **trust the code** but **fix MEMORY in the same change set**.
+
+## Update (before marking done)
+
+Update MEMORY.md in the **same commit/PR** when you change anything in the table below — do not defer.
+
+| Area | Examples |
+|------|----------|
+| Distro git | `envyos/main`, remotes (`origin`/`vk496`/`meshcore`), feature-branch workflow |
+| Versioning | `envyos/VERSION`, `envyos/version.sh`, `-DFIRMWARE_VERSION` in `platformio.ini` |
+| Firmware tree | `vk496-ota/` layout, env names, variant boards, `ENABLE_OTA` flags |
+| OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
+| Build outputs | `motas/<version>/` layout, `build-mota.sh` / `build-bl.sh` behavior |
+| motatool | CLI subcommands, `serve` flags, `.mota` pack/delta format |
+| Bootloader | `vk-otafix` vs stock BL, which boards need OTAFIX |
+| Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
+| Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
+| Greenfield breaks | Removed APIs, renamed paths, invalidated `.mota` or hex bases |
+
+## Style
+
+- Under ~150 lines — current state only, not a roadmap.
+- Tables over prose; **delete obsolete rows** when breaking changes land.
+- **Active threads**: in-flight cross-cutting work only.
+
+## Self-check
+
+- *Did I read MEMORY.md before starting?*
+- *Did I change how firmware builds, OTA works, artifacts land, or the distro is versioned?* → Update MEMORY now.
+- *Did I break/remove/rename something?* → Update MEMORY and drop stale references.
