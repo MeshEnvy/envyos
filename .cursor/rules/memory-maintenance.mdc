@@ -21,12 +21,12 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Area | Examples |
 |------|----------|
 | Distro git | `envyos/main`, remotes (`origin`/`vk496`/`meshcore`), feature-branch workflow |
-| Versioning | `envyos/VERSION`, `envyos/version.sh`, `-DFIRMWARE_VERSION` in `platformio.ini` |
-| Firmware tree | `vk496-ota/` layout, env names, variant boards, `ENABLE_OTA` flags |
+| Versioning | `envyos/envyos/VERSION`, `envyos/envyos/version.sh`, `-DFIRMWARE_VERSION` in `platformio.ini` |
+| Firmware tree | `envyos/` layout, env names, variant boards, `ENABLE_OTA` flags |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
-| Build outputs | `motas/<version>/` layout, `build-mota.sh` / `build-bl.sh` behavior |
+| Build outputs | `motas/<version>/` layout, `scripts/build-mota.sh` / `scripts/build-bl.sh` behavior |
 | motatool | CLI subcommands, `serve` flags, `.mota` pack/delta format |
-| Bootloader | `vk-otafix` vs stock BL, which boards need OTAFIX |
+| Bootloader | `vendor/otafix` vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
 | Greenfield breaks | Removed APIs, renamed paths, invalidated `.mota` or hex bases |

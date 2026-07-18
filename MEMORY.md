@@ -1,21 +1,20 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. Firmware lives in `vk496-ota/`; this repo (`ota`) holds build tooling, `.mota` artifacts, and the bench workflow.
+MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. Firmware lives in `envyos/` (submodule); this repo (`ota`) holds build tooling, `.mota` artifacts, and the bench workflow.
 
 ## Repo layout
 
 | Path | Role |
 |------|------|
-| `vk496-ota/` | MeshCore firmware (git submodule/worktree); branch **`envyos/main`** is distro head |
-| `envyos/` | Distro version (`VERSION`, `version.sh`) — **not** upstream MeshCore tags |
+| `envyos/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); branch **`envyos/main`** is distro head |
+| `envyos/envyos/` | Distro version (`VERSION`, `version.sh`) — **not** upstream MeshCore tags |
 | `motas/` | Built firmware + `.mota` outputs (`motas/<version>/`) |
-| `motatool/` | Rust CLI — pack/serve `.mota`, USB serial to companion |
-| `vk-otafix/` | nRF52 bootloader with in-place delta apply (OTAFIX) |
-| `build-mota.sh` | Build WisMesh Tag repeater + full/delta `.mota` |
-| `build-bl.sh` | Build OTAFIX bootloader → `motas/bootloader/` |
-| `run-mota.sh` | `motatool serve` over USB serial — `./run-mota.sh /dev/cu.…` |
+| `vendor/motatool/` | Rust CLI — pack/serve `.mota`, USB serial to companion |
+| `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
+| `vendor/otafix/` | nRF52 OTAFIX bootloader — in-place delta apply (`origin` MeshEnvy, `vk496` upstream) |
+| `scripts/` | Bench scripts — `build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
 
-## Git remotes (`vk496-ota/`)
+## Git remotes (`envyos/`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -23,21 +22,28 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vk496` | `vk496/MeshCore` | OTA / vk496 stack |
 | `meshcore` | `meshcore-dev/MeshCore` | Upstream MeshCore |
 
+## Git remotes (`vendor/otafix/`)
+
+| Remote | Repository | Role |
+|--------|------------|------|
+| `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | EnvyOS fork |
+| `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | vk496 OTAFIX stack |
+
 **`envyos/main`** = merged union of shipped EnvyOS features. Feature branches merge here even while upstream PRs are open. See `.cursor/skills/envyos-meshcore/SKILL.md` for workflow detail.
 
 ## Versioning
 
-- Canonical: `envyos/VERSION` (e.g. `0.1.0`) → tags `v0.1.0`, `v0.1.1`, …
+- Canonical: `envyos/envyos/VERSION` (e.g. `0.1.0`) → tags `v0.1.0`, `v0.1.1`, …
 - **Not** upstream `companion-v1.17.x` scheme
-- `./build-mota.sh v0.1.0` → `motas/v0.1.0/`; patch builds auto-delta from previous patch if present
-- PlatformIO: `-DFIRMWARE_VERSION='"v0.1.0"'` in `vk496-ota/platformio.ini`
+- `./scripts/build-mota.sh v0.1.0` → `motas/v0.1.0/`; patch builds auto-delta from previous patch if present
+- PlatformIO: `-DFIRMWARE_VERSION='"v0.1.0"'` in `envyos/platformio.ini`
 
 ## OTA bench (WisMesh Tag)
 
 | Tag | Role | Bootloader |
 |-----|------|------------|
 | A (seeder) | OTA-capable build + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
-| B (router) | `RAK_WisMesh_Tag_repeater` — device under test | **vk-otafix required** |
+| B (router) | `RAK_WisMesh_Tag_repeater` — device under test | **vendor/otafix required** |
 | C (client) | Companion — remote `ota` CLI over mesh | stock OK |
 
 Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C remote admin.
@@ -45,11 +51,11 @@ Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.m
 ## Build commands
 
 ```bash
-./build-bl.sh                    # OTAFIX UF2 → motas/bootloader/
-./build-mota.sh v0.1.0           # full build → motas/v0.1.0/
-./build-mota.sh v0.1.1           # + in-place delta from v0.1.0
-./run-mota.sh /dev/cu.usbmodem1444301
-./run-mota.sh /dev/cu.… ./motas/v0.1.1   # optional subdir
+./scripts/build-bl.sh                    # OTAFIX UF2 → motas/bootloader/
+./scripts/build-mota.sh v0.1.0           # full build → motas/v0.1.0/
+./scripts/build-mota.sh v0.1.1           # + in-place delta from v0.1.0
+./scripts/run-mota.sh /dev/cu.usbmodem1444301
+./scripts/run-mota.sh /dev/cu.… ./motas/v0.1.1   # optional subdir
 ```
 
 ## Conflict hotspots

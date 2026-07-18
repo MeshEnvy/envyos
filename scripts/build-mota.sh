@@ -2,20 +2,20 @@
 # Build WisMesh Tag repeater firmware + .mota for the LoRa OTA bench.
 #
 # Usage:
-#   ./build-mota.sh v0.1.0                    # motas/v0.1.0/  (hex, uf2, full .mota)
-#   ./build-mota.sh v0.1.1                    # motas/v0.1.1/  + in-place delta from v0.1.0 (if present)
-#   ./build-mota.sh v0.1.2 --base v0.1.0      # explicit delta base (skip intermediate)
+#   ./scripts/build-mota.sh v0.1.0                    # motas/v0.1.0/  (hex, uf2, full .mota)
+#   ./scripts/build-mota.sh v0.1.1                    # motas/v0.1.1/  + in-place delta from v0.1.0 (if present)
+#   ./scripts/build-mota.sh v0.1.2 --base v0.1.0      # explicit delta base (skip intermediate)
 #
-# Requires: PlatformIO (`pio`), and either `motatool` on PATH or ./motatool/ built with cargo.
+# Requires: PlatformIO (`pio`), and either `motatool` on PATH or ./vendor/motatool/ built with cargo.
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-MC="$ROOT/vk496-ota"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MC="$ROOT/envyos"
 ENV_NAME="RAK_WisMesh_Tag_repeater"
 OUT_ROOT="$ROOT/motas"
-# shellcheck source=envyos/version.sh
-source "$ROOT/envyos/version.sh"
+# shellcheck source=envyos/envyos/version.sh
+source "$MC/envyos/version.sh"
 
 usage() {
   cat >&2 <<EOF
@@ -72,22 +72,22 @@ motatool_bin() {
     echo motatool
     return
   fi
-  local rel="$ROOT/motatool/target/release/motatool"
+  local rel="$ROOT/vendor/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
     echo "$rel"
     return
   fi
-  if [[ -d "$ROOT/motatool" ]]; then
+  if [[ -d "$ROOT/vendor/motatool" ]]; then
     local cargo_bin cargo_dir
     cargo_bin="$(find_cargo)"
     cargo_dir="$(dirname "$cargo_bin")"
     echo "building motatool (release) with $cargo_bin …" >&2
-    (cd "$ROOT/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
+    (cd "$ROOT/vendor/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
     [[ -x "$rel" ]] || { echo "error: motatool build did not produce $rel" >&2; exit 1; }
     echo "$rel"
     return
   fi
-  echo "error: motatool not found (install or clone into $ROOT/motatool)" >&2
+  echo "error: motatool not found (install or clone into $ROOT/vendor/motatool)" >&2
   exit 1
 }
 

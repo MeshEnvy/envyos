@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Build the vk-otafix nRF52 bootloader (MOTA in-place apply) via Docker.
+# Build the OTAFIX nRF52 bootloader (MOTA in-place apply) via Docker.
 #
 # Usage:
-#   ./build-bl.sh [BOARD]
+#   ./scripts/build-bl.sh [BOARD]
 #
 # Default BOARD=wismesh_tag
-# UF2: vk-otafix/_build/build-<board>/update-<board>_bootloader-*_nosd.uf2
+# UF2: vendor/otafix/_build/build-<board>/update-<board>_bootloader-*_nosd.uf2
 # Also copied to ./motas/bootloader/ for the bench.
 #
-# Requires: Docker. Submodules under vk-otafix/ are initialized if needed.
+# Requires: Docker. Submodules under vendor/otafix/ are initialized if needed.
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-OTAFIX="$ROOT/vk-otafix"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OTAFIX="$ROOT/vendor/otafix"
 BOARD="${1:-wismesh_tag}"
 IMAGE="vk-otafix-build"
 OUT="$ROOT/motas/bootloader"

@@ -3,13 +3,13 @@ name: WisMesh OTA bench
 overview: 3-tag LoRa OTA bench; first test is a version-bump in-place delta (v1.17.0 → v1.17.1) so success is obvious in ota status.
 todos:
   - id: flash-otafix
-    content: ./build-bl.sh → flash UF2 from motas/bootloader/ on Tag B only; erase ExtraFS if needed
+    content: ./scripts/build-bl.sh → flash UF2 from motas/bootloader/ on Tag B only; erase ExtraFS if needed
     status: completed
   - id: build-a0
-    content: ./build-mota.sh 0 → motas/A0; flash Tag B with A0 uf2/zip
+    content: ./scripts/build-mota.sh 0 → motas/A0; flash Tag B with A0 uf2/zip
     status: pending
   - id: build-a1-delta
-    content: ./build-mota.sh 1 → motas/A1 full + A0→A1 in-place delta
+    content: ./scripts/build-mota.sh 1 → motas/A1 full + A0→A1 in-place delta
     status: pending
   - id: wire-seeder
     content: Tag A companion USB + motatool serve; confirm ota folder offers the delta
@@ -39,7 +39,7 @@ flowchart LR
 | Tag | Firmware env | Bootloader | Job |
 |---|---|---|---|
 | A (seeder) | OTA-branch MeshCore with `ENABLE_OTA` + `OTA_FOLDER_SERIAL` (repeater **or** companion USB) | stock BL OK | USB to laptop; `motatool serve` |
-| B (router) | `RAK_WisMesh_Tag_repeater` (OTA branch) | **vk-otafix (RTAG) required** | Device under test — fetch + install |
+| B (router) | `RAK_WisMesh_Tag_repeater` (OTA branch) | **vendor/otafix (RTAG) required** | Device under test — fetch + install |
 | C (client) | companion (OTA branch nice-to-have) | stock BL OK | MeshCore app / remote admin to B |
 
 **Only Tag B needs OTAFIX** (to *apply* in-place deltas).  
@@ -47,13 +47,13 @@ flowchart LR
 
 ## First test: version-bump delta
 
-Helper at repo root: [`build-mota.sh`](build-mota.sh) — builds `RAK_WisMesh_Tag_repeater` as `v1.17.n` into `motas/An/` (hex, uf2, full `.mota`; for n≥1 also in-place delta from the previous slot).
+Helper: [`scripts/build-mota.sh`](scripts/build-mota.sh) — builds `RAK_WisMesh_Tag_repeater` as `v1.17.n` into `motas/An/` (hex, uf2, full `.mota`; for n≥1 also in-place delta from the previous slot).
 
 Pass criterion: after install, B reports **v1.17.1**.
 
 ```bash
-./build-mota.sh 0          # motas/A0/  (v1.17.0) — flash Tag B from A0 uf2/zip
-./build-mota.sh 1          # motas/A1/  (v1.17.1) + delta from A0
+./scripts/build-mota.sh 0          # motas/A0/  (v1.17.0) — flash Tag B from A0 uf2/zip
+./scripts/build-mota.sh 1          # motas/A1/  (v1.17.1) + delta from A0
 motatool serve --dir ./motas/A1 --serial … -v   # or serve ./motas if you flatten/copy deltas
 ```
 
@@ -88,16 +88,16 @@ The repeater exposes a text CLI over USB at **115200 8N1** (`Serial.begin(115200
 Notes:
 - Only one process can hold the port. Tag A is for `motatool serve`; keep Tag B’s port free for your monitor.
 - After `ota install`, B reboots — reconnect serial if the session drops.
-- Same console described in [ota_user_guide.md](vk496-ota/docs/ota_user_guide.md) (“USB serial terminal”).
+- Same console described in [ota_user_guide.md](envyos/docs/ota_user_guide.md) (“USB serial terminal”).
 
-## Flash Tag B with vk-otafix
+## Flash Tag B with vendor/otafix
 
 ```bash
-./build-bl.sh                 # Docker build; UF2 → motas/bootloader/
-# or: ./build-bl.sh wismesh_tag
+./scripts/build-bl.sh                 # Docker build; UF2 → motas/bootloader/
+# or: ./scripts/build-bl.sh wismesh_tag
 ```
 
-Double-press reset → copy the UF2 from `motas/bootloader/`. Erase ExtraFS if coming from companion/Ripple, then flash A0 repeater app (`./build-mota.sh 0`). Confirm `bootloader: apply OK`.
+Double-press reset → copy the UF2 from `motas/bootloader/`. Erase ExtraFS if coming from companion/Ripple, then flash A0 repeater app (`./scripts/build-mota.sh 0`). Confirm `bootloader: apply OK`.
 
 ## Later (optional)
 

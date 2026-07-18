@@ -2,15 +2,15 @@
 # Serve ./motas to a MeshCore seeder over USB serial (motatool serve).
 #
 # Usage:
-#   ./run-mota.sh /dev/cu.usbmodem1444301
-#   ./run-mota.sh usbmodem1444301              # → /dev/cu.usbmodem1444301
-#   ./run-mota.sh /dev/cu.usbmodem1444301 ./motas/v0.1.1
+#   ./scripts/run-mota.sh /dev/cu.usbmodem1444301
+#   ./scripts/run-mota.sh usbmodem1444301              # → /dev/cu.usbmodem1444301
+#   ./scripts/run-mota.sh /dev/cu.usbmodem1444301 ./motas/v0.1.1
 #
-# Requires: motatool on PATH or ./motatool/ built with cargo.
+# Requires: motatool on PATH or ./vendor/motatool/ built with cargo.
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="${2:-$ROOT/motas}"
 
 usage() {
@@ -73,22 +73,22 @@ motatool_bin() {
     echo motatool
     return
   fi
-  local rel="$ROOT/motatool/target/release/motatool"
+  local rel="$ROOT/vendor/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
     echo "$rel"
     return
   fi
-  if [[ -d "$ROOT/motatool" ]]; then
+  if [[ -d "$ROOT/vendor/motatool" ]]; then
     local cargo_bin cargo_dir
     cargo_bin="$(find_cargo)"
     cargo_dir="$(dirname "$cargo_bin")"
     echo "building motatool (release) with $cargo_bin …" >&2
-    (cd "$ROOT/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
+    (cd "$ROOT/vendor/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
     [[ -x "$rel" ]] || { echo "error: motatool build did not produce $rel" >&2; exit 1; }
     echo "$rel"
     return
   fi
-  echo "error: motatool not found (install or clone into $ROOT/motatool)" >&2
+  echo "error: motatool not found (install or clone into $ROOT/vendor/motatool)" >&2
   exit 1
 }
 

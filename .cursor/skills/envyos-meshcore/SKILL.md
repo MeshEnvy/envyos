@@ -12,11 +12,11 @@ description: >-
 
 EnvyOS is MeshEnvy's integration distro of [MeshCore](https://github.com/meshcore-dev/MeshCore). **`envyos/main` is the head branch** — it always contains the merged union of EnvyOS features, even when those features also exist as open PRs upstream.
 
-Firmware lives in `vk496-ota/` inside the `ota` repo. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `envyos/VERSION`).
+Firmware lives in `envyos/` inside the `ota` repo. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `envyos/envyos/VERSION`).
 
 ## Git remotes
 
-Configure remotes in `vk496-ota/` like this:
+Configure remotes in `envyos/` like this:
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -80,7 +80,7 @@ gh pr create -R vk496/MeshCore \
 ### Merge into envyos/main
 
 ```bash
-cd vk496-ota
+cd envyos
 git checkout envyos/main
 git pull origin envyos/main
 git merge feature/<name>   # resolve conflicts; keep OTA + upstream API renames aligned
@@ -93,12 +93,12 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
-- **Canonical file:** `envyos/VERSION` (currently `0.1.0`)
-- **Build by tag:** `./build-mota.sh v0.1.0` → `motas/v0.1.0/`; `./build-mota.sh v0.1.1` auto-deltas from `v0.1.0` if present
-- **PlatformIO default:** `-DFIRMWARE_VERSION='"v0.1.0"'` in `vk496-ota/platformio.ini`
-- **Explicit delta base:** `./build-mota.sh v0.1.2 --base v0.1.0`
+- **Canonical file:** `envyos/envyos/VERSION` (currently `0.1.0`)
+- **Build by tag:** `./scripts/build-mota.sh v0.1.0` → `motas/v0.1.0/`; `./scripts/build-mota.sh v0.1.1` auto-deltas from `v0.1.0` if present
+- **PlatformIO default:** `-DFIRMWARE_VERSION='"v0.1.0"'` in `envyos/platformio.ini`
+- **Explicit delta base:** `./scripts/build-mota.sh v0.1.2 --base v0.1.0`
 
-Bump `envyos/VERSION` for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
+Bump `envyos/envyos/VERSION` for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
 
 ## Agent checklist
 
