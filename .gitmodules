@@ -2,11 +2,11 @@
 	path = vendor/detools
 	url = https://github.com/eerimoq/detools.git
 [submodule "motatool"]
-	path = vendor/motatool
+	path = motatool
 	url = https://github.com/vk496/motatool.git
-[submodule "otafix"]
-	path = vendor/otafix
+[submodule "bootloader"]
+	path = bootloader
 	url = https://github.com/MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX.git
-[submodule "envyos"]
-	path = envyos
+[submodule "envycore"]
+	path = envycore
 	url = https://github.com/MeshEnvy/meshcore-firmware.git
