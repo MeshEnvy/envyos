@@ -1,28 +1,28 @@
 ---
 name: motatool
 description: >-
-  motatool CLI (vendor/motatool): build/verify/inspect/serve .mota containers, full images
+  motatool CLI (motatool/): build/verify/inspect/serve .mota containers, full images
   and detools deltas (sequential + in-place). Use when packaging firmware, producing diff
   patches, serving a seeder folder, or validating .mota files.
 ---
 
 # motatool
 
-Rust CLI at **`vendor/motatool/`** (submodule: `vk496/motatool`). Byte-compatible with MeshCore's on-wire `.mota` format.
+Rust CLI at **`motatool/`** (submodule: `vk496/motatool`). Byte-compatible with MeshCore's on-wire `.mota` format.
 
-Build: `cargo build --release` → `vendor/motatool/target/release/motatool`  
+Build: `cargo build --release` → `motatool/target/release/motatool`  
 Bench scripts auto-build or use `motatool` on PATH.
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
 detools is **test-oracle only** (`make dev-setup` in motatool repo for delta unit tests).
 
-Spec: `envyos/docs/ota_protocol.md` · Implementation: `vendor/motatool/src/`
+Spec: `envycore/docs/ota_protocol.md` · Implementation: `motatool/src/`
 
 ## Commands
 
 ```bash
 # Full image from firmware (reads EndF trailer for target_id, version, hw_id)
-motatool build --fw firmware.hex --out-dir ./motas/v0.1.0
+motatool build --fw firmware.hex --out-dir ./build/motas/v0.1.0/wismesh-tag-repeater
 motatool build --fw firmware.bin --sign signer.key --out-dir ./out
 
 # Delta patches (--base MUST be device's running image with EndF)
@@ -30,11 +30,11 @@ motatool build --base old.hex --fw new.hex --out-dir ./out                    # 
 motatool build --base old.hex --fw new.hex --patch-type in-place --out delta.mota  # in-place (nRF52)
 
 # Validate
-motatool verify ./motas/**/*.mota
+motatool verify ./build/motas/**/*.mota
 motatool verify signed.mota --pub signer.key.pub
 
 # Inspect manifest
-motatool inspect ./motas/fw_*_full_*.mota
+motatool inspect ./build/motas/**/fw_*_full_*.mota
 
 # Ed25519 keypair
 motatool keygen --out signer.key
@@ -64,7 +64,7 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 **Requirements:**
 
-- `--base` = **exact** running firmware image (with EndF) — typically `motas/v0.1.0/firmware.hex` from prior `build-mota.sh`
+- `--base` = **exact** running firmware image (with EndF) — typically `build/motas/v0.1.0/<slug>/firmware.hex` from prior `build-mota.sh`
 - `--fw` = new build's hex
 - Manifest `base_hash` = base image's `EndF.body_hash` (motatool computes this)
 
@@ -107,7 +107,7 @@ Serve step is separate: `run-mota.sh` → `motatool serve --dir … --serial …
 
 ## Target IDs
 
-`src/targets.rs` mirrors firmware `OtaTargets.h` (`target_id = sha256:4(env_name)`). Regenerate when OTA env set changes (`envyos/tools/mota/gen_targets.py`).
+`src/targets.rs` mirrors firmware `OtaTargets.h` (`target_id = sha256:4(env_name)`). Regenerate when OTA env set changes (`envycore/tools/mota/gen_targets.py`).
 
 ## Related skills
 

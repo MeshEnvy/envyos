@@ -8,11 +8,11 @@ description: >-
 
 # EnvyOS OTA
 
-Authoritative specs live in the **`envyos/` submodule** (`envyos/main`):
+Authoritative specs live in the **`envycore/` submodule** (`envyos/main`):
 
-- Operator guide: `envyos/docs/ota_user_guide.md`
-- Wire format: `envyos/docs/ota_protocol.md`
-- Firmware OTA engine: `envyos/src/helpers/ota/`
+- Operator guide: `envycore/docs/ota_user_guide.md`
+- Wire format: `envycore/docs/ota_protocol.md`
+- Firmware OTA engine: `envycore/src/helpers/ota/`
 
 ## Mental model
 
@@ -43,7 +43,7 @@ motatool reads identity from the hex/bin **EndF**; do not rely on filenames.
 | 1 | sequential | ESP32 A/B | detools decoder → inactive OTA slot |
 | 2 | **in-place** | **nRF52** (WisMesh Tag) | Staged in flash → reboot → **OTAFIX bootloader** applies patch |
 
-EnvyOS WisMesh bench uses **`in-place`** deltas. Tag B needs **`vendor/otafix`** bootloader (`MOTABLDR` + codec bit 2).
+EnvyOS WisMesh bench uses **`in-place`** deltas. Tag B needs **`bootloader/`** OTAFIX (`MOTABLDR` + codec bit 2).
 
 **nRF52 staging:** companion builds stage below ExtraFS (`MOTA_STAGE_CEILING=0xD4000`); repeaters use `0xED000`.
 motatool auto-derives each delta's `memory_size` from the target ceiling minus the staged `.mota` size.
@@ -91,12 +91,12 @@ Running app **never** patches itself. `ota install`:
 
 - Delta manifest `base_hash` == Tag B running firmware `EndF.body_hash`
 - `[yours]` row: `target_id` for `RAK_WisMesh_Tag_repeater`
-- Base hex saved from **exact** prior build (`motas/v0.1.0/firmware.hex`) — rebuilds can change `body_hash` even if source “looks” the same
+- Base hex saved from **exact** prior build (`build/motas/v0.1.0/<slug>/firmware.hex`) — rebuilds can change `body_hash` even if source “looks” the same
 - OTAFIX present: `ota status` shows bootloader apply OK for in-place codec
 
 ## Key source files
 
-| Concern | Path under `envyos/` |
+| Concern | Path under `envycore/` |
 |---------|----------------------|
 | Constants | `src/helpers/ota/OtaFormat.h` |
 | Session engine | `src/helpers/ota/OtaManager.*` |

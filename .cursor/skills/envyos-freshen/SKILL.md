@@ -2,8 +2,8 @@
 name: envyos-freshen
 description: >-
   Fleet policy: companion tag + vk496 OTA + EnvyOS overlay earns an EnvyOS
-  version (VERSION / v0.1.x / motas/). /freshen builds that bundle; /freshen dev
-  is integration-only. Also refreshes vendor/otafix.
+  version (ENVYOS_VERSIONS / v0.1.x / build/motas/). /freshen builds that bundle; /freshen dev
+  is integration-only. Also refreshes bootloader submodule.
 disable-model-invocation: true
 ---
 
@@ -11,13 +11,13 @@ disable-model-invocation: true
 
 ## Fleet policy (canonical)
 
-An **EnvyOS version** (`VERSION` at ota repo root → `v0.1.x` git tag → `motas/<version>/`) is earned **only** by this three-layer bundle:
+An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `build/motas/<distro>/`) is earned **only** by this three-layer bundle:
 
 ```text
 companion-v*          (latest official MeshCore release tag)
   + vk496/feature/ota-lora   (whole branch — OTA + vk's dev snapshot)
   + EnvyOS overlay           (FRESHEN.lock topic commits)
-  = fleet release            → bump VERSION, build motas, tag v0.1.x
+  = fleet release            → bump ENVYOS_VERSIONS, build motas, tag v<distro>
 ```
 
 **Not** official MeshCore alone — no OTA until upstream merges vk496.
@@ -28,7 +28,7 @@ Merging vk496 onto the companion tag does **not** produce a pure upstream releas
 
 When OTA merges upstream (or is rejected): drop the vk496 layer; policy becomes **companion tag + EnvyOS overlay**.
 
-Record the exact SHAs in `envyos/FRESHEN.lock` after each release freshen.
+Record the exact SHAs in `envycore/FRESHEN.lock` after each release freshen.
 
 ---
 
@@ -39,9 +39,9 @@ Record the exact SHAs in `envyos/FRESHEN.lock` after each release freshen.
 | `/freshen` | Release bundle (default) | **Yes** — after tests pass |
 | `/freshen dev` | Integration with `meshcore/dev` tip | **No** |
 
-Run **both** `envyos` and `vendor/otafix` unless scoped. All three OTA-stack forks (`envyos/`, `vendor/motatool/`, `vendor/otafix/`) integrate on **`envyos/main`** (see `envyos-meshcore` skill).
+Run **both** `envycore` and `bootloader` unless scoped. All three OTA-stack forks (`envycore/`, `motatool/`, `bootloader/`) integrate on **`envyos/main`** (see `envyos-meshcore` skill).
 
-`envyos/main` may contain extra dev work between releases — fine for development. **Only** a completed release freshen + VERSION bump + `./scripts/build-mota.sh` ships to fleet.
+`envyos/main` may contain extra dev work between releases — fine for development. **Only** a completed release freshen + `ENVYOS_VERSIONS` bump + `./scripts/build-mota.sh` ships to fleet.
 
 **Feature branches:** branch from `envyos/main`, never from `meshcore/dev`.
 
@@ -51,16 +51,16 @@ Run **both** `envyos` and `vendor/otafix` unless scoped. All three OTA-stack for
 
 | Submodule | Layer 1 | Layer 2 — vk496 | Layer 3 — overlay |
 |-----------|---------|-----------------|-------------------|
-| `envyos/` | `companion-v*` | `vk496/feature/ota-lora` | `envyos/FRESHEN.lock` |
-| `vendor/otafix/` | `0.9.2-OTAFIX*` (`oltaco`) | `vk496/feature/ota-delta-apply` | `vendor/otafix/FRESHEN.lock` |
+| `envycore/` | `companion-v*` | `vk496/feature/ota-lora` | `envycore/FRESHEN.lock` |
+| `bootloader/` | `0.9.2-OTAFIX*` (`oltaco`) | `vk496/feature/ota-delta-apply` | `bootloader/FRESHEN.lock` |
 
 Otafix follows the same pattern: oltaco tag + vk496 delta apply (+ overlay if any).
 
 ## Remotes
 
-**envyos/** — `meshcore`, `vk496`, `origin`
+**envycore/** — `meshcore`, `vk496`, `origin`
 
-**vendor/otafix/** — `oltaco`, `vk496`, `origin`
+**bootloader/** — `oltaco`, `vk496`, `origin`
 
 ```bash
 git fetch meshcore --tags && git fetch vk496 && git fetch origin --tags
@@ -70,12 +70,12 @@ Do **not** default to `vk496/ota` (MeshCore) or `vk496/mota` (otafix).
 
 ---
 
-## Part A — envyos (release — `/freshen`)
+## Part A — envycore (release — `/freshen`)
 
 ### Refresh overlay list
 
 ```bash
-cd envyos
+cd envycore
 git fetch meshcore --tags && git fetch vk496 && git fetch origin --tags
 BASE=$(git tag -l 'companion-v*' --sort=-v:refname | head -1)
 VK=vk496/feature/ota-lora
@@ -92,7 +92,7 @@ Curate into `FRESHEN.lock`. vk496-only work → layer 2, not overlay.
 ### Procedure
 
 ```bash
-cd envyos
+cd envycore
 git fetch meshcore --tags && git fetch vk496 && git fetch origin --tags
 BASE=$(git tag -l 'companion-v*' --sort=-v:refname | head -1)
 WORK=envyos/freshen/${BASE}
@@ -109,12 +109,13 @@ git merge --no-ff "$WORK" -m "freshen: release pin ${BASE}"
 git push origin envyos/main
 ```
 
-Update `envyos/FRESHEN.lock`, then **ota repo**:
+Update `envycore/FRESHEN.lock`, then **ota repo**:
 
-1. Bump **`VERSION`** (patch unless milestone)
-2. `./scripts/build-mota.sh`
-3. Git tag **`v0.1.x`** on ota repo
-4. Bump `envyos` / `vendor/otafix` submodule pointers if needed
+1. Bump **`ENVYOS_VERSIONS`** (all keys together unless intentional; patch `distro` unless milestone)
+2. Sync `envycore/envyos/VERSION` + `motatool/Cargo.toml` to match
+3. `./scripts/build.sh` (or `build-bl.sh` + `build-mota.sh` separately)
+4. Git tag **`v<distro>`** on ota repo
+5. Bump `envycore` / `bootloader` / `motatool` submodule pointers if needed
 
 ```yaml
 mode: release
@@ -128,9 +129,9 @@ last_freshen: YYYY-MM-DD
 
 ### Dev integration (`/freshen dev`)
 
-Same procedure but `BASE=meshcore/dev`, `WORK=envyos/freshen/dev-$(date +%Y%m%d)`, `mode: dev` in lock file. Preview upstream API drift and vk496 conflicts. **Do not bump VERSION or build fleet motas.**
+Same procedure but `BASE=meshcore/dev`, `WORK=envyos/freshen/dev-$(date +%Y%m%d)`, `mode: dev` in lock file. Preview upstream API drift and vk496 conflicts. **Do not bump ENVYOS_VERSIONS or build fleet motas.**
 
-### Conflict resolution (envyos)
+### Conflict resolution (envycore)
 
 | Path / area | Prefer |
 |-------------|--------|
@@ -144,10 +145,10 @@ Same procedure but `BASE=meshcore/dev`, `WORK=envyos/freshen/dev-$(date +%Y%m%d)
 
 ---
 
-## Part B — otafix (always with release `/freshen`)
+## Part B — bootloader (always with release `/freshen`)
 
 ```bash
-cd vendor/otafix
+cd bootloader
 git fetch oltaco --tags && git fetch vk496 && git fetch origin --tags
 TAG=$(git tag -l '0.9.2-OTAFIX*' --sort=-v:refname | head -1)
 WORK=envyos/freshen/${TAG}
@@ -166,10 +167,10 @@ Keep vk496 detools stack on in-place apply conflicts; `ota_layout.h` ↔ `OtaFla
 
 ---
 
-## Validation (required before VERSION bump)
+## Validation (required before ENVYOS_VERSIONS bump)
 
 ```bash
-cd envyos && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repeater
+cd envycore && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repeater
 ./scripts/build-bl.sh wismesh_tag
 ./scripts/build-mota.sh   # only after release freshen passes
 ```
@@ -181,23 +182,23 @@ cd envyos && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repeat
 ```markdown
 ## Freshen report
 
-### envyos (mode: release | dev)
+### envycore (mode: release | dev)
 - **Bundle:** companion-vX.Y.Z @ <sha> + vk496/feature/ota-lora @ <sha> + N overlay commits
 - **Earns EnvyOS version:** yes (release) / no (dev)
 - **Tests/build:** …
-- **VERSION bump:** v0.1.x (release only)
+- **ENVYOS_VERSIONS bump:** patch `distro` (release only)
 
-### otafix
+### bootloader
 - **Bundle:** oltaco tag @ <sha> + vk496/feature/ota-delta-apply @ <sha>
 - **build-bl.sh:** …
 ```
 
 ## Do not
 
-- Tag `v0.1.x` or ship `motas/` without the full release bundle (companion + vk496 + overlay)
+- Tag `v0.1.x` or ship `build/motas/` without the full release bundle (companion + vk496 + overlay)
 - Treat companion tag alone as fleet-ready (no OTA)
 - Deploy **`meshcore/dev`** or `/freshen dev` output to fleet
 - Assume `envyos/main` equals the last release bundle — check `FRESHEN.lock`
 - Branch EnvyOS features from `meshcore/dev`
-- Freshen envyos without otafix (unless scoped)
+- Freshen envycore without bootloader (unless scoped)
 - Commit freshen WIP without tests passing

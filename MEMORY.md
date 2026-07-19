@@ -1,20 +1,20 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. Firmware lives in `envyos/` (submodule); this repo (`ota`) holds build tooling, `.mota` artifacts, and the bench workflow.
+MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. Firmware lives in `envycore/` (submodule); this repo (`ota`) holds build tooling, `.mota` artifacts, and the bench workflow.
 
 ## Repo layout
 
 | Path | Role |
 |------|------|
-| `envyos/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); **`envyos/main`** is distro head |
-| `VERSION` | Canonical distro semver (e.g. `0.1.0`) — **not** upstream MeshCore tags |
-| `motas/` | Built firmware + `.mota` outputs (`motas/<version>/`) |
-| `vendor/motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
+| `envycore/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); **`envyos/main`** is distro head |
+| `ENVYOS_VERSIONS` | Component semver manifest — `distro`, `firmware`, `bootloader`, `motatool` (all `0.1.0` at reset) |
+| `build/` | Local build outputs (gitignored) — `build/motas/<distro>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` |
+| `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
-| `vendor/otafix/` | nRF52 OTAFIX bootloader (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
-| `scripts/` | Bench scripts — `build-mota.sh`, `build-bl.sh`, `run-mota.sh`, `targets.txt` |
+| `bootloader/` | nRF52 OTAFIX bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
+| `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `run-mota.sh`, `targets.txt` |
 
-## Git remotes (`envyos/`)
+## Git remotes (`envycore/`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -22,7 +22,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vk496` | `vk496/MeshCore` | OTA / vk496 stack |
 | `meshcore` | `meshcore-dev/MeshCore` | Upstream MeshCore |
 
-## Git remotes (`vendor/otafix/`)
+## Git remotes (`bootloader/`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -45,22 +45,26 @@ Each OTA-stack repo has **two branch roles**:
 
 | Submodule | vk496 remote | PR base branch |
 |-----------|--------------|----------------|
-| `envyos/` | `vk496/MeshCore` | `feature/ota-lora` |
-| `vendor/motatool/` | `vk496/motatool` | `main` |
-| `vendor/otafix/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` |
+| `envycore/` | `vk496/MeshCore` | `feature/ota-lora` |
+| `motatool/` | `vk496/motatool` | `main` |
+| `bootloader/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` |
 
 Workflow: branch feature from vk496 base → implement → open cross-fork PR (`MeshEnvy:feature/<name>`) → **also merge into `envyos/main`** and push. Monorepo (`ota`) pins submodule SHAs; bump at release freshen or when intentionally advancing pins.
 
-**Do not** clone `otafix/` at repo root — only `vendor/otafix` submodule.
+**Do not** clone a standalone otafix checkout — only the **`bootloader/`** submodule.
 
 ## Versioning
 
-- Canonical: **`VERSION`** at repo root (e.g. `0.1.0`) → git tags `v0.1.0`, `v0.1.1`, … → **`motas/<version>/`**
-- **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay (`envyos/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`.
+- **`ENVYOS_VERSIONS`** at repo root — bump together on `/freshen`:
+  - `distro` → git tags `v0.1.x`, **`build/motas/<distro>/`**
+  - `firmware` → `-DFIRMWARE_VERSION` (must match `envycore/envyos/VERSION`)
+  - `bootloader` → **`build/bootloader/<bootloader>/`** — passed to otafix as `GIT_VERSION` (artifact names + embedded BL version)
+  - `motatool` → must match `motatool/Cargo.toml`; binary staged to **`build/motatool/<motatool>/`**
+- **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay (`envycore/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`.
 - **Not** upstream `companion-v1.17.x` — record companion tag in `FRESHEN.lock` for traceability
-- Helpers: **`scripts/version.sh`** — `read_version_file`, `normalize_version`, `previous_patch_version`
-- `./scripts/build-mota.sh` reads `VERSION`; run only after release freshen passes validation
-- Override: `./scripts/build-mota.sh v0.1.1` (without editing `VERSION`)
+- Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`
+- `./scripts/build-mota.sh` reads `distro` + `firmware` from manifest; run only after release freshen passes validation
+- Override: `./scripts/build-mota.sh v0.1.1` (without editing `ENVYOS_VERSIONS`)
 - Stock MeshCore (no EndF/OTA): `./scripts/build-mota.sh --hex-only` → hex/uf2 only, no `.mota`
 - `-DFIRMWARE_VERSION` stamped via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
 
@@ -94,22 +98,27 @@ Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (con
 | Tag | Role | Bootloader |
 |-----|------|------------|
 | A (seeder) | OTA-capable build + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
-| B (router) | `wismesh-tag-repeater` — device under test | **vendor/otafix required** |
+| B (router) | `wismesh-tag-repeater` — device under test | **`bootloader/` OTAFIX required** |
 | C (client) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
 
-Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C remote admin.
+Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C remote admin.
 
 ## Build commands
 
 ```bash
-./scripts/build-bl.sh                    # OTAFIX UF2 → motas/bootloader/
-./scripts/build-mota.sh --list-targets     # show scripts/targets.txt
-./scripts/build-mota.sh                    # all targets → motas/<VERSION>/<slug>/
-./scripts/build-mota.sh v0.1.1             # override + in-place deltas from prior patch if present
+./scripts/build.sh                       # full build (bootloader + motas + motatool)
+./scripts/build.sh --bootloader-only
+./scripts/build.sh --mota-only --target rak4631-repeater-slim
+./scripts/build.sh --list-versions
+./scripts/build-bl.sh                    # lower-level: bootloader only
+./scripts/build-bl.sh --list-boards
+./scripts/build-mota.sh --list-targets
+./scripts/build-mota.sh                    # all targets → build/motas/<distro>/
+./scripts/build-mota.sh v0.1.1
 ./scripts/build-mota.sh --target wismesh-tag-repeater
-./scripts/build-mota.sh --hex-only         # stock MeshCore branch, no OTA
+./scripts/build-mota.sh --hex-only
 ./scripts/run-mota.sh /dev/cu.usbmodem1444301
-./scripts/run-mota.sh /dev/cu.… ./motas/v0.1.1   # serves all .mota under dir (recursive)
+./scripts/run-mota.sh /dev/cu.… ./build/motas/v0.1.1
 ```
 
 ## Conflict hotspots
@@ -118,14 +127,14 @@ When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio
 
 ## Freshen (`/freshen`)
 
-**Fleet policy:** `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay → bump **`VERSION`**, `./scripts/build-mota.sh`, tag **`v0.1.x`**. Merging vk496 includes vk's frozen dev snapshot (not pure upstream tag). When OTA lands upstream, drop vk496 layer.
+**Fleet policy:** `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay → bump **`ENVYOS_VERSIONS`**, `./scripts/build-mota.sh`, tag **`v<distro>`**.
 
 | Command | Purpose | EnvyOS version? |
 |---------|---------|-----------------|
 | `/freshen` | Release bundle + otafix | **Yes** |
 | `/freshen dev` | `meshcore/dev` integration | **No** |
 
-Manifest: `envyos/FRESHEN.lock`. Otafix: `0.9.2-OTAFIX*` + `vk496/feature/ota-delta-apply`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
+Manifest: `envycore/FRESHEN.lock`. Otafix: `0.9.2-OTAFIX*` + `vk496/feature/ota-delta-apply`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
 
 ## OTA greenfield
 

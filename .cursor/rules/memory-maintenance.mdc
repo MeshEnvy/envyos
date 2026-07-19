@@ -21,12 +21,12 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Area | Examples |
 |------|----------|
 | Distro git | `envyos/main`, remotes (`origin`/`vk496`/`meshcore`), feature-branch workflow |
-| Versioning | `VERSION` (repo root), `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
-| Firmware tree | `envyos/` layout, env names, variant boards, `ENABLE_OTA` flags |
+| Versioning | `ENVYOS_VERSIONS`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
+| Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
-| Build outputs | `motas/<version>/` layout, `scripts/build-mota.sh` / `scripts/build-bl.sh` behavior |
+| Build outputs | `build/`, `scripts/build.sh`, `scripts/build-mota.sh`, `scripts/build-bl.sh` |
 | motatool | CLI subcommands, `serve` flags, `.mota` pack/delta format |
-| Bootloader | `vendor/otafix` vs stock BL, which boards need OTAFIX |
+| Bootloader | `bootloader/` submodule vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
 | Agent skills | `.cursor/skills/envyos-{ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |

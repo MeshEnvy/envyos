@@ -17,7 +17,7 @@ The EnvyOS OTA stack is **pre-deployment greenfield**. Nothing is deployed in pr
 - Prefer clean breaks over compatibility shims
 - Remove or rename APIs, wire formats, and on-disk layouts when it simplifies the design
 - Invalidate old `.mota` bases and rebuild from source after breaking changes
-- Update `MEMORY.md`, `envyos/docs/ota_*.md`, and related skills in the same change set
+- Update `MEMORY.md`, `envycore/docs/ota_*.md`, and related skills in the same change set
 
 ## Don't
 
@@ -33,7 +33,7 @@ The EnvyOS OTA stack is **pre-deployment greenfield**. Nothing is deployed in pr
 | `.mota` container format | Upstream MeshCore merges (handle normally) |
 | LoRa OTA wire protocol | Stock `--hex-only` builds (no OTA) |
 | `motatool`, `vendor/detools` usage for OTA | Non-OTA firmware features |
-| Device OTA engine (`envyos/src/helpers/ota/`) | |
+| Device OTA engine (`envycore/src/helpers/ota/`) | |
 | OTAFIX bootloader apply path | |
 | OTA build scripts, EndF / delta identity | |
 

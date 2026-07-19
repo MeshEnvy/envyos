@@ -39,7 +39,7 @@ flowchart LR
 | Tag | Firmware env | Bootloader | Job |
 |---|---|---|---|
 | A (seeder) | OTA-branch MeshCore with `ENABLE_OTA` + `OTA_FOLDER_SERIAL` (repeater **or** companion USB) | stock BL OK | USB to laptop; `motatool serve` |
-| B (router) | `RAK_WisMesh_Tag_repeater` (OTA branch) | **vendor/otafix (RTAG) required** | Device under test — fetch + install |
+| B (router) | `RAK_WisMesh_Tag_repeater` (OTA branch) | **`bootloader/` OTAFIX (RTAG) required** | Device under test — fetch + install |
 | C (client) | companion (OTA branch nice-to-have) | stock BL OK | MeshCore app / remote admin to B |
 
 **Only Tag B needs OTAFIX** (to *apply* in-place deltas).  
@@ -88,9 +88,9 @@ The repeater exposes a text CLI over USB at **115200 8N1** (`Serial.begin(115200
 Notes:
 - Only one process can hold the port. Tag A is for `motatool serve`; keep Tag B’s port free for your monitor.
 - After `ota install`, B reboots — reconnect serial if the session drops.
-- Same console described in [ota_user_guide.md](envyos/docs/ota_user_guide.md) (“USB serial terminal”).
+- Same console described in [ota_user_guide.md](envycore/docs/ota_user_guide.md) (“USB serial terminal”).
 
-## Flash Tag B with vendor/otafix
+## Flash Tag B with bootloader OTAFIX
 
 ```bash
 ./scripts/build-bl.sh                 # Docker build; UF2 → motas/bootloader/
