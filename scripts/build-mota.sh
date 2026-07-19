@@ -2,23 +2,23 @@
 # Build firmware (+ optional .mota) for targets listed in scripts/targets.txt.
 #
 # Usage:
-#   ./scripts/build-mota.sh                    # version from ./VERSION
+#   ./scripts/build-mota.sh                    # distro version from ./ENVYOS_VERSIONS
 #   ./scripts/build-mota.sh v0.1.1             # override version for this build
 #   ./scripts/build-mota.sh --target wismesh-tag-repeater
 #   ./scripts/build-mota.sh v0.1.2 --base v0.1.0
 #   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
 #   ./scripts/build-mota.sh --list-targets
 #
-# Requires: PlatformIO (`pio`). Full .mota packaging also needs motatool on PATH or ./vendor/motatool/.
+# Requires: PlatformIO (`pio`). Full .mota packaging also needs motatool on PATH or ./motatool/.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MC="$ROOT/envyos"
-OUT_ROOT="$ROOT/motas"
-TARGETS_FILE="$ROOT/scripts/targets.txt"
+MC="$ROOT/envycore"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
+OUT_ROOT="$MOTAS_ROOT"
+TARGETS_FILE="$ROOT/scripts/targets.txt"
 
 TARGET_SLUGS=()
 TARGET_ENVS=()
@@ -29,7 +29,7 @@ usage() {
 usage: $0 [version] [--target <slug>]… [--base <version>] [--hex-only] [--targets-file <path>]
        $0 --list-targets [--targets-file <path>]
 
-  version         Optional override; default is ./VERSION (e.g. v0.1.0 or 0.1.0)
+  version         Optional override; default is ENVYOS_VERSIONS distro (e.g. v0.1.0)
   --target        Build one target slug (repeatable; default: all in targets file)
   --base          Optional hex base for in-place deltas (default: previous patch if present)
   --hex-only      Build hex/uf2 only — skip .mota packaging (stock MeshCore without EndF/OTA)
@@ -127,26 +127,34 @@ find_cargo() {
 }
 
 motatool_bin() {
+  local mt_ver
+  mt_ver="$(read_motatool_version)"
+  verify_motatool_version_sync "$mt_ver"
+
+  local rel
   if command -v motatool >/dev/null 2>&1; then
+    stage_motatool_binary "$(command -v motatool)"
     echo motatool
     return
   fi
-  local rel="$ROOT/vendor/motatool/target/release/motatool"
+  rel="$ROOT/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
+    stage_motatool_binary "$rel"
     echo "$rel"
     return
   fi
-  if [[ -d "$ROOT/vendor/motatool" ]]; then
+  if [[ -d "$ROOT/motatool" ]]; then
     local cargo_bin cargo_dir
     cargo_bin="$(find_cargo)"
     cargo_dir="$(dirname "$cargo_bin")"
     echo "building motatool (release) with $cargo_bin …" >&2
-    (cd "$ROOT/vendor/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
+    (cd "$ROOT/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
     [[ -x "$rel" ]] || { echo "error: motatool build did not produce $rel" >&2; exit 1; }
+    stage_motatool_binary "$rel"
     echo "$rel"
     return
   fi
-  echo "error: motatool not found (install or clone into $ROOT/vendor/motatool)" >&2
+  echo "error: motatool not found (install or clone into $ROOT/motatool)" >&2
   exit 1
 }
 
@@ -289,8 +297,11 @@ if [[ "$LIST_ONLY" -eq 1 ]]; then
 fi
 
 if [[ -z "$VER" ]]; then
-  VER="$(read_version_file)" || usage
+  VER="$(read_distro_version)" || usage
 fi
+
+FW_VER="$(read_firmware_version)" || usage
+verify_firmware_version_sync "$FW_VER"
 
 load_targets "$TARGETS_FILE"
 
@@ -327,7 +338,7 @@ else
 fi
 echo "targets: ${BUILD_SLUGS[*]}"
 
-export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${VER}\"'"
+export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER}\"'"
 
 i=0
 for i in "${!BUILD_SLUGS[@]}"; do

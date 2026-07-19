@@ -1,28 +1,30 @@
 #!/usr/bin/env bash
-# Serve ./motas to a MeshCore seeder over USB serial (motatool serve).
+# Serve build/motas to a MeshCore seeder over USB serial (motatool serve).
 #
 # Usage:
 #   ./scripts/run-mota.sh /dev/cu.usbmodem1444301
 #   ./scripts/run-mota.sh usbmodem1444301              # → /dev/cu.usbmodem1444301
-#   ./scripts/run-mota.sh /dev/cu.usbmodem1444301 ./motas/v0.1.1
+#   ./scripts/run-mota.sh /dev/cu.usbmodem1444301 ./build/motas/v0.1.1
 #
-# Requires: motatool on PATH or ./vendor/motatool/ built with cargo.
+# Requires: motatool on PATH or ./motatool/ built with cargo.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DIR="${2:-$ROOT/motas}"
+# shellcheck source=scripts/version.sh
+source "$ROOT/scripts/version.sh"
+DIR="${2:-$MOTAS_ROOT}"
 
 usage() {
   cat >&2 <<EOF
 usage: $0 <serial-device> [motas-dir]
 
   serial-device   USB serial port, e.g. /dev/cu.usbmodem1444301
-  motas-dir       folder of .mota files (default: ./motas)
+  motas-dir       folder of .mota files (default: ./build/motas)
 
 examples:
   $0 /dev/cu.usbmodem1444301
-  $0 usbmodem1444301 ./motas/v0.1.1
+  $0 usbmodem1444301 ./build/motas/v0.1.1
 EOF
   exit 2
 }
@@ -73,22 +75,22 @@ motatool_bin() {
     echo motatool
     return
   fi
-  local rel="$ROOT/vendor/motatool/target/release/motatool"
+  local rel="$ROOT/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
     echo "$rel"
     return
   fi
-  if [[ -d "$ROOT/vendor/motatool" ]]; then
+  if [[ -d "$ROOT/motatool" ]]; then
     local cargo_bin cargo_dir
     cargo_bin="$(find_cargo)"
     cargo_dir="$(dirname "$cargo_bin")"
     echo "building motatool (release) with $cargo_bin …" >&2
-    (cd "$ROOT/vendor/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
+    (cd "$ROOT/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
     [[ -x "$rel" ]] || { echo "error: motatool build did not produce $rel" >&2; exit 1; }
     echo "$rel"
     return
   fi
-  echo "error: motatool not found (install or clone into $ROOT/vendor/motatool)" >&2
+  echo "error: motatool not found (install or clone into $ROOT/motatool)" >&2
   exit 1
 }
 

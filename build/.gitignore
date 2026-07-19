@@ -1,0 +1,4 @@
+# Local build artifacts (scripts/build-mota.sh, scripts/build-bl.sh)
+
+*
+!.gitignore

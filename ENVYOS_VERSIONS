@@ -1,0 +1,6 @@
+# EnvyOS component versions (MAJOR.MINOR.PATCH). Bump together on /freshen.
+# Git release tag: v<distro>
+distro=0.1.0
+firmware=0.1.0
+bootloader=0.1.0
+motatool=0.1.0
