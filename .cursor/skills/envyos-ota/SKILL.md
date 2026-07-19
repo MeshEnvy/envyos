@@ -45,6 +45,9 @@ motatool reads identity from the hex/bin **EndF**; do not rely on filenames.
 
 EnvyOS WisMesh bench uses **`in-place`** deltas. Tag B needs **`vendor/otafix`** bootloader (`MOTABLDR` + codec bit 2).
 
+**nRF52 staging:** companion builds stage below ExtraFS (`MOTA_STAGE_CEILING=0xD4000`); repeaters use `0xED000`.
+motatool auto-derives each delta's `memory_size` from the target ceiling minus the staged `.mota` size.
+
 ## Device CLI (USB serial 115200)
 
 ```

@@ -54,6 +54,15 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 Add a line to `targets.txt` to ship another board/role.
 
+## nRF52 OTA flash layout (RAK4631)
+
+| Build | `MOTA_STAGE_CEILING` | Staging capacity |
+|-------|----------------------|------------------|
+| Companion (`*_companion_*`) | `0xD4000` (below ExtraFS) | ~696 KB − app |
+| Repeater / room-server | `0xED000` (reclaims ExtraFS) | ~808 KB − app |
+
+Bootloader scan ceiling: `0xED000` (InternalFS start). In-place `memory_size` is per-patch (motatool auto-computes from ceiling − staged `.mota` size).
+
 ## Mesh / next-hop retry
 
 Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (control `0xA0`, ~10 B). Upstream waits (`hop.retry.ms`, default 1500 ms) then retries (`hop.retry`, default 2). **Retry only for next hops that previously sent HOP_ACK** (runtime capability table; stock repeaters stay single-shot). CLI: `set hop.retry`, `set hop.retry.ms`. Branch: `feature/next-hop-retry` → upstream PR to `meshcore-dev/MeshCore`.

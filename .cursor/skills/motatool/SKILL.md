@@ -70,7 +70,7 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 EnvyOS bench (`build-mota.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
 
-Optional in-place tuning: `--inplace-memory`, `--segment-size` (defaults match nRF52 OTAFIX).
+Optional in-place tuning: `--inplace-memory` (override; default derives from target staging ceiling + patch size), `--segment-size`.
 
 ### Correctness model
 
