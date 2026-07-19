@@ -11,7 +11,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `motas/` | Built firmware + `.mota` outputs (`motas/<version>/`) |
 | `vendor/motatool/` | Rust CLI — pack/serve `.mota`, USB serial to companion |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
-| `vendor/otafix/` | nRF52 OTAFIX bootloader — in-place delta apply (`origin` MeshEnvy, `vk496` upstream) |
+| `vendor/otafix/` | nRF52 OTAFIX bootloader — in-place delta apply (`origin` MeshEnvy, `vk496`, `oltaco`) |
 | `scripts/` | Bench scripts — `build-mota.sh`, `build-bl.sh`, `run-mota.sh`, `targets.txt` |
 
 ## Git remotes (`envyos/`)
@@ -28,7 +28,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 |--------|------------|------|
 | `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | EnvyOS fork — head **`master`** |
 | `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | OTA delta apply — **`feature/ota-delta-apply`** |
-| `upstream` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` | Official OTAFIX releases (`0.9.2-OTAFIX*` tags) |
+| `oltaco` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` | Official OTAFIX releases (`0.9.2-OTAFIX*` tags) |
 
 **`envyos/main`** = merged union of shipped EnvyOS features. Feature branches merge here even while upstream PRs are open. See `.cursor/skills/envyos-meshcore/SKILL.md` for workflow detail.
 

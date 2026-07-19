@@ -14,7 +14,7 @@ Rebuild **`envyos/main`** and **`vendor/otafix`** (`origin/master`) from three l
 | Submodule | Layer 1 — upstream pin | Layer 2 — vk496 OTA | Layer 3 — EnvyOS overlay |
 |-----------|----------------------|---------------------|--------------------------|
 | `envyos/` | Latest `companion-v*` on `meshcore` | `vk496/feature/ota-lora` | `envyos/FRESHEN.lock` |
-| `vendor/otafix/` | Latest `0.9.2-OTAFIX*` tag on `upstream` | `vk496/feature/ota-delta-apply` | `vendor/otafix/FRESHEN.lock` |
+| `vendor/otafix/` | Latest `0.9.2-OTAFIX*` tag on `oltaco` | `vk496/feature/ota-delta-apply` | `vendor/otafix/FRESHEN.lock` |
 
 Manifests: `envyos/FRESHEN.lock`, `vendor/otafix/FRESHEN.lock`.
 
@@ -30,11 +30,11 @@ Also see `envyos-meshcore` for remotes, feature-branch workflow, and upstream PR
 | `vk496` | `vk496/MeshCore` |
 | `origin` | `MeshEnvy/meshcore-firmware` |
 
-**vendor/otafix/**
+**vendor/otafix/** — name remotes after repo owners (like `meshcore` / `vk496`), not generic `upstream`:
 
 | Remote | Repository |
 |--------|------------|
-| `upstream` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` |
+| `oltaco` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` |
 | `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` |
 | `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` |
 
@@ -111,7 +111,7 @@ Update `envyos/FRESHEN.lock` (tag, vk496 sha, overlay list, date).
 
 ### Tag policy
 
-1. `git fetch upstream vk496 origin --tags`
+1. `git fetch oltaco vk496 origin --tags`
 2. Newest **`0.9.2-OTAFIX*`** tag (e.g. `0.9.2-OTAFIX2.3-BP1.3`) → `vendor/otafix/FRESHEN.lock` → `upstream_tag`.
 
 **Note:** the 2.3 tag and `vk496/feature/ota-delta-apply` both add in-place apply via **different implementations**. EnvyOS firmware (`OtaFlashLayout_nrf52.h`) must stay byte-identical with `vendor/otafix/src/ota_layout.h` — on conflict in OTA apply paths, **keep the vk496/EnvyOS detools stack**, port board/BLE fixes from the tag.
@@ -120,7 +120,7 @@ Update `envyos/FRESHEN.lock` (tag, vk496 sha, overlay list, date).
 
 ```bash
 cd vendor/otafix
-git fetch upstream vk496 origin --tags
+git fetch oltaco vk496 origin --tags
 TAG=$(git tag -l '0.9.2-OTAFIX*' --sort=-v:refname | head -1)
 VK=vk496/feature/ota-delta-apply
 
@@ -137,7 +137,7 @@ Head branch is **`master`** on `origin` (not detached submodule SHA long-term).
 
 ```bash
 cd vendor/otafix
-git fetch upstream vk496 origin --tags
+git fetch oltaco vk496 origin --tags
 TAG=$(git tag -l '0.9.2-OTAFIX*' --sort=-v:refname | head -1)
 WORK=envyos/freshen/${TAG}
 VK=vk496/feature/ota-delta-apply
@@ -161,7 +161,7 @@ Update `vendor/otafix/FRESHEN.lock`. Bump **`vendor/otafix`** submodule pointer 
 |-------------|--------|
 | `src/ota_*.c/h`, `src/ota_layout.h`, `lib/detools/**` | vk496 / EnvyOS overlay (layer 2+3) |
 | `test/readback_test.c`, apply-sim harness | vk496 / overlay |
-| Board defs (`src/boards/**`), BLE TX, softdevice | Upstream tag |
+| Board defs (`src/boards/**`), BLE TX, softdevice | oltaco tag |
 | Official 2.3 in-place apply vs vk496 detools stack | **vk496 stack** — re-port tag fixes around it |
 
 After merge, verify layout sync:
@@ -218,7 +218,7 @@ git add envyos vendor/otafix
 - **Tests/build:** …
 
 ### otafix
-- **Upstream tag:** 0.9.2-OTAFIX2.x-BPx.x
+- **oltaco tag:** 0.9.2-OTAFIX2.x-BPx.x
 - **vk496:** feature/ota-delta-apply @ <sha>
 - **Overlay replayed:** …
 - **Layout sync:** ok / drift — …
