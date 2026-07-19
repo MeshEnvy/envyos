@@ -39,7 +39,7 @@ Record the exact SHAs in `envyos/FRESHEN.lock` after each release freshen.
 | `/freshen` | Release bundle (default) | **Yes** — after tests pass |
 | `/freshen dev` | Integration with `meshcore/dev` tip | **No** |
 
-Run **both** `envyos` and `vendor/otafix` unless scoped.
+Run **both** `envyos` and `vendor/otafix` unless scoped. All three OTA-stack forks (`envyos/`, `vendor/motatool/`, `vendor/otafix/`) integrate on **`envyos/main`** (see `envyos-meshcore` skill).
 
 `envyos/main` may contain extra dev work between releases — fine for development. **Only** a completed release freshen + VERSION bump + `./scripts/build-mota.sh` ships to fleet.
 
@@ -157,9 +157,9 @@ git checkout -B "$WORK" "$TAG"
 git merge --no-ff "$VK" -m "freshen: merge vk496 OTA delta apply onto $TAG"
 # resolve; cherry-pick overlay
 
-git checkout master
+git checkout envyos/main
 git merge --ff-only "$WORK"
-git push origin master
+git push origin envyos/main
 ```
 
 Keep vk496 detools stack on in-place apply conflicts; `ota_layout.h` ↔ `OtaFlashLayout_nrf52.h`.
