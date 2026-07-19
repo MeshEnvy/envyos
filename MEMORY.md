@@ -34,10 +34,11 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 ## Versioning
 
-- Canonical: **`VERSION`** at repo root (e.g. `0.1.0`) → tags `v0.1.0`, `v0.1.1`, …
+- Canonical: **`VERSION`** at repo root (e.g. `0.1.0`) → git tags `v0.1.0`, `v0.1.1`, … → **`motas/<version>/`**
+- **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay (`envyos/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`.
+- **Not** upstream `companion-v1.17.x` — record companion tag in `FRESHEN.lock` for traceability
 - Helpers: **`scripts/version.sh`** — `read_version_file`, `normalize_version`, `previous_patch_version`
-- **Not** upstream `companion-v1.17.x` scheme
-- `./scripts/build-mota.sh` → reads `VERSION`, builds all `scripts/targets.txt` → `motas/v0.1.0/<slug>/`
+- `./scripts/build-mota.sh` reads `VERSION`; run only after release freshen passes validation
 - Override: `./scripts/build-mota.sh v0.1.1` (without editing `VERSION`)
 - Stock MeshCore (no EndF/OTA): `./scripts/build-mota.sh --hex-only` → hex/uf2 only, no `.mota`
 - `-DFIRMWARE_VERSION` stamped via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
@@ -86,20 +87,20 @@ When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio
 
 ## Freshen (`/freshen`)
 
-Rebuild **both** submodules in three layers each:
+**Fleet policy:** `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay → bump **`VERSION`**, `./scripts/build-mota.sh`, tag **`v0.1.x`**. Merging vk496 includes vk's frozen dev snapshot (not pure upstream tag). When OTA lands upstream, drop vk496 layer.
 
-| Submodule | Tag pin | vk496 branch | Manifest |
-|-----------|---------|--------------|----------|
-| `envyos/` → `envyos/main` | `companion-v*` | `feature/ota-lora` | `envyos/FRESHEN.lock` |
-| `vendor/otafix/` → `master` | `0.9.2-OTAFIX*` | `feature/ota-delta-apply` | `vendor/otafix/FRESHEN.lock` |
+| Command | Purpose | EnvyOS version? |
+|---------|---------|-----------------|
+| `/freshen` | Release bundle + otafix | **Yes** |
+| `/freshen dev` | `meshcore/dev` integration | **No** |
 
-OTAFIX 2.3 tag and vk496 delta-apply diverge on in-place apply — keep vk496 detools stack; `ota_layout.h` must match `OtaFlashLayout_nrf52.h`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
+Manifest: `envyos/FRESHEN.lock`. Otafix: `0.9.2-OTAFIX*` + `vk496/feature/ota-delta-apply`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
 
 ## Agent skills
 
 | Skill | When to load |
 |-------|----------------|
-| `envyos-freshen` | `/freshen` — sync envyos to latest MeshCore tag + vk496 OTA |
+| `envyos-freshen` | `/freshen` — release bundle earns VERSION; `/freshen dev` integration only |
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
