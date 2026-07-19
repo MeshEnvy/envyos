@@ -26,8 +26,9 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 | Remote | Repository | Role |
 |--------|------------|------|
-| `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | EnvyOS fork |
-| `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | vk496 OTAFIX stack |
+| `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | EnvyOS fork — head **`master`** |
+| `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | OTA delta apply — **`feature/ota-delta-apply`** |
+| `upstream` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` | Official OTAFIX releases (`0.9.2-OTAFIX*` tags) |
 
 **`envyos/main`** = merged union of shipped EnvyOS features. Feature branches merge here even while upstream PRs are open. See `.cursor/skills/envyos-meshcore/SKILL.md` for workflow detail.
 
@@ -83,10 +84,22 @@ Flow: `motatool serve --dir ./motas/<ver> --serial …` → Tag A advertises `.m
 
 When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio.ini`, OTA test mocks.
 
+## Freshen (`/freshen`)
+
+Rebuild **both** submodules in three layers each:
+
+| Submodule | Tag pin | vk496 branch | Manifest |
+|-----------|---------|--------------|----------|
+| `envyos/` → `envyos/main` | `companion-v*` | `feature/ota-lora` | `envyos/FRESHEN.lock` |
+| `vendor/otafix/` → `master` | `0.9.2-OTAFIX*` | `feature/ota-delta-apply` | `vendor/otafix/FRESHEN.lock` |
+
+OTAFIX 2.3 tag and vk496 delta-apply diverge on in-place apply — keep vk496 detools stack; `ota_layout.h` must match `OtaFlashLayout_nrf52.h`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
+
 ## Agent skills
 
 | Skill | When to load |
 |-------|----------------|
+| `envyos-freshen` | `/freshen` — sync envyos to latest MeshCore tag + vk496 OTA |
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
