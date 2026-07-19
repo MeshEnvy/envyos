@@ -70,6 +70,7 @@ Workflow: branch feature from vk496 base → implement → open cross-fork PR (`
 |------|----------------|------|
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
+| `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller → ~416 KB staging headroom (fits a full slim `.mota`) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
 
@@ -145,3 +146,4 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 
 <!-- In-flight work only; delete when done -->
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, motatool #1, OTAFIX #2
+- vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
