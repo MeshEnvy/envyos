@@ -29,7 +29,7 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Bootloader | `vendor/otafix` vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
-| Agent skills | `.cursor/skills/envyos-{ota,scripts,meshcore}`, `motatool` |
+| Agent skills | `.cursor/skills/envyos-{ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |
 | Greenfield breaks | Removed APIs, renamed paths, invalidated `.mota` or hex bases |
 
 ## Style

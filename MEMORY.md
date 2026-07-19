@@ -96,6 +96,10 @@ When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio
 
 Manifest: `envyos/FRESHEN.lock`. Otafix: `0.9.2-OTAFIX*` + `vk496/feature/ota-delta-apply`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
 
+## OTA greenfield
+
+Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota`/protocol/EndF changes are OK; rebuild artifacts and update docs instead of compat shims. Skill: `.cursor/skills/ota-greenfield/SKILL.md`.
+
 ## Agent skills
 
 | Skill | When to load |
@@ -103,6 +107,7 @@ Manifest: `envyos/FRESHEN.lock`. Otafix: `0.9.2-OTAFIX*` + `vk496/feature/ota-de
 | `envyos-freshen` | `/freshen` — release bundle earns VERSION; `/freshen dev` integration only |
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
+| `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
 | `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 

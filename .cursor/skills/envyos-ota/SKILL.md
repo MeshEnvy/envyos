@@ -104,6 +104,7 @@ Running app **never** patches itself. `ota install`:
 
 ## Related skills
 
+- **Greenfield policy** (no legacy/migrations) → `ota-greenfield`
 - `./scripts/*` workflow → `envyos-scripts`
 - `.mota` build/serve/verify → `motatool`
 - Git/PR workflow → `envyos-meshcore`
