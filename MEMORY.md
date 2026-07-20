@@ -91,7 +91,7 @@ Bootloader scan ceiling: `0xED000` (InternalFS start). In-place `memory_size` is
 
 ## Mesh / next-hop retry
 
-Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (control `0xA0`, ~10 B). Upstream waits (`hop.retry.ms`, default 1500 ms) then retries (`hop.retry`, default 2). **Retry only for next hops that previously sent HOP_ACK** (runtime capability table; stock repeaters stay single-shot). CLI: `set hop.retry`, `set hop.retry.ms`. Branch: `feature/next-hop-retry` → upstream PR to `meshcore-dev/MeshCore`.
+Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (control `0xA0`, ~10 B). Upstream waits (`hop.retry.ms`, default 1500 ms) then retries (`hop.retry`, default 2). **Retry only for next hops that previously sent HOP_ACK** (runtime capability table; stock repeaters stay single-shot). CLI: `set hop.retry`, `set hop.retry.ms`. Bench test: `set hop.ignore <count>` on a downstream repeater silently drops the next N forward opportunities (no HOP_ACK, not persisted). Branch: `feature/next-hop-retry` → upstream PR [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980).
 
 Repeater USB debug: `log start` → `log tail on` mirrors packet log lines to serial (CRLF); `log tail off` or Ctrl+C stops. Branch: `feature/log-tail-serial` (pending upstream PR).
 
