@@ -136,7 +136,7 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 | Tag | Role | Bootloader |
 |-----|------|------------|
 | A (seeder) | `wismesh-tag-repeater` — OTA-capable + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
-| B (DUT) | `wismesh-tag-repeater` — device under test | **`bootloader/` OTAFIX required** |
+| B (DUT) | `wismesh-tag-repeater` — device under test | **`bootloader/` OTAFIX required** (WisMesh Tag BL beeps 3× on DFU entry) |
 | C (companion) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
 | D (companion) | `wismesh-tag-client-ble` — second companion on deck | stock OK |
 
