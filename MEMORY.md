@@ -97,11 +97,12 @@ Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (con
 
 | Tag | Role | Bootloader |
 |-----|------|------------|
-| A (seeder) | OTA-capable build + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
-| B (router) | `wismesh-tag-repeater` — device under test | **`bootloader/` OTAFIX required** |
-| C (client) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
+| A (seeder) | `wismesh-tag-repeater` — OTA-capable + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
+| B (DUT) | `wismesh-tag-repeater` — device under test | **`bootloader/` OTAFIX required** |
+| C (companion) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
+| D (companion) | `wismesh-tag-client-ble` — second companion on deck | stock OK |
 
-Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C remote admin.
+Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
 
 ## Build commands
 
