@@ -6,7 +6,7 @@
 #   ./scripts/run-mota.sh usbmodem1444301              # → /dev/cu.usbmodem1444301
 #   ./scripts/run-mota.sh /dev/cu.usbmodem1444301 ./build/motas/v0.1.1
 #
-# Requires: motatool on PATH or ./motatool/ built with cargo.
+# Requires: ./motatool/ built with cargo (auto-built if missing).
 
 set -euo pipefail
 
@@ -71,10 +71,6 @@ find_cargo() {
 }
 
 motatool_bin() {
-  if command -v motatool >/dev/null 2>&1; then
-    echo motatool
-    return
-  fi
   local rel="$ROOT/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
     echo "$rel"
@@ -90,7 +86,7 @@ motatool_bin() {
     echo "$rel"
     return
   fi
-  echo "error: motatool not found (install or clone into $ROOT/motatool)" >&2
+  echo "error: motatool not found (init submodule: git submodule update --init motatool)" >&2
   exit 1
 }
 

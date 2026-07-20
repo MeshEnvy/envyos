@@ -16,7 +16,7 @@ All scripts live in **`scripts/`**; they resolve repo root as `$(dirname "$0")/.
 |------|---------|
 | PlatformIO (`pio`) | `build-mota.sh` |
 | Docker | `build-bl.sh` |
-| `motatool` on PATH or `motatool/target/release/motatool` | `build-mota.sh`, `run-mota.sh` |
+| `motatool/target/release/motatool` (from `motatool/` submodule; auto-built) | `build-mota.sh`, `run-mota.sh` |
 | `envycore/` submodule on `envyos/main` | firmware source |
 | `bootloader/` submodule | bootloader build |
 
@@ -162,7 +162,7 @@ ota ls → ota get N flash → ota install → ota status  # expect v0.1.1
 | Delta rejected at apply | `base_hash` vs `ota self` on device; hex base must be exact prior build |
 | No entries in `ota ls` | Tag A has OTA build + `ota folder on`; serve dir contains valid `.mota`; mesh path |
 | `bootloader: apply` missing | Tag B not on OTAFIX |
-| motatool not found | `cargo build --release` in `motatool` or install to PATH |
+| motatool not found | `git submodule update --init motatool`; scripts auto-run `cargo build --release` |
 | Wrong `[yours]` tag | `target_id` / env name mismatch |
 
 ## Related skills

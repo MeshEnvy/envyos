@@ -9,7 +9,7 @@
 #   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
 #   ./scripts/build-mota.sh --list-targets
 #
-# Requires: PlatformIO (`pio`). Full .mota packaging also needs motatool on PATH or ./motatool/.
+# Requires: PlatformIO (`pio`). Full .mota packaging also needs ./motatool/ (built via cargo if needed).
 
 set -euo pipefail
 
@@ -131,13 +131,7 @@ motatool_bin() {
   mt_ver="$(read_motatool_version)"
   verify_motatool_version_sync "$mt_ver"
 
-  local rel
-  if command -v motatool >/dev/null 2>&1; then
-    stage_motatool_binary "$(command -v motatool)"
-    echo motatool
-    return
-  fi
-  rel="$ROOT/motatool/target/release/motatool"
+  local rel="$ROOT/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
     stage_motatool_binary "$rel"
     echo "$rel"
@@ -154,7 +148,7 @@ motatool_bin() {
     echo "$rel"
     return
   fi
-  echo "error: motatool not found (install or clone into $ROOT/motatool)" >&2
+  echo "error: motatool not found (init submodule: git submodule update --init motatool)" >&2
   exit 1
 }
 

@@ -11,7 +11,7 @@ description: >-
 Rust CLI at **`motatool/`** (submodule: `vk496/motatool`). Byte-compatible with MeshCore's on-wire `.mota` format.
 
 Build: `cargo build --release` → `motatool/target/release/motatool`  
-Bench scripts auto-build or use `motatool` on PATH.
+Bench scripts auto-build from the `motatool/` submodule (never a system PATH install).
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
 detools is **test-oracle only** (`make dev-setup` in motatool repo for delta unit tests).

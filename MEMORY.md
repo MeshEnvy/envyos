@@ -59,7 +59,7 @@ Workflow: branch feature from vk496 base → implement → open cross-fork PR (`
   - `distro` → git tags `v0.1.x`, **`build/motas/<distro>/`**
   - `firmware` → `-DFIRMWARE_VERSION` (must match `envycore/envyos/VERSION`)
   - `bootloader` → **`build/bootloader/<bootloader>/`** — passed to otafix as `GIT_VERSION` (artifact names + embedded BL version)
-  - `motatool` → must match `motatool/Cargo.toml`; binary staged to **`build/motatool/<motatool>/`**
+  - `motatool` → must match `motatool/Cargo.toml`; bench scripts use **`motatool/` submodule only** (never PATH); staged to **`build/motatool/<motatool>/`**
 - **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay (`envycore/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`.
 - **Not** upstream `companion-v1.17.x` — record companion tag in `FRESHEN.lock` for traceability
 - Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`
