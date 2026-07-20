@@ -44,7 +44,7 @@ motatool serve --dir ./motas --serial /dev/cu.usbmodem1444301 -v
 motatool serve --dir ./motas --tcp 192.168.1.50:5001 -v
 ```
 
-Or via bench wrapper: **`./scripts/run-mota.sh <serial> [dir]`**
+Or via bench wrapper: **`./scripts/seeder.sh <serial> [dir]`**
 
 ## `build` — full `.mota`
 
@@ -103,7 +103,7 @@ motatool build --fw "$OUT/firmware.hex" --out-dir "$OUT"
 motatool build --base "$BASE_HEX" --fw "$OUT/firmware.hex" --patch-type in-place --out "$DELTA_OUT"
 ```
 
-Serve step is separate: `run-mota.sh` → `motatool serve --dir … --serial … -v`
+Serve step is separate: `seeder.sh` → `motatool serve --dir … --serial … -v`
 
 ## Target IDs
 

@@ -12,7 +12,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
 | `bootloader/` | nRF52 OTAFIX bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
-| `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `run-mota.sh`, `targets.txt` |
+| `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `seeder.sh`, `targets.txt` |
 
 ## Git remotes (`envycore/`)
 
@@ -117,8 +117,8 @@ Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertis
 ./scripts/build-mota.sh v0.1.1
 ./scripts/build-mota.sh --target wismesh-tag-repeater
 ./scripts/build-mota.sh --hex-only
-./scripts/run-mota.sh /dev/cu.usbmodem1444301
-./scripts/run-mota.sh /dev/cu.… ./build/motas/v0.1.1
+./scripts/seeder.sh /dev/cu.usbmodem1444301
+./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.1
 ```
 
 ## Conflict hotspots
@@ -148,7 +148,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
-| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `run-mota.sh` |
+| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 
 ## Active threads

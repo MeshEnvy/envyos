@@ -1,7 +1,7 @@
 ---
 name: envyos-scripts
 description: >-
-  Ota repo bench scripts: build.sh, build-mota.sh, build-bl.sh, run-mota.sh, build/ layout,
+  Ota repo bench scripts: build.sh, build-mota.sh, build-bl.sh, seeder.sh, build/ layout,
   EnvyOS versioning via envycore/envyos/version.sh. Use when building firmware,
   packaging .mota, flashing OTAFIX, or running the 3-tag bench.
 ---
@@ -16,7 +16,8 @@ All scripts live in **`scripts/`**; they resolve repo root as `$(dirname "$0")/.
 |------|---------|
 | PlatformIO (`pio`) | `build-mota.sh` |
 | Docker | `build-bl.sh` |
-| `motatool/target/release/motatool` (from `motatool/` submodule; auto-built) | `build-mota.sh`, `run-mota.sh` |
+| `motatool/target/release/motatool` (from `motatool/` submodule; auto-built) | `build-mota.sh` |
+| `build/motatool/<motatool>/motatool` (staged by build) | `seeder.sh` |
 | `envycore/` submodule on `envyos/main` | firmware source |
 | `bootloader/` submodule | bootloader build |
 
@@ -122,14 +123,14 @@ Env prefix → otafix `BOARD=` mapping lives in **`scripts/targets-lib.sh`** (`R
 
 If coming from companion/Ripple firmware, **erase ExtraFS** before flashing bench repeater.
 
-## `scripts/run-mota.sh`
+## `scripts/seeder.sh`
 
-Wraps **`motatool serve`** for Tag A seeder.
+Wraps **`motatool serve`** for Tag A seeder. Uses staged **`build/motatool/<motatool>/motatool`** (run a build first).
 
 ```bash
-./scripts/run-mota.sh /dev/cu.usbmodem1444301
-./scripts/run-mota.sh usbmodem1444301           # → /dev/cu.usbmodem1444301
-./scripts/run-mota.sh /dev/cu.… ./build/motas/v0.1.1  # serve one version dir
+./scripts/seeder.sh /dev/cu.usbmodem1444301
+./scripts/seeder.sh usbmodem1444301           # → /dev/cu.usbmodem1444301
+./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.1  # serve one version dir
 ```
 
 Default dir: `./build/motas` (recursive `.mota` scan). Sends `ota folder on` on serial start; Ctrl-C sends off.
@@ -149,7 +150,7 @@ Default dir: `./build/motas` (recursive `.mota` scan). Sends `ota folder on` on 
 ./scripts/build-mota.sh v0.1.1
 # produces delta_from_v0.1.0.mota
 
-./scripts/run-mota.sh /dev/cu.… ./build/motas/v0.1.1   # Tag A USB
+./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.1   # Tag A USB
 
 # Tag B serial:
 ota ls → ota get N flash → ota install → ota status  # expect v0.1.1

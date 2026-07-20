@@ -83,7 +83,7 @@ Running app **never** patches itself. `ota install`:
 
 | Tag | Build | Bootloader | Job |
 |-----|-------|------------|-----|
-| A | OTA + `OTA_FOLDER_SERIAL` | stock OK | `./scripts/run-mota.sh` USB seeder |
+| A | OTA + `OTA_FOLDER_SERIAL` | stock OK | `./scripts/seeder.sh` USB seeder |
 | B | `RAK_WisMesh_Tag_repeater` | **OTAFIX required** | DUT — `ota get` / `ota install` |
 | C | companion (optional) | stock OK | remote `ota status` over mesh |
 
