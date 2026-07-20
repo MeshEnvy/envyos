@@ -1,0 +1,24 @@
+---
+description: Keep open upstream PRs in sync with their MeshEnvy feature branches and envyos/main
+alwaysApply: true
+---
+
+# Upstream PR sync
+
+Read [MEMORY.md](MEMORY.md) § **Open upstream PRs** for the current PR list.
+
+## Three layers
+
+| Layer | Branch | Role |
+|-------|--------|------|
+| Distro | `envyos/main` | All features merged; **bench builds** |
+| PR head | `feature/<name>` on MeshEnvy `origin` | Single feature; feeds cross-fork upstream PR |
+| Upstream | `dev`, `feature/ota-lora`, etc. | PR **base** on meshcore-dev / vk496 |
+
+## While a PR is open
+
+- Commits **for that feature** → land on **`envyos/main`** and **`feature/<name>`**; push both.
+- Commits **for a different feature** → separate branch + separate PR; never cross-contaminate.
+- After upstream merge → stop pushing to `feature/<name>`; integrate base into `envyos/main`.
+
+Full workflow: [`.cursor/skills/envyos-meshcore/SKILL.md`](../skills/envyos-meshcore/SKILL.md).

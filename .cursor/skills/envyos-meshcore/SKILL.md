@@ -37,22 +37,70 @@ Verify: `git remote -v`
 
 | Branch | Purpose |
 |--------|---------|
-| `envyos/main` | **Distro integration head** on every MeshEnvy fork — merge every shipped feature here |
-| `feature/<name>` | Isolated work; often branched from vk496 PR base, then merged to `envyos/main` |
-| `fix/<name>` | Small targeted fixes for upstream PR |
+| **`envyos/main`** | **Distro integration head** — union of all EnvyOS features merged together. Default branch on MeshEnvy forks. **Bench builds** (`./scripts/build.sh`) and day-to-day dev use this. |
+| **`feature/<name>`** | **One upstream PR** — single-purpose; branched from that PR's base (see table below). Push to `origin` for the cross-fork PR only. |
+| **`fix/<name>`** | Small targeted fix for one upstream PR |
 
-Never treat a feature branch as the distro head. After feature work (and opening a vk496 PR if applicable), **always merge into `envyos/main`** on the MeshEnvy fork.
+### Two tracks (always)
 
-### Dual-track: distro vs vk496 PR
+Every feature has **two separate tracks**:
+
+| Track | Branch | Contains |
+|-------|--------|----------|
+| **Distro** | `envyos/main` | Hop retry + log tail + OTA overlay + everything shipped on the bench |
+| **Upstream PR** | `feature/<name>` | **Only** commits that belong in that one PR — no other EnvyOS features |
+
+```text
+meshcore/dev ──► feature/next-hop-retry ──► PR #2980 → meshcore-dev/MeshCore
+                      │                         (hop retry only — pure base)
+                      │
+feature/log-tail ──► (separate PR, when opened)
+                      │
+                      └── both merge ──► envyos/main (all features together)
+```
+
+**Rules for `feature/<name>` PR branches:**
+
+- Branch from the **PR base** (e.g. `meshcore/dev` for core mesh, `vk496/feature/ota-lora` for OTA).
+- Keep the branch **pure**: only commits intended for that upstream PR.
+- **Do not** cherry-pick or merge **other** features onto a PR branch (log tail onto `feature/next-hop-retry`, etc.).
+- After opening the PR, **merge the feature into `envyos/main`**. While the PR stays open, **keep the PR branch in sync** with feature-specific fixes (see [Open PR sync](#open-pr-sync-policy) below).
+
+Never treat a feature branch as the distro head. Never flash/build bench firmware from a PR branch unless explicitly testing that PR in isolation.
+
+### Open PR sync policy
+
+While an upstream PR is **open**, every commit that belongs to that feature must land on **both** tracks:
+
+1. **`envyos/main`** — distro integration (bench builds).
+2. **`feature/<name>`** on MeshEnvy `origin` — the PR head the upstream repo watches.
+
+```bash
+# After committing on envyos/main (or on the feature branch):
+cd envycore
+git checkout feature/<name>
+git cherry-pick <sha>    # or merge/rebase from envyos/main if safe
+git push origin feature/<name>
+```
+
+| Situation | Where it goes |
+|-----------|----------------|
+| Bugfix / improvement for feature X | `envyos/main` **and** `feature/<x>` (push both) |
+| New unrelated EnvyOS feature Y | `envyos/main` only; separate `feature/<y>` when PR opened |
+| Cross-feature mistake | **Never** — do not put feature Y on `feature/<x>` |
+
+When the upstream PR **merges**, stop pushing to the feature branch; rebase/pull the new base into `envyos/main` and delete or archive the feature branch.
+
+### Dual-track: distro vs vk496 / meshcore PR
 
 A feature often exists on **two tracks**:
 
-1. **`feature/<name>`** — branched from the vk496 PR base; opened as cross-fork PR to vk496 (`MeshEnvy:feature/<name>`).
-2. **`envyos/main`** — MeshEnvy integration; merge the feature here **even while the vk496 PR is open**.
+1. **`feature/<name>`** — branched from the vk496 or meshcore PR base; opened as cross-fork PR (`MeshEnvy:feature/<name>`). **Single-purpose.**
+2. **`envyos/main`** — MeshEnvy integration; merge every shipped feature here **even while upstream PRs are open**.
 
-These diverge by design: `envyos/main` accumulates EnvyOS overlay (FRESHEN, next-hop, etc.); the vk496 PR stays rebasable on vk's base. When a vk496 PR merges, pull/rebase that base into `envyos/main` if needed.
+These diverge by design: `envyos/main` accumulates the full EnvyOS stack; each PR branch stays rebasable on its upstream base. When an upstream PR merges, pull/rebase that base into `envyos/main` if needed.
 
-The **`ota` monorepo** pins submodule commits (not branch names). Bump pointers at release freshen or when intentionally advancing; submodule checkouts can be on `envyos/main` locally.
+The **`ota` monorepo** pins submodule commits (not branch names). Bump pointers at release freshen or when intentionally advancing; local `envycore/` checkout should be **`envyos/main`** for bench builds.
 
 ## Feature workflow
 
@@ -77,14 +125,15 @@ meshcore/dev ──► feature/foo ──► PR → meshcore-dev/MeshCore
 
 ### PR targets (examples)
 
-| Feature | Push to | PR base | PR repo |
-|---------|---------|---------|---------|
-| Next-hop retry | `origin/feature/next-hop-retry` | `dev` | `meshcore-dev/MeshCore` |
-| OTA ls pagination | `origin/fix/ota-ls-start-at-n` | `feature/ota-lora` | `vk496/MeshCore` |
-| OTA staging ceiling | `origin/feature/ota-stage-ceiling` | `feature/ota-lora` | `vk496/MeshCore` |
-| motatool delta layout | `meshenvy/feature/ota-stage-ceiling` | `main` | `vk496/motatool` |
-| otafix scan ceiling | `origin/feature/ota-stage-ceiling` | `feature/ota-delta-apply` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` |
-| EnvyOS-only glue | `origin/...` | n/a | no upstream PR needed |
+| Feature | PR branch (`origin`) | PR base | PR repo | On `envyos/main`? |
+|---------|----------------------|---------|---------|-------------------|
+| Next-hop retry | `feature/next-hop-retry` | `dev` | `meshcore-dev/MeshCore` [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | yes (hop retry only on PR branch) |
+| Log tail serial | `feature/log-tail-serial` | `dev` | `meshcore-dev/MeshCore` [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | yes |
+| OTA ls pagination | `fix/ota-ls-start-at-n` | `feature/ota-lora` | `vk496/MeshCore` | yes |
+| OTA staging ceiling | `feature/ota-stage-ceiling` | `feature/ota-lora` | `vk496/MeshCore` | yes |
+| motatool delta layout | `meshenvy/feature/ota-stage-ceiling` | `main` | `vk496/motatool` | yes |
+| otafix scan ceiling | `feature/ota-stage-ceiling` | `feature/ota-delta-apply` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | yes |
+| EnvyOS-only glue | n/a | n/a | no upstream PR | `envyos/main` only |
 
 Cross-fork PR when you lack write access to the target:
 
@@ -129,16 +178,22 @@ Bump `ENVYOS_VERSIONS` at repo root for distro milestones. Use patch tags (`v0.1
 
 When shipping EnvyOS work:
 
-- [ ] Feature branch based on correct **vk496 PR base** (table above)
+- [ ] Feature branch based on correct **PR base** (meshcore/dev, vk496 base, etc.)
+- [ ] PR branch contains **only** that feature's commits (no cross-feature cherry-picks)
 - [ ] Pushed to MeshEnvy fork (`origin` / `meshenvy`)
-- [ ] vk496 PR opened (if upstreamable)
+- [ ] Upstream PR opened (if upstreamable)
 - [ ] Merged into **`envyos/main`** on MeshEnvy fork and pushed
+- [ ] **Open PR:** feature-specific follow-ups pushed to **`feature/<name>`** as well as `envyos/main`
+- [ ] Bench builds use **`envyos/main`** checkout in `envycore/`, not a PR branch
 - [ ] Version references use EnvyOS `v0.1.x`, not upstream `v1.17.x`
 - [ ] Monorepo submodule pins bumped when cutting a release (not required for every feature merge)
 
 ## Do not
 
-- Push feature work only to vk496 without also landing it on MeshEnvy **`envyos/main`**
+- Push feature work only to vk496/meshcore without also landing it on MeshEnvy **`envyos/main`**
+- **Cherry-pick or merge unrelated features onto a PR branch** (e.g. log tail onto `feature/next-hop-retry`)
+- **Land feature-specific fixes only on `envyos/main`** while the matching upstream PR is still open — push to **`feature/<name>`** too
+- Build bench firmware from a PR branch when you need the full EnvyOS stack (log tail + hop retry + OTA, etc.)
 - Clone a **second otafix checkout** outside the submodule — only **`bootloader/`**
 - Treat vk496 PR base branches (`feature/ota-lora`, etc.) as the MeshEnvy distro head — that's **`envyos/main`**
 - Open PRs on `MeshEnvy/meshcore-firmware` when the target owner is `vk496` or `meshcore-dev`
