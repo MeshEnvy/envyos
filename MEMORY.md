@@ -32,24 +32,40 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 **`envyos/main`** = merged union of shipped EnvyOS features on **each MeshEnvy fork** (firmware, motatool, otafix). GitHub default branch is `envyos/main` on all three. Feature branches merge here even while vk496 PRs are open. See `.cursor/skills/envyos-meshcore/SKILL.md`.
 
-## Distro git (`envyos/main` + vk496 PRs)
+## Distro git (`envyos/main` + upstream PR branches)
 
 Each OTA-stack repo has **two branch roles**:
 
-| Role | Branch | Where |
-|------|--------|-------|
-| **Distro integration** | `envyos/main` | MeshEnvy fork (`origin` / `meshenvy`) — always merge features here |
-| **Upstream PR** | `feature/<name>` | Same fork; PR targets vk496 base (below) |
+| Role | Branch | Where | Use |
+|------|--------|-------|-----|
+| **Distro integration** | `envyos/main` | MeshEnvy fork (`origin`) | All features merged together; **bench builds**; default dev checkout |
+| **Upstream PR** | `feature/<name>` | Same fork | One PR each; **pure** — only that feature's commits; branched from PR base |
 
-**vk496 PR bases** (not the same as `envyos/main`):
+**PR bases** (not the same as `envyos/main`):
 
-| Submodule | vk496 remote | PR base branch |
-|-----------|--------------|----------------|
-| `envycore/` | `vk496/MeshCore` | `feature/ota-lora` |
-| `motatool/` | `vk496/motatool` | `main` |
-| `bootloader/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` |
+| Submodule | Remote | PR base branch | Example PR branch |
+|-----------|--------|----------------|-------------------|
+| `envycore/` | `meshcore-dev/MeshCore` | `dev` | `feature/next-hop-retry`, `feature/log-tail-serial` |
+| `envycore/` | `vk496/MeshCore` | `feature/ota-lora` | `feature/ota-stage-ceiling` |
+| `motatool/` | `vk496/motatool` | `main` | … |
+| `bootloader/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` | … |
 
-Workflow: branch feature from vk496 base → implement → open cross-fork PR (`MeshEnvy:feature/<name>`) → **also merge into `envyos/main`** and push. Monorepo (`ota`) pins submodule SHAs; bump at release freshen or when intentionally advancing pins.
+Workflow: branch `feature/<name>` from PR base → implement → open cross-fork PR → **merge into `envyos/main`** (do not fold other features into the PR branch). Monorepo pins submodule SHAs at release; day-to-day `envycore/` checkout = `envyos/main`.
+
+Skill: `.cursor/skills/envyos-meshcore/SKILL.md`.
+
+## Open upstream PRs (`envycore/`)
+
+MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--head MeshEnvy:feature/<name>`.
+
+| Feature | PR branch | Upstream repo | PR | Base | Also on `envyos/main` |
+|---------|-----------|---------------|-----|------|------------------------|
+| Next-hop retry (echo-primary) | `feature/next-hop-retry` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | `dev` | yes |
+| Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
+
+**Sync rule:** while a PR is open, commits for that feature go to **`envyos/main` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
+
+vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore` skill PR table.
 
 **Do not** clone a standalone otafix checkout — only the **`bootloader/`** submodule.
 
@@ -91,9 +107,29 @@ Bootloader scan ceiling: `0xED000` (InternalFS start). In-place `memory_size` is
 
 ## Mesh / next-hop retry
 
-Direct-path repeaters: after forward, next hop sends zero-hop **`HOP_ACK`** (control `0xA0`, ~10 B). Upstream waits (`hop.retry.ms`, default 1500 ms) then retries (`hop.retry`, default 2). **Retry only for next hops that previously sent HOP_ACK** (runtime capability table; stock repeaters stay single-shot). CLI: `set hop.retry`, `set hop.retry.ms`. Bench test: `set hop.ignore <count>` on a downstream repeater silently drops the next N forward opportunities (no HOP_ACK, not persisted). Branch: `feature/next-hop-retry` → upstream PR [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980).
+Direct-path repeaters: after forward, upstream waits for the next hop's **echo** (same packet retransmitted downstream, including zero-hop last-mile forwards overheard on RF). Missed echo → retry (`hop.retry`, default 2; base window `hop.retry.ms`, default 1500 ms, plus forward delay and packet airtime). Duplicate addressed to next hop → zero-hop **`HOP_ACK`** (control `0xA0`, ~14 B) instead of re-forwarding. Zero overhead when echo is heard. CLI: `set hop.retry`, `set hop.retry.ms`. Bench test: `set hop.ignore <count>` on downstream silently drops next N forward opportunities (not persisted).
 
-Repeater USB debug: `log start` → `log tail on` mirrors packet log lines to serial (CRLF); `log tail off` or Ctrl+C stops. Branch: `feature/log-tail-serial` (pending upstream PR).
+- **PR branch:** `feature/next-hop-retry` → meshcore-dev [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) (hop retry only; based on `meshcore/dev`)
+- **Distro:** merged on `envyos/main` (with log tail, OTA, etc.)
+
+Repeater USB debug: `log start` → `log tail on` mirrors packet log lines to serial (CRLF); `log tail off` or Ctrl+C stops. `log tail on` also enables logging if not already on.
+
+- **PR branch:** `feature/log-tail-serial` → meshcore-dev [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991)
+- **Distro:** merged on `envyos/main`
+
+## Mesh routing bench (WisMesh Tag)
+
+Repeaters and companions used for direct-path / hop-retry testing (`log tail on` over USB). OTA roles below are separate when running the OTA bench.
+
+| Tag | Role | Firmware |
+|-----|------|----------|
+| A | repeater (inline) | `wismesh-tag-repeater` |
+| B | repeater (inline) | `wismesh-tag-repeater` |
+| E | repeater (inline) | `wismesh-tag-repeater` |
+| C | companion (source) | `wismesh-tag-client-ble` |
+| D | companion (dest) | `wismesh-tag-client-ble` |
+
+Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters in the path (e.g. A, B, E).
 
 ## OTA bench (WisMesh Tag)
 
@@ -157,5 +193,6 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
+- meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, motatool #1, OTAFIX #2
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
