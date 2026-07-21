@@ -1,1 +1,3 @@
 .DS_Store
+apps/meshgems/node_modules/
+apps/meshgems/dist/

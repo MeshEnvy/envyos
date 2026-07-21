@@ -13,7 +13,6 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
 | `bootloader/` | nRF52 OTAFIX bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
 | `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `seeder.sh`, `targets.txt` |
-| `apps/app/` | Flutter MeshCore client submodule (`zjs81/meshcore-open`) |
 
 ## Git remotes (`envycore/`)
 
@@ -63,6 +62,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 |---------|-----------|---------------|-----|------|------------------------|
 | Next-hop retry (echo-primary) | `feature/next-hop-retry` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | `dev` | yes |
 | Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
+| FS corruption boot fsck (companion) | `feature/fs-corruption-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) (draft) | `dev` | yes |
 
 **Sync rule:** while a PR is open, commits for that feature go to **`envyos/main` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
 
@@ -143,6 +143,20 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 
 Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
 
+## MeshTunes (polyphonic buzzer messages)
+
+Companion firmware (`PIN_BUZZER` boards): DM text **starting with** **`🎶`** plays immediately; **`#meshtunes`** channel messages containing **`🎶`** queue into an 8-slot RAM playlist. No RTTTL kerplop/ack on tune messages. Other channels ignore tunes. `GemPlayer` in `envycore/src/helpers/ui/`.
+
+```bash
+cd apps/meshgems && npm run dev          # local composer
+cd apps/meshgems && npm run build        # dist/
+cd apps/meshgems && npm run deploy       # Cloudflare (needs CLOUDFLARE_API_TOKEN)
+```
+
+- **Firmware branch:** `feature/mesh-gems` on `envycore/` (merge to `envyos/main` when ready)
+- **Limit:** composer targets **143 B** full channel post (`Alice: 💎🎶…`); firmware `MAX_TEXT_LEN` = 160 B on-air
+- **Scope:** companion only (repeaters do not decrypt `GRP_TXT`)
+
 ## Build commands
 
 ```bash
@@ -194,6 +208,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
-- meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail
+- meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, motatool #1, OTAFIX #2
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
+- MeshTunes buzzer songs (`feature/mesh-gems` on `envycore/`): `GemPlayer` + `apps/meshgems` composer; not yet on `envyos/main`

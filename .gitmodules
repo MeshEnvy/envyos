@@ -10,9 +10,9 @@
 [submodule "envycore"]
 	path = envycore
 	url = https://github.com/MeshEnvy/meshcore-firmware.git
-[submodule "app"]
-	path = apps/app
-	url = https://github.com/zjs81/meshcore-open
 [submodule "wadamesh"]
 	path = wadamesh
 	url = https://github.com/ALLFATHER-BV/wadamesh
+[submodule "apps/app"]
+	path = apps/app
+	url = https://github.com/zjs81/meshcore-open
