@@ -93,6 +93,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller → ~416 KB staging headroom (fits a full slim `.mota`) |
+| `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
 
@@ -143,6 +144,18 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 | D (companion) | `wismesh-tag-client-ble` — second companion on deck | stock OK |
 
 Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
+
+## OTA field superseeder (RAK4631 + SD)
+
+| Node | Role | Build | Bootloader |
+|------|------|-------|------------|
+| Superseeder | RAK4631 + RAK15002 SD module | `RAK_4631_superseeder` | OTAFIX if self-update needed |
+| DUT | slim repeater in mesh | `RAK_4631_repeater_slim` | OTAFIX required |
+| Laptop seeder (optional) | USB `motatool serve` + `ota folder on` | `wismesh-tag-repeater` or any OTA repeater | stock OK |
+
+Superseeder auto-queries heard beacons, captures missing `.mota` files to SD (`/motas/<midhex>.mota`), and serves them over LoRa. CLI: `ota sd`. Flash staging below `MOTA_STAGE_CEILING` is for this node's own update only.
+
+Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) → detach laptop → DUT fetches/installs from superseeder alone (real version bump).
 
 ## Build commands
 
@@ -198,3 +211,4 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, motatool #1, OTAFIX #2
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
+- vk496 MeshCore [#5](https://github.com/vk496/MeshCore/pull/5) (stacked on `feature/ota-lora`): SD superseeder (`feature/ota-superseeder` → merged on MeshEnvy `envyos/main`; bench pending)
