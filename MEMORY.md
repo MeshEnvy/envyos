@@ -13,6 +13,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
 | `bootloader/` | nRF52 OTAFIX bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
 | `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `seeder.sh`, `targets.txt` |
+| `apps/app/` | Flutter MeshCore client submodule (`zjs81/meshcore-open`) |
 
 ## Git remotes (`envycore/`)
 

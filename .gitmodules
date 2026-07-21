@@ -11,7 +11,7 @@
 	path = envycore
 	url = https://github.com/MeshEnvy/meshcore-firmware.git
 [submodule "app"]
-	path = app
+	path = apps/app
 	url = https://github.com/zjs81/meshcore-open
 [submodule "wadamesh"]
 	path = wadamesh
