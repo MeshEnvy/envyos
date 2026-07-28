@@ -71,6 +71,16 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 
 **Do not** clone a standalone otafix checkout — only the **`bootloader/`** submodule.
 
+## Released versions (immutable)
+
+| Version | Status | Canonical artifacts |
+|---------|--------|---------------------|
+| **v0.1.0** | **Released** — frozen, do not rebuild or delete | **`build/motas/v0.1.0/`** (only local copy) |
+
+- Listed in **`RELEASED_VERSIONS`**; `build-mota.sh` refuses to overwrite any version on that list.
+- Delta bases may still **read** from released trees (`--base v0.1.0`).
+- On the next release freshen, bump **`ENVYOS_VERSIONS`** past `0.1.0` before building fleet motas.
+
 ## Versioning
 
 - **`ENVYOS_VERSIONS`** at repo root — bump together on `/freshen`:

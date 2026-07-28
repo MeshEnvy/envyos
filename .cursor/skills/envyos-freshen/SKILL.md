@@ -195,6 +195,7 @@ cd envycore && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repe
 
 ## Do not
 
+- Rebuild or delete **`build/motas/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_VERSIONS`); that directory is the only shipped copy
 - Tag `v0.1.x` or ship `build/motas/` without the full release bundle (companion + vk496 + overlay)
 - Treat companion tag alone as fleet-ready (no OTA)
 - Deploy **`meshcore/dev`** or `/freshen dev` output to fleet
