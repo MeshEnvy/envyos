@@ -34,7 +34,9 @@ All component versions live in **`ENVYOS_VERSIONS`** at ota repo root:
 | `bootloader` | `build/bootloader/<bootloader>/` |
 | `motatool` | `motatool/Cargo.toml` + `build/motatool/<motatool>/` |
 
-Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`
+Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`, `is_released_version`
+
+**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees. **`v0.1.0` is released** — only copy is `build/motas/v0.1.0/`; `build-mota.sh` will not rebuild or delete it. Add a line to `RELEASED_VERSIONS` when tagging the next fleet release.
 
 ```bash
 source scripts/version.sh && list_envyos_versions
