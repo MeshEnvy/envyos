@@ -183,6 +183,7 @@ build_target() {
 
   echo "==> $VER  target=$slug  env=$env_name"
 
+  assert_version_not_released "$VER"
   rm -rf "$out"
   mkdir -p "$out"
 
@@ -318,6 +319,7 @@ else
 fi
 
 OUT="$OUT_ROOT/$VER"
+assert_version_not_released "$VER"
 if [[ ${#SELECTED[@]} -eq 0 ]]; then
   rm -rf "$OUT"
 fi

@@ -4,6 +4,7 @@ set -euo pipefail
 
 OTA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
+RELEASED_VERSIONS_FILE="$OTA_ROOT/RELEASED_VERSIONS"
 BUILD_ROOT="$OTA_ROOT/build"
 MOTAS_ROOT="$BUILD_ROOT/motas"
 BOOTLOADER_ROOT="$BUILD_ROOT/bootloader"
@@ -99,6 +100,32 @@ parse_version() {
   local major minor patch
   IFS=. read -r major minor patch <<<"$v"
   printf '%s %s %s' "$major" "$minor" "$patch"
+}
+
+# True when ver is listed in RELEASED_VERSIONS (shipped, immutable mota tree).
+is_released_version() {
+  local ver line
+  ver="$(normalize_version "$1")" || return 1
+  [[ -f "$RELEASED_VERSIONS_FILE" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" ]] || continue
+    if [[ "$(normalize_version "$line")" == "$ver" ]]; then
+      return 0
+    fi
+  done <"$RELEASED_VERSIONS_FILE"
+  return 1
+}
+
+assert_version_not_released() {
+  local ver="$1"
+  if is_released_version "$ver"; then
+    echo "error: $ver is a released EnvyOS version — $MOTAS_ROOT/$ver/ is immutable" >&2
+    echo "       (listed in RELEASED_VERSIONS; this is the only shipped copy)" >&2
+    exit 1
+  fi
 }
 
 # v0.1.1 → v0.1.0; v0.1.0 → (empty)
