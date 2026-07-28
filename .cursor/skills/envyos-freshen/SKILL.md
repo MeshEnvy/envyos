@@ -15,18 +15,18 @@ An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git ta
 
 ```text
 companion-v*          (latest official MeshCore release tag)
-  + vk496/feature/ota-lora   (whole branch — OTA + vk's dev snapshot)
-  + EnvyOS overlay           (FRESHEN.lock topic commits)
-  = fleet release            → bump ENVYOS_VERSIONS, build motas, tag v<distro>
+  + OTA commits       (cherry-picked from vk496/feature/ota-lora — not a wholesale merge)
+  + EnvyOS overlay    (FRESHEN.lock topic commits)
+  = fleet release     → bump ENVYOS_VERSIONS, build motas, tag v<distro>
 ```
 
 **Not** official MeshCore alone — no OTA until upstream merges vk496.
 
 **Not** `meshcore/dev` tip — too bleeding-edge for fleet.
 
-Merging vk496 onto the companion tag does **not** produce a pure upstream release. vk496 tracks `meshcore/dev` to stay mergeable, so the vk496 branch carries a **frozen dev snapshot** (whatever vk last absorbed). That snapshot ships as part of the bundle until OTA lands upstream.
+**Not** `merge vk496/feature/ota-lora` — that branch carries a frozen dev snapshot (~90 commits of upstream churn). Cherry-pick the `ota:` commits onto the companion tag instead. Script: `envycore/scripts/cherry-pick-envyos-overlay.sh`.
 
-When OTA merges upstream (or is rejected): drop the vk496 layer; policy becomes **companion tag + EnvyOS overlay**.
+When OTA merges upstream (or is rejected): drop the vk496 cherry-pick layer; policy becomes **companion tag + EnvyOS overlay**.
 
 Record the exact SHAs in `envycore/FRESHEN.lock` after each release freshen.
 
@@ -49,9 +49,9 @@ Run **both** `envycore` and `bootloader` unless scoped. All three OTA-stack fork
 
 ## Layers
 
-| Submodule | Layer 1 | Layer 2 — vk496 | Layer 3 — overlay |
-|-----------|---------|-----------------|-------------------|
-| `envycore/` | `companion-v*` | `vk496/feature/ota-lora` | `envycore/FRESHEN.lock` |
+| Submodule | Layer 1 | Layer 2 — OTA | Layer 3 — overlay |
+|-----------|---------|---------------|-------------------|
+| `envycore/` | `companion-v*` | cherry-pick `ota:` commits from `vk496/feature/ota-lora` | `envycore/FRESHEN.lock` `overlay_commits` |
 | `bootloader/` | `0.9.2-OTAFIX*` (`oltaco`) | `vk496/feature/ota-delta-apply` | `bootloader/FRESHEN.lock` |
 
 Otafix follows the same pattern: oltaco tag + vk496 delta apply (+ overlay if any).
@@ -96,11 +96,10 @@ cd envycore
 git fetch meshcore --tags && git fetch vk496 && git fetch origin --tags
 BASE=$(git tag -l 'companion-v*' --sort=-v:refname | head -1)
 WORK=envyos/freshen/${BASE}
-VK=vk496/feature/ota-lora
 
 git checkout -B "$WORK" "$BASE"
-git merge --no-ff "$VK" -m "freshen: merge vk496 OTA onto ${BASE}"
-# resolve conflicts (matrix below)
+git cherry-pick <ota shas from FRESHEN.lock ota_commits>   # scripts/cherry-pick-envyos-overlay.sh
+# resolve conflicts: prefer companion for Mesh/CommonCLI; take OTA fields only (skip dev FEM/CAD)
 
 git cherry-pick <overlay shas from FRESHEN.lock>   # in order
 

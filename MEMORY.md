@@ -88,7 +88,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
   - `firmware` → `-DFIRMWARE_VERSION` (must match `envycore/envyos/VERSION`)
   - `bootloader` → **`build/bootloader/<bootloader>/`** — passed to otafix as `GIT_VERSION` (artifact names + embedded BL version)
   - `motatool` → must match `motatool/Cargo.toml`; bench scripts use **`motatool/` submodule only** (never PATH); staged to **`build/motatool/<motatool>/`**
-- **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay (`envycore/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`.
+- **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + cherry-picked OTA commits from `vk496/feature/ota-lora` + EnvyOS overlay (`envycore/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`; not wholesale merge of vk496 (carries dev snapshot).
 - **Not** upstream `companion-v1.17.x` — record companion tag in `FRESHEN.lock` for traceability
 - Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`
 - `./scripts/build-mota.sh` reads `distro` + `firmware` from manifest; run only after release freshen passes validation
@@ -193,7 +193,7 @@ When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio
 
 ## Freshen (`/freshen`)
 
-**Fleet policy:** `companion-v*` + `vk496/feature/ota-lora` + EnvyOS overlay → bump **`ENVYOS_VERSIONS`**, `./scripts/build-mota.sh`, tag **`v<distro>`**.
+**Fleet policy:** `companion-v*` + cherry-picked OTA commits + EnvyOS overlay → bump **`ENVYOS_VERSIONS`**, `./scripts/build-mota.sh`, tag **`v<distro>`**. Backup of pre-reset main: `envyos/main-pre-companion-reset` in `envycore/`.
 
 | Command | Purpose | EnvyOS version? |
 |---------|---------|-----------------|
