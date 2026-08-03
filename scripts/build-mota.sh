@@ -3,7 +3,7 @@
 #
 # Usage:
 #   ./scripts/build-mota.sh                    # distro version from ./ENVYOS_VERSIONS
-#   ./scripts/build-mota.sh v0.1.1             # override version for this build
+#   ./scripts/build-mota.sh v0.1.1             # override version (output + FIRMWARE_VERSION stamp)
 #   ./scripts/build-mota.sh --target wismesh-tag-repeater
 #   ./scripts/build-mota.sh v0.1.2 --base v0.1.0
 #   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
@@ -29,7 +29,7 @@ usage() {
 usage: $0 [version] [--target <slug>]… [--base <version>] [--hex-only] [--targets-file <path>]
        $0 --list-targets [--targets-file <path>]
 
-  version         Optional override; default is ENVYOS_VERSIONS distro (e.g. v0.1.0)
+  version         Optional override for output dir and -DFIRMWARE_VERSION (default: ENVYOS_VERSIONS distro)
   --target        Build one target slug (repeatable; default: all in targets file)
   --base          Optional hex base for in-place deltas (default: previous patch if present)
   --hex-only      Build hex/uf2 only — skip .mota packaging (stock MeshCore without EndF/OTA)
@@ -202,7 +202,7 @@ build_target() {
   cp -f "$hex" "$out/firmware.hex"
   [[ -f "$uf2" ]] && cp -f "$uf2" "$out/firmware.uf2"
   [[ -f "$zip" ]] && cp -f "$zip" "$out/firmware.zip"
-  printf '%s\n' "$VER" >"$out/version.txt"
+  write_mota_version_txt "$out" "$VER" "$BUILD_DATE"
 
   echo "    saved $out/firmware.hex (+ uf2/zip if present)"
 
@@ -245,6 +245,7 @@ build_target() {
 LIST_ONLY=0
 HEX_ONLY=0
 VER=""
+VER_EXPLICIT=0
 BASE_VER=""
 SELECTED=()
 while [[ $# -gt 0 ]]; do
@@ -281,6 +282,7 @@ while [[ $# -gt 0 ]]; do
     *)
       [[ -z "$VER" ]] || usage
       VER="$(normalize_version "$1")" || usage
+      VER_EXPLICIT=1
       shift
       ;;
   esac
@@ -295,8 +297,14 @@ if [[ -z "$VER" ]]; then
   VER="$(read_distro_version)" || usage
 fi
 
-FW_VER="$(read_firmware_version)" || usage
-verify_firmware_version_sync "$FW_VER"
+FW_VER="$VER"
+if [[ "$VER_EXPLICIT" -eq 1 ]]; then
+  verify_firmware_version_sync "$FW_VER" || {
+    echo "note: FIRMWARE_VERSION=$FW_VER (envycore/envyos/VERSION differs; bump on /freshen)" >&2
+  }
+else
+  verify_firmware_version_sync "$FW_VER"
+fi
 
 load_targets "$TARGETS_FILE"
 
@@ -324,7 +332,8 @@ if [[ ${#SELECTED[@]} -eq 0 ]]; then
   rm -rf "$OUT"
 fi
 mkdir -p "$OUT"
-printf '%s\n' "$VER" >"$OUT/version.txt"
+BUILD_DATE="$(format_firmware_build_date)"
+write_mota_version_txt "$OUT" "$VER" "$BUILD_DATE"
 
 if [[ "$HEX_ONLY" -eq 1 ]]; then
   echo "mode: hex-only (no .mota)"
@@ -332,9 +341,10 @@ else
   MT="$(motatool_bin)"
   echo "motatool: $MT"
 fi
+echo "version: $VER  firmware: $FW_VER  build: $BUILD_DATE"
 echo "targets: ${BUILD_SLUGS[*]}"
 
-export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER}\"'"
+export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_DATE}\"'"
 
 i=0
 for i in "${!BUILD_SLUGS[@]}"; do
