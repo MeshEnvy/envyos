@@ -60,6 +60,19 @@ list_envyos_versions() {
   done
 }
 
+# Match firmware CLI display: "6 Jun 2026" (no leading zero on day).
+format_firmware_build_date() {
+  local d
+  d="$(LC_TIME=C date '+%d %b %Y')"
+  printf '%s' "${d#0}"
+}
+
+# version.txt: line 1 = distro tag, line 2 = build date.
+write_mota_version_txt() {
+  local dir=$1 ver=$2 build_date=$3
+  printf '%s\n%s\n' "$ver" "$build_date" >"$dir/version.txt"
+}
+
 verify_firmware_version_sync() {
   local expected="${1#v}"
   local submod="$OTA_ROOT/envycore/envyos/VERSION"
