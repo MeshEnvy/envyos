@@ -38,16 +38,16 @@ Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_vers
 
 **Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees. **`v0.1.0`** and **`v0.1.1`** are released; `build-mota.sh` will not rebuild or delete them.
 
-**Lock a deployed release** — `./scripts/lock.sh [version]`:
+**Publish a fleet release** — `./scripts/publish.sh [version]`:
 
 1. Append to `RELEASED_VERSIONS` + write `build/motas/<ver>/.released`
-2. Create `v<ver>.zip` at repo root (same layout as `v0.1.0.zip`)
-3. Bump `ENVYOS_VERSIONS`, `envycore/envyos/VERSION`, `motatool/Cargo.toml` to next patch
-4. Git tag `v<ver>`, push tag, publish **GitHub Release** with zip asset (`--no-tag`, `--no-release` to skip)
+2. Create `v<ver>.zip` at repo root
+3. Git tag `v<ver>`, push tag, publish **GitHub Release** with zip asset (`--no-tag`, `--no-release` to skip)
+4. Bump `ENVYOS_VERSIONS`, `envycore/envyos/VERSION`, `motatool/Cargo.toml` to next patch
 
-**Backfill** an already-locked release: `./scripts/lock.sh --release-only v0.1.0`
+**Re-upload asset only:** `./scripts/publish.sh --release-only v0.1.0`
 
-Pass an explicit version when the fleet build used `./scripts/build-mota.sh vX.Y.Z` override (e.g. `./scripts/lock.sh v0.1.1`). Default: `ENVYOS_VERSIONS` distro.
+Pass an explicit version when the fleet build used `./scripts/build-mota.sh vX.Y.Z` override (e.g. `./scripts/publish.sh v0.1.1`). Default: `ENVYOS_VERSIONS` distro.
 
 ```bash
 source scripts/version.sh && list_envyos_versions

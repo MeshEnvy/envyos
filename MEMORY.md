@@ -79,9 +79,9 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
 - Listed in **`RELEASED_VERSIONS`**; `build-mota.sh` refuses to overwrite any version on that list.
-- **Canonical off-machine copy:** GitHub Release asset **`v<ver>.zip`** (published by `lock.sh`). Local `build/motas/<ver>/` and root zip are bench copies.
+- **Canonical off-machine copy:** GitHub Release asset **`v<ver>.zip`** (published by `publish.sh`). Local `build/motas/<ver>/` and root zip are bench copies.
 - Delta bases may still **read** from released trees (`--base v0.1.0`, `--base v0.1.1`, …).
-- **`./scripts/lock.sh [version]`** — after fleet deploy: append to `RELEASED_VERSIONS`, write `.released`, zip, git tag, **GitHub Release**, bump **`ENVYOS_VERSIONS`** to next patch (currently **v0.1.2**). **`--release-only`** backfills a release for an already-locked version.
+- **`./scripts/publish.sh [version]`** — after fleet deploy: append to `RELEASED_VERSIONS`, write `.released`, zip, git tag, **GitHub Release**, bump **`ENVYOS_VERSIONS`** to next patch (currently **v0.1.2**). **`--release-only`** re-uploads a GitHub asset for an already-published version.
 
 ## Versioning
 
@@ -187,7 +187,7 @@ Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) 
 ./scripts/build-mota.sh v0.1.2 --base v0.1.0   # single-base override
 ./scripts/build-mota.sh --target wismesh-tag-repeater
 ./scripts/build-mota.sh --hex-only
-./scripts/lock.sh v0.1.2                 # after fleet deploy → bump to v0.1.3
+./scripts/publish.sh v0.1.2              # after fleet deploy → bump to v0.1.3
 ./scripts/seeder.sh /dev/cu.usbmodem1444301
 ./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.2
 ```
@@ -219,7 +219,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
-| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `lock.sh` |
+| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `publish.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 
 ## Active threads
