@@ -38,16 +38,17 @@ Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_vers
 
 **Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees. **`v0.1.0`** and **`v0.1.1`** are released; `build-mota.sh` will not rebuild or delete them.
 
-**Publish a fleet release** — `./scripts/publish.sh [version]`:
+**Publish a distro release** — `./scripts/publish.sh [version]` (run **`./scripts/build.sh`** first):
 
-1. Append to `RELEASED_VERSIONS` + write `build/motas/<ver>/.released`
-2. Create `v<ver>.zip` at repo root
-3. Git tag `v<ver>`, push tag, publish **GitHub Release** with zip asset (`--no-tag`, `--no-release` to skip)
-4. Bump `ENVYOS_VERSIONS`, `envycore/envyos/VERSION`, `motatool/Cargo.toml` to next patch
+1. Verify firmware delta matrix + all component trees (motas, bootloader, motatool)
+2. Append to `RELEASED_VERSIONS`, write `.released` + `RELEASE_MANIFEST`
+3. Zip each component → `firmware-<ver>.zip`, `bootloader-<ver>.zip`, `motatool-<ver>.zip`
+4. Git tag `v<distro>`, push tag, publish **GitHub Release** with all assets
+5. Bump all `ENVYOS_VERSIONS` keys and submodule version files to next patch
 
-**Re-upload asset only:** `./scripts/publish.sh --release-only v0.1.0`
+**Re-upload assets:** `./scripts/publish.sh --release-only v0.1.0`
 
-Pass an explicit version when the fleet build used `./scripts/build-mota.sh vX.Y.Z` override (e.g. `./scripts/publish.sh v0.1.1`). Default: `ENVYOS_VERSIONS` distro.
+Released component trees are immutable (`.released` in `build/motas/`, `build/bootloader/`, `build/motatool/`).
 
 ```bash
 source scripts/version.sh && list_envyos_versions
@@ -100,7 +101,7 @@ Builds OTA firmware from `envycore/` and packages `.mota` into `build/motas/<ver
 1. `pio run -e <env>` (+ `create_uf2`)
 2. Copy `firmware.hex`, `.uf2`, `.zip` → `build/motas/<ver>/<slug>/`
 3. `motatool build --fw … --out-dir` → full `.mota`
-4. For each prior version with base hex: `motatool build --base <B.hex> --fw … --patch-type in-place` → `delta_from_<B>.mota` (full matrix; `--base` limits to one)
+4. For each prior version with base hex for that slug: `motatool build --base <B.hex> …` → `delta_from_<B>.mota` (new targets skip older bases; `--base` limits to one)
 
 **Output layout (`build/motas/<ver>/<slug>/`):**
 

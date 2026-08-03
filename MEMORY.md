@@ -75,13 +75,13 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 
 | Version | Status | Canonical artifacts |
 |---------|--------|---------------------|
-| **v0.1.0** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · **`v0.1.0.zip`** · **`build/motas/v0.1.0/`** |
-| **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
+| **v0.1.0** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · **`firmware-v0.1.0.zip`** · **`build/motas/v0.1.0/`** |
+| **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
-- Listed in **`RELEASED_VERSIONS`**; `build-mota.sh` refuses to overwrite any version on that list.
-- **Canonical off-machine copy:** GitHub Release asset **`v<ver>.zip`** (published by `publish.sh`). Local `build/motas/<ver>/` and root zip are bench copies.
-- Delta bases may still **read** from released trees (`--base v0.1.0`, `--base v0.1.1`, …).
-- **`./scripts/publish.sh [version]`** — after fleet deploy: append to `RELEASED_VERSIONS`, write `.released`, zip, git tag, **GitHub Release**, bump **`ENVYOS_VERSIONS`** to next patch (currently **v0.1.2**). **`--release-only`** re-uploads a GitHub asset for an already-published version.
+- Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
+- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-<ver>.zip`, `bootloader-<ver>.zip`, `motatool-<ver>.zip` (see `RELEASE_MANIFEST` in mota tree).
+- Delta bases may still **read** from released mota trees (`--base v0.1.0`, …).
+- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + fleet deploy: lock all components, zip, git tag, GitHub Release, bump **`ENVYOS_VERSIONS`** (dev **v0.1.2**). Extend `list_release_component_ids()` for future packages (client, ingestor).
 
 ## Versioning
 
@@ -228,7 +228,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 - **P0 (operator, 2026-07-31): advert lockup on `rak4631-repeater-slim`** — admin settings change then advert → freeze; **adverts disabled in field**. Ops: `initiatives/envyos-field-stability.md`.
 - **Watchdog:** port from meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); note [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged (power-saving feed change).
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
-- **Mota matrix:** `build-mota.sh` emits `delta_from_<B>.mota` for every prior version B with base hex (released bases required).
+- **Mota matrix:** `build-mota.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, motatool #1, OTAFIX #2
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)

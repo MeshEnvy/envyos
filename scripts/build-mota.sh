@@ -5,7 +5,7 @@
 #   ./scripts/build-mota.sh                    # distro version from ./ENVYOS_VERSIONS
 #   ./scripts/build-mota.sh v0.1.1             # override version (output + FIRMWARE_VERSION stamp)
 #   ./scripts/build-mota.sh --target wismesh-tag-repeater
-#   ./scripts/build-mota.sh v0.1.2 --base v0.1.0
+#   ./scripts/build-mota.sh v0.1.2 --base v0.1.0   # delta from one base only
 #   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
 #   ./scripts/build-mota.sh --list-targets
 #
@@ -31,7 +31,7 @@ usage: $0 [version] [--target <slug>]… [--base <version>] [--hex-only] [--targ
 
   version         Optional override for output dir and -DFIRMWARE_VERSION (default: ENVYOS_VERSIONS distro)
   --target        Build one target slug (repeatable; default: all in targets file)
-  --base          Optional hex base for in-place deltas (default: previous patch if present)
+  --base          Build delta from one base only (default: all prior versions with base hex)
   --hex-only      Build hex/uf2 only — skip .mota packaging (stock MeshCore without EndF/OTA)
   --targets-file  Target map (default: scripts/targets.txt)
   --list-targets  Print configured targets and exit
@@ -152,28 +152,6 @@ motatool_bin() {
   exit 1
 }
 
-resolve_base_hex() {
-  local slug="$1"
-  local base_ver="$2"
-  local candidates=(
-    "$OUT_ROOT/$base_ver/$slug/firmware.hex"
-  )
-  if [[ "$slug" == "wismesh-tag-repeater" ]]; then
-    candidates+=(
-      "$OUT_ROOT/$base_ver/repeater/firmware.hex"
-      "$OUT_ROOT/$base_ver/firmware.hex"
-    )
-  fi
-  local p
-  for p in "${candidates[@]}"; do
-    if [[ -f "$p" ]]; then
-      printf '%s' "$p"
-      return 0
-    fi
-  done
-  return 1
-}
-
 build_target() {
   local slug="$1"
   local env_name="$2"
@@ -215,27 +193,29 @@ build_target() {
     "$mt" build --fw "$out/firmware.hex" --out-dir "$out"
     echo "    full .mota → $out/"
 
-    local base_ver="$BASE_VER"
-    if [[ -z "$base_ver" ]]; then
-      PREV="$(previous_patch_version "$VER" || true)"
-      if [[ -n "$PREV" ]] && resolve_base_hex "$slug" "$PREV" >/dev/null; then
-        base_ver="$PREV"
-      fi
+    local base_versions=()
+    if [[ -n "$BASE_VER" ]]; then
+      base_versions=("$BASE_VER")
+    else
+      while IFS= read -r bv || [[ -n "$bv" ]]; do
+        [[ -n "$bv" ]] || continue
+        base_versions+=("$bv")
+      done < <(list_delta_base_versions "$VER")
     fi
 
-    if [[ -n "$base_ver" ]]; then
-      local base_hex
-      base_hex="$(resolve_base_hex "$slug" "$base_ver")" || {
-        echo "error: need base hex for $slug delta ($base_ver) — build $base_ver first or pass --base" >&2
-        exit 1
-      }
-      local delta_out="$out/delta_from_${base_ver}.mota"
+    local base_ver base_hex delta_out
+    for base_ver in "${base_versions[@]}"; do
+      if ! base_hex="$(resolve_base_hex "$slug" "$base_ver")"; then
+        echo "    skip delta $base_ver → $VER ($slug): no base hex" >&2
+        continue
+      fi
+      delta_out="$out/delta_from_${base_ver}.mota"
       echo "==> in-place delta ($slug) $base_ver → $VER"
       echo "    base: $base_hex"
       echo "    fw:   $out/firmware.hex"
       "$mt" build --base "$base_hex" --fw "$out/firmware.hex" --patch-type in-place --out "$delta_out"
       echo "    delta: $delta_out"
-    fi
+    done
   fi
 
   echo "==> done $VER/$slug"

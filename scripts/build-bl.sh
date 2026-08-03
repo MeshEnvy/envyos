@@ -89,6 +89,7 @@ if [[ -z "$VER" ]]; then
 fi
 
 OUT="$BOOTLOADER_ROOT/$VER"
+assert_component_tree_not_released bootloader "$VER"
 
 BOARDS=()
 if ((${#EXPLICIT_BOARDS[@]} > 0)); then
