@@ -7,7 +7,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | Path | Role |
 |------|------|
 | `envycore/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); **`envyos/main`** is distro head |
-| `ENVYOS_VERSIONS` | Component semver manifest — `distro`, `firmware`, `bootloader`, `motatool` (all `0.1.0` at reset) |
+| `ENVYOS_VERSIONS` | Component semver manifest — `distro`, `firmware`, `bootloader`, `motatool` (currently **v0.1.2** dev) |
 | `build/` | Local build outputs (gitignored) — `build/motas/<distro>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` |
 | `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
@@ -75,11 +75,12 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 
 | Version | Status | Canonical artifacts |
 |---------|--------|---------------------|
-| **v0.1.0** | **Released** — frozen, do not rebuild or delete | **`build/motas/v0.1.0/`** (only local copy) |
+| **v0.1.0** | **Released** — frozen, do not rebuild or delete | **`build/motas/v0.1.0/`**, **`v0.1.0.zip`** |
+| **v0.1.1** | **Released** — frozen, do not rebuild or delete | **`build/motas/v0.1.1/`**, **`v0.1.1.zip`** |
 
 - Listed in **`RELEASED_VERSIONS`**; `build-mota.sh` refuses to overwrite any version on that list.
-- Delta bases may still **read** from released trees (`--base v0.1.0`).
-- On the next release freshen, bump **`ENVYOS_VERSIONS`** past `0.1.0` before building fleet motas.
+- Delta bases may still **read** from released trees (`--base v0.1.0`, `--base v0.1.1`, …).
+- **`./scripts/lock.sh [version]`** — after fleet deploy: append to `RELEASED_VERSIONS`, write `.released`, zip, bump **`ENVYOS_VERSIONS`** to next patch (currently **v0.1.2**).
 
 ## Versioning
 
@@ -103,6 +104,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller. **Staging headroom ~372 KB at current app size (434 KB app in the 815 KB 0x26000–0xED000 region) — a full slim `.mota` (~426 KB) does NOT fit; deltas only** (corrected 2026-07-25; full fits only if app ≤ ~406 KB) |
+| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater — no GPS/sensors/BLE; S140 v7 app @ `0x27000`; OTAFIX `sensecap_solar_p1`. ~384 KB app → ~416 KB staging headroom (full `.mota` ~386 KB fits) |
 | `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
@@ -179,12 +181,13 @@ Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) 
 ./scripts/build-bl.sh                    # lower-level: bootloader only
 ./scripts/build-bl.sh --list-boards
 ./scripts/build-mota.sh --list-targets
-./scripts/build-mota.sh                    # all targets → build/motas/<distro>/
-./scripts/build-mota.sh v0.1.1
+./scripts/build-mota.sh                    # all targets → build/motas/<distro>/ (v0.1.2)
+./scripts/build-mota.sh v0.1.2 --base v0.1.1
 ./scripts/build-mota.sh --target wismesh-tag-repeater
 ./scripts/build-mota.sh --hex-only
+./scripts/lock.sh v0.1.2                 # after fleet deploy → bump to v0.1.3
 ./scripts/seeder.sh /dev/cu.usbmodem1444301
-./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.1
+./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.2
 ```
 
 ## Conflict hotspots
@@ -214,7 +217,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
-| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh` |
+| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `lock.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 
 ## Active threads

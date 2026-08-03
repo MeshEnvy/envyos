@@ -151,3 +151,73 @@ previous_patch_version() {
   fi
   printf 'v%s.%s.%s' "$major" "$minor" "$((patch - 1))"
 }
+
+# v0.1.1 → v0.1.2
+next_patch_version() {
+  local ver="$1"
+  local major minor patch
+  read -r major minor patch <<<"$(parse_version "$ver")"
+  printf 'v%s.%s.%s' "$major" "$minor" "$((patch + 1))"
+}
+
+write_envyos_versions() {
+  local ver="${1#v}"
+  cat >"$ENVYOS_VERSIONS_FILE" <<EOF
+# EnvyOS component versions (MAJOR.MINOR.PATCH). Bump together on /freshen.
+# Git release tag: v<distro>
+distro=$ver
+firmware=$ver
+bootloader=$ver
+motatool=$ver
+EOF
+}
+
+write_firmware_version_file() {
+  local ver="${1#v}"
+  local f="$OTA_ROOT/envycore/envyos/VERSION"
+  [[ -f "$f" ]] || return 0
+  printf '%s\n' "$ver" >"$f"
+}
+
+write_motatool_cargo_version() {
+  local ver="${1#v}"
+  local cargo="$OTA_ROOT/motatool/Cargo.toml"
+  [[ -f "$cargo" ]] || return 0
+  sed -i '' "s/^version = \".*\"/version = \"$ver\"/" "$cargo"
+}
+
+append_released_version() {
+  local ver="$1"
+  if is_released_version "$ver"; then
+    echo "error: $ver is already listed in RELEASED_VERSIONS" >&2
+    return 1
+  fi
+  printf '%s\n' "$ver" >>"$RELEASED_VERSIONS_FILE"
+}
+
+write_released_marker() {
+  local ver="$1"
+  local dir="$MOTAS_ROOT/$ver"
+  local today
+  today="$(date '+%Y-%m-%d')"
+  cat >"$dir/.released" <<EOF
+EnvyOS $ver — released $today. Do not delete or rebuild this directory.
+Listed in RELEASED_VERSIONS; build-mota.sh refuses to overwrite released versions.
+EOF
+}
+
+create_release_zip() {
+  local ver="$1"
+  local src="$MOTAS_ROOT/$ver"
+  local zip="$OTA_ROOT/${ver}.zip"
+  [[ -d "$src" ]] || {
+    echo "error: missing $src" >&2
+    return 1
+  }
+  rm -f "$zip"
+  (
+    cd "$MOTAS_ROOT"
+    zip -rq "$zip" "$ver" -x "*.DS_Store" -x "*/.DS_Store"
+  )
+  echo "$zip"
+}

@@ -36,7 +36,16 @@ All component versions live in **`ENVYOS_VERSIONS`** at ota repo root:
 
 Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`, `is_released_version`
 
-**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees. **`v0.1.0` is released** — only copy is `build/motas/v0.1.0/`; `build-mota.sh` will not rebuild or delete it. Add a line to `RELEASED_VERSIONS` when tagging the next fleet release.
+**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees and root **`v<ver>.zip`**. **`v0.1.0`** and **`v0.1.1`** are released; `build-mota.sh` will not rebuild or delete them.
+
+**Lock a deployed release** — `./scripts/lock.sh [version]`:
+
+1. Append to `RELEASED_VERSIONS` + write `build/motas/<ver>/.released`
+2. Create `v<ver>.zip` at repo root (same layout as `v0.1.0.zip`)
+3. Bump `ENVYOS_VERSIONS`, `envycore/envyos/VERSION`, `motatool/Cargo.toml` to next patch
+4. Git tag `v<ver>` (pass `--no-tag` to skip)
+
+Pass an explicit version when the fleet build used `./scripts/build-mota.sh vX.Y.Z` override (e.g. `./scripts/lock.sh v0.1.1`). Default: `ENVYOS_VERSIONS` distro.
 
 ```bash
 source scripts/version.sh && list_envyos_versions
@@ -73,7 +82,8 @@ slug  platformio_env  [description…]
 | Slug | PlatformIO env |
 |------|----------------|
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` |
-| `rak4631-repeater` | `RAK_4631_repeater` |
+| `rak4631-repeater-slim` | `RAK_4631_repeater_slim` |
+| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` |
 
