@@ -42,7 +42,7 @@ Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_vers
 source scripts/version.sh && list_envyos_versions
 ./scripts/build-mota.sh --list-targets
 ./scripts/build-mota.sh                    # distro from ENVYOS_VERSIONS
-./scripts/build-mota.sh v0.1.1             # override for one-off build
+./scripts/build-mota.sh v0.1.1             # override output dir + FIRMWARE_VERSION stamp
 ./scripts/build-mota.sh --target wismesh-tag-repeater
 ./scripts/build-mota.sh v0.1.2 --base v0.1.0
 ./scripts/build-mota.sh --hex-only           # stock MeshCore — hex/uf2 only, no .mota
