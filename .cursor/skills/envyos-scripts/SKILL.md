@@ -36,14 +36,16 @@ All component versions live in **`ENVYOS_VERSIONS`** at ota repo root:
 
 Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`, `is_released_version`
 
-**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees and root **`v<ver>.zip`**. **`v0.1.0`** and **`v0.1.1`** are released; `build-mota.sh` will not rebuild or delete them.
+**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees. **`v0.1.0`** and **`v0.1.1`** are released; `build-mota.sh` will not rebuild or delete them.
 
 **Lock a deployed release** — `./scripts/lock.sh [version]`:
 
 1. Append to `RELEASED_VERSIONS` + write `build/motas/<ver>/.released`
 2. Create `v<ver>.zip` at repo root (same layout as `v0.1.0.zip`)
 3. Bump `ENVYOS_VERSIONS`, `envycore/envyos/VERSION`, `motatool/Cargo.toml` to next patch
-4. Git tag `v<ver>` (pass `--no-tag` to skip)
+4. Git tag `v<ver>`, push tag, publish **GitHub Release** with zip asset (`--no-tag`, `--no-release` to skip)
+
+**Backfill** an already-locked release: `./scripts/lock.sh --release-only v0.1.0`
 
 Pass an explicit version when the fleet build used `./scripts/build-mota.sh vX.Y.Z` override (e.g. `./scripts/lock.sh v0.1.1`). Default: `ENVYOS_VERSIONS` distro.
 
@@ -53,7 +55,7 @@ source scripts/version.sh && list_envyos_versions
 ./scripts/build-mota.sh                    # distro from ENVYOS_VERSIONS
 ./scripts/build-mota.sh v0.1.1             # override output dir + FIRMWARE_VERSION stamp
 ./scripts/build-mota.sh --target wismesh-tag-repeater
-./scripts/build-mota.sh v0.1.2 --base v0.1.0
+./scripts/build-mota.sh v0.1.2 --base v0.1.0   # single-base override
 ./scripts/build-mota.sh --hex-only           # stock MeshCore — hex/uf2 only, no .mota
 ```
 
@@ -98,7 +100,7 @@ Builds OTA firmware from `envycore/` and packages `.mota` into `build/motas/<ver
 1. `pio run -e <env>` (+ `create_uf2`)
 2. Copy `firmware.hex`, `.uf2`, `.zip` → `build/motas/<ver>/<slug>/`
 3. `motatool build --fw … --out-dir` → full `.mota`
-4. If base version exists: `motatool build --base <prev.hex> --fw … --patch-type in-place` → `delta_from_<base>.mota`
+4. For each prior version with base hex: `motatool build --base <B.hex> --fw … --patch-type in-place` → `delta_from_<B>.mota` (full matrix; `--base` limits to one)
 
 **Output layout (`build/motas/<ver>/<slug>/`):**
 
@@ -107,7 +109,7 @@ Builds OTA firmware from `envycore/` and packages `.mota` into `build/motas/<ver
 | `firmware.hex` | **Keep as delta base** for next patch (same slug) |
 | `firmware.uf2` | USB drag-flash (initial flash or recovery) |
 | `fw_*_full_*.mota` | Full OTA image |
-| `delta_from_v0.1.0.mota` | In-place patch from prior version |
+| `delta_from_v0.1.0.mota` | In-place patch from an older release (one per prior version) |
 | `version.txt` | Normalized tag |
 
 Legacy flat layout (`build/motas/<ver>/firmware.hex`) still works as a delta base for `wismesh-tag-repeater`.

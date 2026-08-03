@@ -141,6 +141,83 @@ assert_version_not_released() {
   fi
 }
 
+# Zero-padded key for portable version sort (macOS sort lacks -V).
+version_sort_key() {
+  local major minor patch
+  read -r major minor patch <<<"$(parse_version "$1")"
+  printf '%03d.%03d.%03d' "$major" "$minor" "$patch"
+}
+
+# Print unique versions sorted ascending (args: v0.1.0 v0.1.2 …).
+sort_versions() {
+  local v seen=""
+  for v in "$@"; do
+    case "$seen" in
+      *"|$v|"*) continue ;;
+    esac
+    seen="${seen}|$v|"
+    printf '%s\t%s\n' "$(version_sort_key "$v")" "$v"
+  done | sort -t $'\t' -k1,1 | cut -f2-
+}
+
+# True when ver_a < ver_b (both normalized vMAJOR.MINOR.PATCH).
+version_lt() {
+  local a b
+  a="$(normalize_version "$1")" || return 1
+  b="$(normalize_version "$2")" || return 1
+  local am aj ap bm bj bp
+  read -r am aj ap <<<"$(parse_version "$a")"
+  read -r bm bj bp <<<"$(parse_version "$b")"
+  if (( am != bm )); then
+    (( am < bm ))
+    return
+  fi
+  if (( aj != bj )); then
+    (( aj < bj ))
+    return
+  fi
+  (( ap < bp ))
+}
+
+# All known distro versions: RELEASED_VERSIONS + build/motas/v* dirs.
+list_known_mota_versions() {
+  local line ver d
+  local tmp=()
+  if [[ -f "$RELEASED_VERSIONS_FILE" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%%#*}"
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      [[ -n "$line" ]] || continue
+      ver="$(normalize_version "$line" 2>/dev/null)" || continue
+      tmp+=("$ver")
+    done <"$RELEASED_VERSIONS_FILE"
+  fi
+  if [[ -d "$MOTAS_ROOT" ]]; then
+    for d in "$MOTAS_ROOT"/v[0-9]*.[0-9]*.[0-9]*; do
+      [[ -d "$d" ]] || continue
+      ver="$(normalize_version "$(basename "$d")" 2>/dev/null)" || continue
+      tmp+=("$ver")
+    done
+  fi
+  if [[ ${#tmp[@]} -eq 0 ]]; then
+    return 0
+  fi
+  sort_versions "${tmp[@]}"
+}
+
+# Every base B where B < target (for delta matrix into target's mota tree).
+list_delta_base_versions() {
+  local target ver
+  target="$(normalize_version "$1")" || return 1
+  while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    if version_lt "$ver" "$target"; then
+      printf '%s\n' "$ver"
+    fi
+  done < <(list_known_mota_versions)
+}
+
 # v0.1.1 → v0.1.0; v0.1.0 → (empty)
 previous_patch_version() {
   local ver="$1"
@@ -220,4 +297,67 @@ create_release_zip() {
     zip -rq "$zip" "$ver" -x "*.DS_Store" -x "*/.DS_Store"
   )
   echo "$zip"
+}
+
+release_zip_path() {
+  local ver="$1"
+  printf '%s/%s.zip' "$OTA_ROOT" "$ver"
+}
+
+github_repo() {
+  command -v gh >/dev/null 2>&1 || return 1
+  gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null
+}
+
+ensure_git_tag_on_remote() {
+  local ver="$1"
+  if git -C "$OTA_ROOT" ls-remote --tags origin "refs/tags/${ver}" 2>/dev/null | grep -q .; then
+    return 0
+  fi
+  git -C "$OTA_ROOT" rev-parse "$ver" >/dev/null 2>&1 || {
+    echo "error: tag $ver not found locally or on origin" >&2
+    return 1
+  }
+  echo "git push: origin $ver"
+  git -C "$OTA_ROOT" push origin "$ver"
+}
+
+publish_github_release() {
+  local ver="$1"
+  local zip="$2"
+  local repo notes
+
+  command -v gh >/dev/null 2>&1 || {
+    echo "warning: gh not installed — skipping GitHub release" >&2
+    return 0
+  }
+
+  repo="$(github_repo)" || {
+    echo "warning: could not resolve GitHub repo — skipping release" >&2
+    return 0
+  }
+
+  [[ -f "$zip" ]] || {
+    echo "error: release zip not found: $zip" >&2
+    return 1
+  }
+
+  notes="$(cat <<EOF
+EnvyOS fleet release ${ver}.
+
+Download \`${ver}.zip\` and extract for the \`build/motas/${ver}/\` layout (hex, uf2, full and delta \`.mota\` per target).
+EOF
+)"
+
+  if gh release view "$ver" -R "$repo" >/dev/null 2>&1; then
+    echo "github:   release $ver exists — uploading ${ver}.zip"
+    gh release upload "$ver" "$zip" -R "$repo" --clobber
+  else
+    ensure_git_tag_on_remote "$ver"
+    echo "github:   creating release $ver"
+    gh release create "$ver" "$zip" -R "$repo" \
+      --title "EnvyOS ${ver}" \
+      --notes "$notes"
+  fi
+  echo "github:   https://github.com/${repo}/releases/tag/${ver}"
 }
