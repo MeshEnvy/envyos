@@ -92,7 +92,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 - **Not** upstream `companion-v1.17.x` — record companion tag in `FRESHEN.lock` for traceability
 - Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`
 - `./scripts/build-mota.sh` reads `distro` + `firmware` from manifest; run only after release freshen passes validation
-- Override: `./scripts/build-mota.sh v0.1.1` (without editing `ENVYOS_VERSIONS`)
+- Override: `./scripts/build-mota.sh v0.1.1` — output dir + `-DFIRMWARE_VERSION` (without editing `ENVYOS_VERSIONS`; `envycore/envyos/VERSION` sync enforced on default build only)
 - Stock MeshCore (no EndF/OTA): `./scripts/build-mota.sh --hex-only` → hex/uf2 only, no `.mota`
 - `-DFIRMWARE_VERSION` stamped via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
 
