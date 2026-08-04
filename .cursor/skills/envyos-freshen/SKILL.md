@@ -2,7 +2,7 @@
 name: envyos-freshen
 description: >-
   Fleet policy: companion tag + vk496 OTA + EnvyOS overlay earns an EnvyOS
-  version (ENVYOS_VERSIONS / v0.1.x / build/motas/). /freshen builds that bundle; /freshen dev
+  version (ENVYOS_VERSIONS / v0.1.x / build/firmware/). /freshen builds that bundle; /freshen dev
   is integration-only. Also refreshes bootloader submodule.
 disable-model-invocation: true
 ---
@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 ## Fleet policy (canonical)
 
-An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `build/motas/<distro>/`) is earned **only** by this three-layer bundle:
+An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `build/firmware/<distro>/`) is earned **only** by this three-layer bundle:
 
 ```text
 companion-v*          (latest official MeshCore release tag)
@@ -194,8 +194,8 @@ cd envycore && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repe
 
 ## Do not
 
-- Rebuild or delete **`build/motas/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_VERSIONS`); that directory is the only shipped copy
-- Tag `v0.1.x` or ship `build/motas/` without the full release bundle (companion + vk496 + overlay)
+- Rebuild or delete **`build/firmware/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_DISTROS`); that directory is the only shipped copy
+- Tag `v0.1.x` or ship `build/firmware/` without the full release bundle (companion + vk496 + overlay)
 - Treat companion tag alone as fleet-ready (no OTA)
 - Deploy **`meshcore/dev`** or `/freshen dev` output to fleet
 - Assume `envyos/main` equals the last release bundle — check `FRESHEN.lock`

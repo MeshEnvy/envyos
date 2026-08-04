@@ -91,7 +91,7 @@ Running app **never** patches itself. `ota install`:
 
 - Delta manifest `base_hash` == Tag B running firmware `EndF.body_hash`
 - `[yours]` row: `target_id` for `RAK_WisMesh_Tag_repeater`
-- Base hex saved from **exact** prior build (`build/motas/v0.1.0/<slug>/firmware.hex`) — rebuilds can change `body_hash` even if source “looks” the same
+- Base hex saved from **exact** prior build (`build/firmware/v0.1.0/<slug>/firmware.hex`) — rebuilds can change `body_hash` even if source “looks” the same
 - OTAFIX present: `ota status` shows bootloader apply OK for in-place codec
 
 ## Key source files

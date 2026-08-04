@@ -7,8 +7,9 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | Path | Role |
 |------|------|
 | `envycore/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); **`envyos/main`** is distro head |
-| `ENVYOS_VERSIONS` | Component semver manifest — `distro`, `firmware`, `bootloader`, `motatool` (currently **v0.1.2** dev) |
-| `build/` | Local build outputs (gitignored) — `build/motas/<distro>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` |
+| `ENVYOS_VERSIONS` | Dev HEAD semver — independent `distro`, `firmware`, `bootloader`, `motatool` (currently **v0.1.2**) |
+| `envyos` | CLI symlink → `scripts/envyos` — `./envyos build|bump|publish|info` |
+| `build/` | Local build outputs (gitignored) — `build/firmware/<firmware>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` (dev); **`build/releases/<distro>/`** (published bundle snapshot) |
 | `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
 | `bootloader/` | nRF52 OTAFIX bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
@@ -75,28 +76,30 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 
 | Version | Status | Canonical artifacts |
 |---------|--------|---------------------|
-| **v0.1.0** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · **`firmware-v0.1.0.zip`** · **`build/motas/v0.1.0/`** |
-| **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
+| **v0.1.0** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · flat assets · **`build/firmware/v0.1.0/`** |
+| **v0.1.1** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · flat assets · **`build/firmware/v0.1.1/`** |
 
-- Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
-- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-<ver>.zip`, `bootloader-<ver>.zip`, `motatool-<ver>.zip` (see `RELEASE_MANIFEST` in mota tree).
-- Delta bases may still **read** from released mota trees (`--base v0.1.0`, …).
-- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + fleet deploy: lock all components, zip, git tag, GitHub Release, bump **`ENVYOS_VERSIONS`** (dev **v0.1.2**). Extend `list_release_component_ids()` for future packages (client, ingestor).
+- Distro tags in **`RELEASED_DISTROS`**; firmware artifact trees in **`RELEASED_FIRMWARE`** (`.released` markers immutable).
+- **Canonical local bundle:** `build/releases/<distro>/` — flat release files (GitHub uploads), local `ASSETS` manifest, `RELEASE_MANIFEST` after lock.
+- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — flat files from `build/releases/<distro>/`.
+- Delta bases read prior **released firmware** trees (`build/firmware/v0.1.0/`, …).
+- **`./envyos publish --dry-run`** — verify + list planned assets (no writes)
+- **`./envyos publish stage`** → **`finalize`** → **`upload v<distro>`** — stepwise publish
+- **`./envyos publish`** — full publish. Does **not** change `ENVYOS_VERSIONS`.
+- **Legacy migration:** if `build/motas/` exists, `mv build/motas build/firmware`.
 
 ## Versioning
 
-- **`ENVYOS_VERSIONS`** at repo root — bump together on `/freshen`:
-  - `distro` → git tags `v0.1.x`, **`build/motas/<distro>/`**
-  - `firmware` → `-DFIRMWARE_VERSION` (must match `envycore/envyos/VERSION`)
-  - `bootloader` → **`build/bootloader/<bootloader>/`** — passed to otafix as `GIT_VERSION` (artifact names + embedded BL version)
-  - `motatool` → must match `motatool/Cargo.toml`; bench scripts use **`motatool/` submodule only** (never PATH); staged to **`build/motatool/<motatool>/`**
-- **Earns an EnvyOS version:** only a **release freshen** bundle — `companion-v*` + cherry-picked OTA commits from `vk496/feature/ota-lora` + EnvyOS overlay (`envycore/FRESHEN.lock`). Not companion tag alone; not `meshcore/dev`; not wholesale merge of vk496 (carries dev snapshot).
-- **Not** upstream `companion-v1.17.x` — record companion tag in `FRESHEN.lock` for traceability
-- Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`
-- `./scripts/build-mota.sh` reads `distro` + `firmware` from manifest; run only after release freshen passes validation
-- Override: `./scripts/build-mota.sh v0.1.1` — output dir + `-DFIRMWARE_VERSION` (without editing `ENVYOS_VERSIONS`; `envycore/envyos/VERSION` sync enforced on default build only)
-- Stock MeshCore (no EndF/OTA): `./scripts/build-mota.sh --hex-only` → hex/uf2 only, no `.mota`
-- `-DFIRMWARE_VERSION` stamped via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
+- **`ENVYOS_VERSIONS`** — dev HEAD; components bump independently via **`./envyos bump patch|minor|major <component>`**:
+  - `distro` → next bundle to publish (git tag `v<distro>`); bump via **`./envyos bump patch distro`**
+  - `firmware` → `-DFIRMWARE_VERSION`, **`build/firmware/<firmware>/`** (must match `envycore/envyos/VERSION`)
+  - `bootloader` → **`build/bootloader/<bootloader>/`**
+  - `motatool` → `motatool/Cargo.toml` (first tracked **v0.1.0**), **`build/motatool/<motatool>/motatool-<platform>`** — default build stages all four release platforms; **linux-* via `docker/motatool-build/`**, **darwin-* native on macOS**; publish requires all four
+- **Publish** snapshots component versions into **`build/releases/<distro>/RELEASE_MANIFEST`** (includes submodule SHAs).
+- **Earns firmware version:** release freshen bundle (`envycore/FRESHEN.lock`) + `./envyos bump firmware` + `./envyos build firmware`.
+- Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_envyos_versions`
+- `./scripts/build-mota.sh` defaults to **`read_firmware_version`**; override: `./scripts/build-mota.sh v0.1.1`
+- Stock MeshCore (no EndF/OTA): `./envyos build firmware --hex-only`
 
 ## OTA targets (`scripts/targets.txt`)
 
@@ -156,7 +159,7 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 | C (companion) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
 | D (companion) | `wismesh-tag-client-ble` — second companion on deck | stock OK |
 
-Flow: `motatool serve --dir ./build/motas/<ver> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
+Flow: `motatool serve --dir ./build/firmware/<firmware> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
 
 ## OTA field superseeder (RAK4631 + SD)
 
@@ -175,21 +178,24 @@ Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) 
 ## Build commands
 
 ```bash
-./scripts/build.sh                       # full build (bootloader + motas + motatool)
-./scripts/build.sh --bootloader-only
-./scripts/build.sh --mota-only --target rak4631-repeater-slim
-./scripts/build.sh --list-versions
-./scripts/build-bl.sh                    # lower-level: bootloader only
+./envyos info
+./envyos build                             # bootloader + firmware + motatool (all platforms)
+./envyos build motatool --host-only        # bench: host platform only
+./envyos build firmware --target rak4631-repeater-slim
+./envyos bump patch firmware
+./envyos publish --dry-run
+./envyos publish stage
+./envyos publish finalize
+./envyos publish upload v0.1.2
+./envyos publish                           # full publish after fleet deploy
+
+./scripts/build.sh                         # same as envyos build (legacy entry)
 ./scripts/build-bl.sh --list-boards
 ./scripts/build-mota.sh --list-targets
-./scripts/build-mota.sh                    # all targets → build/motas/<distro>/ (v0.1.2)
-./scripts/build-mota.sh v0.1.2                 # deltas from every prior release (v0.1.0, v0.1.1, …)
-./scripts/build-mota.sh v0.1.2 --base v0.1.0   # single-base override
-./scripts/build-mota.sh --target wismesh-tag-repeater
-./scripts/build-mota.sh --hex-only
-./scripts/publish.sh v0.1.2              # after fleet deploy → bump to v0.1.3
+./scripts/build-mota.sh                    # → build/firmware/<firmware>/
+./scripts/build-mota.sh v0.1.2 --base v0.1.0
 ./scripts/seeder.sh /dev/cu.usbmodem1444301
-./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.2
+./scripts/seeder.sh /dev/cu.… ./build/firmware/v0.1.2
 ```
 
 ## Conflict hotspots
@@ -219,7 +225,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
-| `envyos-scripts` | `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `publish.sh` |
+| `envyos-scripts` | `./envyos` CLI, `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `publish.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 
 ## Active threads

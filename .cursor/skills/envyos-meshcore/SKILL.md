@@ -168,7 +168,7 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
 - **Canonical file:** `ENVYOS_VERSIONS` at ota repo root (`distro`, `firmware`, `bootloader`, `motatool`)
-- **Build:** `./scripts/build-mota.sh` reads `distro` → `build/motas/v0.1.0/`; `./scripts/build-mota.sh v0.1.1` overrides for one-off builds and auto-deltas from prior patch if present
+- **Build:** `./envyos build firmware` → `build/firmware/<firmware>/`; `./scripts/build-mota.sh v0.1.1` overrides for one-off builds
 - **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
 - **Explicit delta base:** `./scripts/build-mota.sh v0.1.2 --base v0.1.0` (default builds all prior bases)
 

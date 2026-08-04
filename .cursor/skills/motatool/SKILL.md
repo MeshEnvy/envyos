@@ -10,8 +10,10 @@ description: >-
 
 Rust CLI at **`motatool/`** (submodule: `vk496/motatool`). Byte-compatible with MeshCore's on-wire `.mota` format.
 
-Build: `cargo build --release` → `motatool/target/release/motatool`  
-Bench scripts auto-build from the `motatool/` submodule (never a system PATH install).
+Build: `./envyos build motatool` (linux targets via **`docker/motatool-build/`**; darwin native on macOS)  
+Staged as **`build/motatool/<ver>/motatool-<platform>`** (e.g. `motatool-darwin-aarch64`).  
+Release matrix: darwin-aarch64, darwin-x86_64, linux-aarch64, linux-x86_64 (no Windows).  
+Bench scripts resolve the **host** platform binary automatically.
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
 detools is **test-oracle only** (`make dev-setup` in motatool repo for delta unit tests).
@@ -22,7 +24,7 @@ Spec: `envycore/docs/ota_protocol.md` · Implementation: `motatool/src/`
 
 ```bash
 # Full image from firmware (reads EndF trailer for target_id, version, hw_id)
-motatool build --fw firmware.hex --out-dir ./build/motas/v0.1.0/wismesh-tag-repeater
+motatool build --fw firmware.hex --out-dir ./build/firmware/v0.1.0/wismesh-tag-repeater
 motatool build --fw firmware.bin --sign signer.key --out-dir ./out
 
 # Delta patches (--base MUST be device's running image with EndF)
@@ -30,11 +32,11 @@ motatool build --base old.hex --fw new.hex --out-dir ./out                    # 
 motatool build --base old.hex --fw new.hex --patch-type in-place --out delta.mota  # in-place (nRF52)
 
 # Validate
-motatool verify ./build/motas/**/*.mota
+motatool verify ./build/firmware/**/*.mota
 motatool verify signed.mota --pub signer.key.pub
 
 # Inspect manifest
-motatool inspect ./build/motas/**/fw_*_full_*.mota
+motatool inspect ./build/firmware/**/fw_*_full_*.mota
 
 # Ed25519 keypair
 motatool keygen --out signer.key
@@ -64,7 +66,7 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 **Requirements:**
 
-- `--base` = **exact** running firmware image (with EndF) — typically `build/motas/v0.1.0/<slug>/firmware.hex` from prior `build-mota.sh`
+- `--base` = **exact** running firmware image (with EndF) — typically `build/firmware/v0.1.0/<slug>/firmware.hex` from prior `build-mota.sh`
 - `--fw` = new build's hex
 - Manifest `base_hash` = base image's `EndF.body_hash` (motatool computes this)
 

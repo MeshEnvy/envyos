@@ -14,3 +14,5 @@ EnvyOS adds these enhancements:
 * Bug fixes in advance of upstream 
 
 All projects are licenced and distributed under their original licenses. Code written independently is licensed under MIT.
+
+Human-supervised AI is used in this project.
