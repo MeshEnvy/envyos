@@ -1,0 +1,5 @@
+# EnvyOS distro releases that have shipped — immutable bundle tags.
+# Manifest: build/releases/<distro>/RELEASE_MANIFEST
+# Git tag + GitHub Release: v<distro>
+v0.1.0
+v0.1.1

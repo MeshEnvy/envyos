@@ -1,5 +1,0 @@
-# EnvyOS releases that have shipped — immutable; do not rebuild or delete.
-# Canonical artifacts: build/motas/<ver>/ (only local copy for released builds).
-# Add one line (vMAJOR.MINOR.PATCH) when a version is tagged and released to fleet.
-v0.1.0
-v0.1.1

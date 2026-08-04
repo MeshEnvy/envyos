@@ -2,7 +2,7 @@
 # Build firmware (+ optional .mota) for targets listed in scripts/targets.txt.
 #
 # Usage:
-#   ./scripts/build-mota.sh                    # distro version from ./ENVYOS_VERSIONS
+#   ./scripts/build-mota.sh                    # firmware version from ./ENVYOS_VERSIONS
 #   ./scripts/build-mota.sh v0.1.1             # override version (output + FIRMWARE_VERSION stamp)
 #   ./scripts/build-mota.sh --target wismesh-tag-repeater
 #   ./scripts/build-mota.sh v0.1.2 --base v0.1.0   # delta from one base only
@@ -17,7 +17,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MC="$ROOT/envycore"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
-OUT_ROOT="$MOTAS_ROOT"
+OUT_ROOT="$FIRMWARE_ROOT"
 TARGETS_FILE="$ROOT/scripts/targets.txt"
 
 TARGET_SLUGS=()
@@ -29,7 +29,7 @@ usage() {
 usage: $0 [version] [--target <slug>]… [--base <version>] [--hex-only] [--targets-file <path>]
        $0 --list-targets [--targets-file <path>]
 
-  version         Optional override for output dir and -DFIRMWARE_VERSION (default: ENVYOS_VERSIONS distro)
+  version         Optional override for output dir and -DFIRMWARE_VERSION (default: ENVYOS_VERSIONS firmware)
   --target        Build one target slug (repeatable; default: all in targets file)
   --base          Build delta from one base only (default: all prior versions with base hex)
   --hex-only      Build hex/uf2 only — skip .mota packaging (stock MeshCore without EndF/OTA)
@@ -127,25 +127,31 @@ find_cargo() {
 }
 
 motatool_bin() {
-  local mt_ver
+  local mt_ver path
   mt_ver="$(read_motatool_version)"
   verify_motatool_version_sync "$mt_ver"
 
+  if path="$(resolve_motatool_bin "$mt_ver" 2>/dev/null)"; then
+    echo "$path"
+    return
+  fi
+
   local rel="$ROOT/motatool/target/release/motatool"
   if [[ -x "$rel" ]]; then
-    stage_motatool_binary "$rel"
-    echo "$rel"
+    stage_motatool_binary "$rel" "$(host_motatool_platform_slug)"
+    resolve_motatool_bin "$mt_ver"
     return
   fi
   if [[ -d "$ROOT/motatool" ]]; then
-    local cargo_bin cargo_dir
+    local cargo_bin cargo_dir platform
     cargo_bin="$(find_cargo)"
     cargo_dir="$(dirname "$cargo_bin")"
-    echo "building motatool (release) with $cargo_bin …" >&2
+    platform="$(host_motatool_platform_slug)"
+    echo "building motatool (release) for $platform with $cargo_bin …" >&2
     (cd "$ROOT/motatool" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
     [[ -x "$rel" ]] || { echo "error: motatool build did not produce $rel" >&2; exit 1; }
-    stage_motatool_binary "$rel"
-    echo "$rel"
+    stage_motatool_binary "$rel" "$platform"
+    resolve_motatool_bin "$mt_ver"
     return
   fi
   echo "error: motatool not found (init submodule: git submodule update --init motatool)" >&2
@@ -274,7 +280,7 @@ if [[ "$LIST_ONLY" -eq 1 ]]; then
 fi
 
 if [[ -z "$VER" ]]; then
-  VER="$(read_distro_version)" || usage
+  VER="$(read_firmware_version)" || usage
 fi
 
 FW_VER="$VER"

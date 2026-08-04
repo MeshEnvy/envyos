@@ -1,6 +1,7 @@
-# EnvyOS component versions (MAJOR.MINOR.PATCH). Bump together on /freshen.
-# Git release tag: v<distro>
+# EnvyOS dev HEAD — independent component semver (MAJOR.MINOR.PATCH).
+# distro: next bundle to publish (git tag v<distro>). Bump via envyos bump patch distro.
+# firmware/bootloader/motatool: bump independently via envyos bump.
 distro=0.1.2
 firmware=0.1.2
 bootloader=0.1.2
-motatool=0.1.2
+motatool=0.1.0

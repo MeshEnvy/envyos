@@ -12,6 +12,9 @@ otafix_board_for_env() {
     RAK_WisMesh_Tag_*)
       echo wismesh_tag
       ;;
+    SenseCap_Solar_*)
+      echo sensecap_solar_p1
+      ;;
     *)
       echo "error: no otafix board mapping for PlatformIO env: $env" >&2
       echo "       add a case to otafix_board_for_env() in scripts/targets-lib.sh" >&2
@@ -53,4 +56,23 @@ otafix_boards_from_targets_file() {
   }
 
   printf '%s\n' "${boards[@]}" | sort -u
+}
+
+# Print target slugs from targets.txt (one per line, in file order).
+list_target_slugs_from_file() {
+  local file=$1
+  [[ -f "$file" ]] || {
+    echo "error: targets file not found: $file" >&2
+    return 1
+  }
+
+  local line slug
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$line" ]] || continue
+    read -r slug _ <<<"$line"
+    [[ -n "$slug" ]] || continue
+    printf '%s\n' "$slug"
+  done <"$file"
 }

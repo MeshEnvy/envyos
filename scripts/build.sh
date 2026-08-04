@@ -6,7 +6,7 @@
 #   ./scripts/build.sh --bootloader-only
 #   ./scripts/build.sh --mota-only             # firmware + .mota (skip bootloader)
 #   ./scripts/build.sh --no-bootloader         # same as --mota-only
-#   ./scripts/build.sh v0.1.1                  # override distro version for mota step
+#   ./scripts/build.sh v0.1.1                  # override firmware version for mota step
 #   ./scripts/build.sh --list-versions
 #   ./scripts/build.sh --list-targets
 #   ./scripts/build.sh --list-boards
@@ -23,9 +23,9 @@ source "$SCRIPTS/version.sh"
 
 usage() {
   cat >&2 <<EOF
-usage: $0 [options] [distro-version] [build-mota options…]
+usage: $0 [options] [firmware-version] [build-mota options…]
 
-  (default)         Build bootloader + firmware/.mota (ENVYOS_VERSIONS)
+  (default)         Build bootloader + firmware/.mota + motatool (all platforms)
   --bootloader-only OTAFIX bootloaders only → build/bootloader/<bootloader>/
   --mota-only       Firmware + .mota only (skip bootloader)
   --no-bootloader   Alias for --mota-only
@@ -34,7 +34,7 @@ usage: $0 [options] [distro-version] [build-mota options…]
   --list-boards     Print otafix boards inferred from targets.txt and exit
   -h, --help        Show this help
 
-  distro-version    Optional override for build-mota (default: ENVYOS_VERSIONS distro)
+  firmware-version  Optional override for build-mota (default: ENVYOS_VERSIONS firmware)
 
   Other flags (--target, --hex-only, --base, --targets-file, …) are forwarded to
   build-mota.sh.
@@ -51,16 +51,19 @@ EOF
 
 BUILD_BL=1
 BUILD_MOTA=1
+BUILD_MOTATOOL=1
 MOTA_ARGS=()
 
 while (($# > 0)); do
   case "$1" in
     --bootloader-only)
       BUILD_MOTA=0
+      BUILD_MOTATOOL=0
       shift
       ;;
     --mota-only | --no-bootloader)
       BUILD_BL=0
+      BUILD_MOTATOOL=0
       shift
       ;;
     --list-versions)
@@ -111,10 +114,10 @@ if ((BUILD_MOTA == 1)); then
     if normalize_version "${MOTA_ARGS[0]}" >/dev/null 2>&1; then
       echo "==> firmware + .mota ($(normalize_version "${MOTA_ARGS[0]}"))"
     else
-      echo "==> firmware + .mota ($(read_distro_version))"
+      echo "==> firmware + .mota ($(read_firmware_version))"
     fi
   else
-    echo "==> firmware + .mota ($(read_distro_version))"
+    echo "==> firmware + .mota ($(read_firmware_version))"
   fi
   if ((${#MOTA_ARGS[@]} > 0)); then
     "$SCRIPTS/build-mota.sh" "${MOTA_ARGS[@]}"
@@ -123,20 +126,29 @@ if ((BUILD_MOTA == 1)); then
   fi
 fi
 
+if ((BUILD_MOTATOOL == 1)); then
+  echo ""
+  echo "==> motatool (all release platforms)"
+  "$SCRIPTS/build-motatool.sh"
+fi
+
 echo ""
 echo "==> EnvyOS build complete"
 if ((BUILD_BL == 1)); then
   echo "    bootloader: $BOOTLOADER_ROOT/$(read_bootloader_version)/"
 fi
 if ((BUILD_MOTA == 1)); then
-  mota_ver="${MOTA_ARGS[0]:-}"
-  if [[ -n "$mota_ver" ]] && mota_ver="$(normalize_version "$mota_ver" 2>/dev/null || true)"; then
+  fw_ver="${MOTA_ARGS[0]:-}"
+  if [[ -n "$fw_ver" ]] && fw_ver="$(normalize_version "$fw_ver" 2>/dev/null || true)"; then
     :
   else
-    mota_ver="$(read_distro_version)"
+    fw_ver="$(read_firmware_version)"
   fi
-  echo "    motas:      $MOTAS_ROOT/$mota_ver/"
+  echo "    firmware:   $FIRMWARE_ROOT/$fw_ver/"
+fi
+if ((BUILD_MOTATOOL == 1 || BUILD_MOTA == 1)); then
   if [[ -d "$MOTATOOL_ROOT/$(read_motatool_version)" ]]; then
-    echo "    motatool:   $MOTATOOL_ROOT/$(read_motatool_version)/motatool"
+    mt_plat="$(list_staged_motatool_platforms "$(read_motatool_version)" | paste -sd, -)"
+    echo "    motatool:   $MOTATOOL_ROOT/$(read_motatool_version)/ (${mt_plat})"
   fi
 fi

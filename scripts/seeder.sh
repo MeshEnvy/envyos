@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
-# Serve build/motas to a MeshCore seeder over USB serial (motatool serve).
+# Serve build/firmware to a MeshCore seeder over USB serial (motatool serve).
 #
 # Usage:
 #   ./scripts/seeder.sh /dev/cu.usbmodem1444301
 #   ./scripts/seeder.sh usbmodem1444301              # → /dev/cu.usbmodem1444301
-#   ./scripts/seeder.sh /dev/cu.usbmodem1444301 ./build/motas/v0.1.1
+#   ./scripts/seeder.sh /dev/cu.usbmodem1444301 ./build/firmware/v0.1.1
 #
-# Requires: build/motatool/<motatool>/motatool (from build-mota.sh / build.sh).
+# Requires: build/motatool/<motatool>/motatool-<platform> (from build-motatool / build).
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
-DIR="${2:-$MOTAS_ROOT}"
+DEFAULT_DIR="$FIRMWARE_ROOT/$(read_firmware_version)"
+DIR="${2:-$DEFAULT_DIR}"
 
 usage() {
   cat >&2 <<EOF
-usage: $0 <serial-device> [motas-dir]
+usage: $0 <serial-device> [firmware-dir]
 
   serial-device   USB serial port, e.g. /dev/cu.usbmodem1444301
-  motas-dir       folder of .mota files (default: ./build/motas)
+  firmware-dir  folder of .mota files (default: build/firmware/<firmware>)
 
 examples:
   $0 /dev/cu.usbmodem1444301
-  $0 usbmodem1444301 ./build/motas/v0.1.1
+  $0 usbmodem1444301 ./build/firmware/v0.1.1
 EOF
   exit 2
 }
@@ -48,27 +49,15 @@ resolve_serial() {
   printf '/dev/cu.%s' "$dev"
 }
 
-motatool_bin() {
-  local ver bin
-  ver="$(read_motatool_version)"
-  bin="$MOTATOOL_ROOT/$ver/motatool"
-  if [[ -x "$bin" ]]; then
-    echo "$bin"
-    return
-  fi
-  echo "error: motatool not found at $bin (run ./scripts/build-mota.sh or ./scripts/build.sh first)" >&2
-  exit 1
-}
-
 SERIAL="$(resolve_serial "$1")"
 [[ -e "$SERIAL" ]] || {
   echo "error: serial device not found: $SERIAL" >&2
   exit 1
 }
 [[ -d "$DIR" ]] || {
-  echo "error: motas dir not found: $DIR" >&2
+  echo "error: firmware dir not found: $DIR" >&2
   exit 1
 }
 
-MT="$(motatool_bin)"
+MT="$(resolve_motatool_bin)"
 exec "$MT" serve --dir "$DIR" --serial "$SERIAL" -v
