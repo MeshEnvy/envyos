@@ -57,9 +57,12 @@ ota get 1 flash     # download entry #1 to local flash (alias: pull)
 ota install         # verify + apply + reboot
 ota cancel          # abort fetch
 ota folder on       # enable host seeder link (needs motatool serve on USB)
+ota seed            # superseeder status (SD or NOR; alias: ota sd)
 ota self            # print EndF / base_hash
 ota help
 ```
+
+**Superseeder role** (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_SD` or `_QSPI`): captures **deltas only** to `/motas/` on external FS; onboard staging stays for self-update. Default admits all targets; filter with `ota seed allow add|rm|list|clear|reset` (env name or `%08X` hex; persisted). `clear` = admit none; `reset`/`defaults` = admit all.
 
 Remote admin over mesh uses the same commands via companion/repeater admin (password-gated for `ota stats` on remote nodes).
 

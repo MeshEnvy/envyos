@@ -109,7 +109,8 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller. **Staging headroom ~372 KB at current app size (434 KB app in the 815 KB 0x26000–0xED000 region) — a full slim `.mota` (~426 KB) does NOT fit; deltas only** (corrected 2026-07-25; full fits only if app ≤ ~406 KB) |
 | `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater — no GPS/sensors/BLE; S140 v7 app @ `0x27000`; OTAFIX `sensecap_solar_p1`. ~384 KB app → ~416 KB staging headroom (full `.mota` ~386 KB fits) |
-| `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
+| `sensecap-p1pro-superseeder` | `SenseCap_Solar_superseeder` | SenseCAP P1-Pro mini-superseeder — slim + 2 MB QSPI NOR LittleFS (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_QSPI`); allowlisted **deltas only** to `/motas/`; flash staging for self-update |
+| `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_SD`); allowlisted **deltas only** to `/motas/` on SD; flash staging for self-update |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
 
@@ -161,19 +162,20 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 
 Flow: `motatool serve --dir ./build/firmware/<firmware> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
 
-## OTA field superseeder (RAK4631 + SD)
+## OTA field superseeder (SD or NOR)
 
 | Node | Role | Build | Bootloader |
 |------|------|-------|------------|
-| Superseeder | RAK4631 + RAK15002 SD module | `RAK_4631_superseeder` | OTAFIX if self-update needed |
-| DUT | slim repeater in mesh | `RAK_4631_repeater_slim` | OTAFIX required |
+| SD superseeder | RAK4631 + RAK15002 SD | `RAK_4631_superseeder` | OTAFIX if self-update needed |
+| NOR mini-superseeder | SenseCAP P1-Pro (2 MB QSPI) | `SenseCap_Solar_superseeder` | OTAFIX if self-update needed |
+| DUT | slim repeater in mesh | `*_repeater_slim` | OTAFIX required |
 | Laptop seeder (optional) | USB `motatool serve` + `ota folder on` | `wismesh-tag-repeater` or any OTA repeater | stock OK |
 
-Superseeder auto-queries heard beacons, captures missing `.mota` files to SD (`/motas/<midhex>.mota`), and serves them over LoRa. CLI: `ota sd`. Flash staging below `MOTA_STAGE_CEILING` is for this node's own update only.
+Superseeder auto-queries heard beacons and captures **deltas only** to external FS (`/motas/<midhex>.mota` on SD or QSPI LittleFS). Full snapshots are never stored (self-serve / USB bootstrap cover those). Default target filter is **all targets**; narrow with `ota seed allow add|rm|list|clear|reset` (persisted). `clear` = empty filter (admit none); `reset`/`defaults` = admit all. CLI: `ota seed` (alias `ota sd`). Flash staging below `MOTA_STAGE_CEILING` is for this node's own update only.
 
 **Self-serve (any OTA node, no `.mota` file needed):** at announce time (`Mesh.cpp`) a node auto-runs `ota_serve_self()` — scans its app region for the EndF trailer (target/version/hw_id), builds merkle leaves + a synthetic full **unsigned** manifest, and serves its own running firmware from memory-mapped flash. Full image only, **uncompressed** (`CODEC_FULL` payload == raw image; only detools delta codecs are CRLE-compressed). Consequence: same-target peers of similar app size **cannot stage it** (full mota > their headroom) — self-serve full images feed SD superseeders / smaller-app roles; same-target version bumps travel as **motatool deltas**. Manual `ota install` accepts unsigned (merkle+hash integrity still enforced); auto-install requires signed+allowlisted.
 
-Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) → detach laptop → DUT fetches/installs from superseeder alone (real version bump).
+Bench: laptop seeder advertises → superseeder captures (`ota seed` shows files) → detach laptop → DUT fetches/installs from superseeder alone (real version bump).
 
 ## Build commands
 
@@ -238,7 +240,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, motatool #1, OTAFIX #2
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
-- vk496 MeshCore [#5](https://github.com/vk496/MeshCore/pull/5) (stacked on `feature/ota-lora`): SD superseeder (`feature/ota-superseeder` → merged on MeshEnvy `envyos/main`; bench pending)
-- **Direction (operator, 2026-07-23): firmware SD superseeders (32 GB cards) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.
+- vk496 MeshCore [#5](https://github.com/vk496/MeshCore/pull/5) (stacked on `feature/ota-lora`): SD superseeder (`feature/ota-superseeder` → merged on MeshEnvy `envyos/main`; generalized to `OTA_SUPERSEEDER` + SD/QSPI backends, **deltas-only + allowlist**; SenseCAP NOR mini-superseeder added; bench pending)
+- **Direction (operator, 2026-07-23): firmware superseeders (SD warehouse + SenseCAP NOR mini) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.
 - **Candidate enhancement (operator, 2026-07-25): compressed-full codec (heatshrink) for self-serve** — firmware produces a heatshrink `.mota` of its own running image (like motatool would), closing the ~55 KB gap that stops same-target peers from staging a full slim image (~426 KB mota vs ~372 KB headroom). Enables laptop-free epidemic full-image seeding between identical repeaters. Scope: new codec in OtaFormat + motatool parity + decode in the apply path (OTAFIX applies staged motas, so the bootloader is in scope too). Greenfield rules apply. **Not a showstopper — delta seeder covers today's need**; candidate for pre-Orlando OTA polish or later.
 - **Candidate feature (operator, 2026-07-23): MeshCore MQTT client** — publish/subscribe channel messages ↔ broker topics, incl. parsing Meshtastic JSON topics for cross-mesh bridging. Likely home is **Lotato** (`lobbs/lotato/lotato/` — has WiFi/batching/dedup; today HTTP-POSTs to PotatoMesh), not EnvyOS; EnvyOS relevance is if the feature later lands in the distro. Consumers: ingestor edge, Burning Mesh bridge (~Aug 16), Elko interop. Context: `ops/initiatives/regional-ingestors.md`.

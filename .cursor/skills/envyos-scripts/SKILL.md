@@ -113,6 +113,8 @@ slug  platformio_env  [description…]
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` |
 | `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` |
+| `sensecap-p1pro-superseeder` | `SenseCap_Solar_superseeder` |
+| `rak4631-superseeder` | `RAK_4631_superseeder` |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` |
 
