@@ -129,6 +129,7 @@ meshcore/dev ──► feature/foo ──► PR → meshcore-dev/MeshCore
 |---------|----------------------|---------|---------|-------------------|
 | Next-hop retry | `feature/next-hop-retry` | `dev` | `meshcore-dev/MeshCore` [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | yes (hop retry only on PR branch) |
 | Log tail serial | `feature/log-tail-serial` | `dev` | `meshcore-dev/MeshCore` [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | yes |
+| Defer remote admin CLI | `feature/defer-remote-cli` | `dev` | `meshcore-dev/MeshCore` [#3196](https://github.com/meshcore-dev/MeshCore/pull/3196) (draft) | yes |
 | OTA ls pagination | `fix/ota-ls-start-at-n` | `feature/ota-lora` | `vk496/MeshCore` | yes |
 | OTA staging ceiling | `feature/ota-stage-ceiling` | `feature/ota-lora` | `vk496/MeshCore` | yes |
 | motatool delta layout | `meshenvy/feature/ota-stage-ceiling` | `main` | `vk496/motatool` | yes |

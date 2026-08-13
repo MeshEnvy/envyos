@@ -64,6 +64,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 |---------|-----------|---------------|-----|------|------------------------|
 | Next-hop retry (echo-primary) | `feature/next-hop-retry` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | `dev` | yes |
 | Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
+| Defer remote admin CLI | `feature/defer-remote-cli` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3196](https://github.com/meshcore-dev/MeshCore/pull/3196) (draft) | `dev` | yes |
 | FS corruption boot fsck (companion) | `feature/fs-corruption-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) (draft) | `dev` | yes |
 
 **Sync rule:** while a PR is open, commits for that feature go to **`envyos/main` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
@@ -95,6 +96,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
   - `firmware` → `-DFIRMWARE_VERSION`, **`build/firmware/<firmware>/`** (must match `envycore/envyos/VERSION`)
   - `bootloader` → **`build/bootloader/<bootloader>/`**
   - `motatool` → `motatool/Cargo.toml` (first tracked **v0.1.0**), **`build/motatool/<motatool>/motatool-<platform>`** — default build stages all four release platforms; **linux-* via `docker/motatool-build/`**, **darwin-* native on macOS**; publish requires all four
+- **Build identity:** `./scripts/build-mota.sh` stamps **`v<semver>-<envycore-sha>`** into `-DFIRMWARE_VERSION`, UTC time into `-DFIRMWARE_BUILD_DATE`; device `ver` → `v0.1.3-abc1234 (Build: 13 Aug 2026 05:00 UTC)`. Host copy: **`build/firmware/<ver>/<slug>/version.txt`** (semver, stamp, sha).
 - **Publish** snapshots component versions into **`build/releases/<distro>/RELEASE_MANIFEST`** (includes submodule SHAs).
 - **Earns firmware version:** release freshen bundle (`envycore/FRESHEN.lock`) + `./envyos bump firmware` + `./envyos build firmware`.
 - Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_envyos_versions`
@@ -229,11 +231,21 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 | `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
 | `envyos-scripts` | `./envyos` CLI, `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `publish.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
+| `incident` | Field bug / outage postmortems → `docs/incidents/` (see also `ops/.cursor/skills/incident/SKILL.md`) |
+
+## Incidents
+
+Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
+
+| Date | Slug | Status |
+|------|------|--------|
+| 2026-08-13 | [remote-admin-advert-lockup](docs/incidents/2026-08-13-remote-admin-advert-lockup.md) | Fixed on bench; upstream PR prep |
 
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
-- **P0 (operator, 2026-07-31): advert lockup on `rak4631-repeater-slim`** — admin settings change then advert → freeze; **adverts disabled in field**. Ops: `initiatives/envyos-field-stability.md`.
+- **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. Postmortem: `docs/incidents/2026-08-13-remote-admin-advert-lockup.md`. Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
+- **Bench (2026-08-13): EndF self-locate on nRF52** — CC310 flash-hash fix + **EndF RAM cache** + **chunked merkle self-serve** (`OTA_SELF_BLOCKS_PER_TICK=1`); **remote admin CLI deferred** out of RX.
 - **Watchdog:** port from meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); note [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged (power-saving feed change).
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `build-mota.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
