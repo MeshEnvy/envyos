@@ -4,6 +4,7 @@ set -euo pipefail
 
 OTA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
+CHANGELOG_FILE="$OTA_ROOT/CHANGELOG.md"
 RELEASED_DISTROS_FILE="$OTA_ROOT/RELEASED_DISTROS"
 RELEASED_FIRMWARE_FILE="$OTA_ROOT/RELEASED_FIRMWARE"
 BUILD_ROOT="$OTA_ROOT/build"
@@ -1241,16 +1242,68 @@ list_distro_release_asset_names() {
   done <"$manifest_file"
 }
 
+# Body of ## [heading] in CHANGELOG.md (heading itself omitted). heading is vX.Y.Z or Unreleased.
+changelog_section() {
+  local heading=$1
+  local body
+  [[ -f "$CHANGELOG_FILE" ]] || {
+    echo "error: missing $CHANGELOG_FILE" >&2
+    return 1
+  }
+  body="$(awk -v heading="$heading" '
+    index($0, "## [" heading "]") == 1 { found = 1; next }
+    found && /^## \[/ { exit }
+    found { print }
+    END { if (!found) exit 2 }
+  ' "$CHANGELOG_FILE")" || {
+    if [[ $? -eq 2 ]]; then
+      echo "error: CHANGELOG.md missing ## [${heading}] section" >&2
+    fi
+    return 1
+  }
+  body="$(printf '%s\n' "$body" | sed -e '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
+  [[ -n "$body" ]] || {
+    echo "error: CHANGELOG.md ## [${heading}] section is empty" >&2
+    return 1
+  }
+  printf '%s\n' "$body"
+}
+
+# Finalize/upload require ## [vX.Y.Z]. Dry-run may fall back to Unreleased.
+changelog_notes_for_distro() {
+  local distro_ver=$1
+  local allow_unreleased=${2:-0}
+  local body
+  if body="$(changelog_section "$distro_ver" 2>/dev/null)"; then
+    printf '%s\n' "$body"
+    return 0
+  fi
+  if [[ "$allow_unreleased" -eq 1 ]]; then
+    echo "warning: CHANGELOG.md has no ## [${distro_ver}] yet; using Unreleased" >&2
+    changelog_section Unreleased
+    return
+  fi
+  echo "error: promote CHANGELOG.md Unreleased to ## [${distro_ver}] - YYYY-MM-DD before publish" >&2
+  return 1
+}
+
+require_changelog_section() {
+  changelog_notes_for_distro "$1" 0 >/dev/null
+}
+
 release_notes_for_distro() {
   local distro_ver=$1
-  local firmware_ver bootloader_ver motatool_ver published asset_name
+  local firmware_ver bootloader_ver motatool_ver published asset_name notes
   firmware_ver="$(manifest_component_version firmware "$distro_ver")"
   bootloader_ver="$(manifest_component_version bootloader "$distro_ver")"
   motatool_ver="$(manifest_component_version motatool "$distro_ver")"
   published="$(read_release_manifest_key "$distro_ver" published 2>/dev/null || date '+%Y-%m-%d')"
+  notes="$(changelog_notes_for_distro "$distro_ver" 0)" || return 1
 
   cat <<EOF
 EnvyOS distro release **${distro_ver}** (${published}).
+
+${notes}
 
 | Component | Version |
 |-----------|---------|

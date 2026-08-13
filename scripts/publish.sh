@@ -105,6 +105,7 @@ fi
 
 publish_finalize() {
   local distro_ver=$1
+  require_changelog_section "$distro_ver" || return 1
   append_released_distro "$distro_ver"
   lock_release_components "$distro_ver"
   if [[ "$GIT_TAG" -eq 1 ]]; then
@@ -181,7 +182,11 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   echo ""
   plan_distro_release "$PUBLISH_VER"
   echo ""
+  echo "### Changelog"
+  changelog_notes_for_distro "$PUBLISH_VER" 1 | sed 's/^/  /'
+  echo ""
   echo "Dry run OK. Stage: ./envyos publish stage"
+  echo "Promote CHANGELOG.md Unreleased to ## [${PUBLISH_VER}] before finalize."
   exit 0
 fi
 

@@ -187,6 +187,7 @@ When shipping EnvyOS work:
 - [ ] **Open PR:** feature-specific follow-ups pushed to **`feature/<name>`** as well as `envyos/main`
 - [ ] Bench builds use **`envyos/main`** checkout in `envycore/`, not a PR branch
 - [ ] Version references use EnvyOS `v0.1.x`, not upstream `v1.17.x`
+- [ ] EnvyOS-owned change noted in `CHANGELOG.md` `## [Unreleased]` (MeshCore-only rebase: one companion-tag line)
 - [ ] Monorepo submodule pins bumped when cutting a release (not required for every feature merge)
 
 ## Do not

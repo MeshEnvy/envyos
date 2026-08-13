@@ -7,7 +7,8 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | Path | Role |
 |------|------|
 | `envycore/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); **`envyos/main`** is distro head |
-| `ENVYOS_VERSIONS` | Dev HEAD semver — independent `distro`, `firmware`, `bootloader`, `motatool` (currently **v0.1.2**) |
+| `ENVYOS_VERSIONS` | Dev HEAD semver — independent `distro`, `firmware`, `bootloader`, `motatool` (currently **v0.1.3**) |
+| `CHANGELOG.md` | EnvyOS-owned release notes. MeshCore companion bumps link upstream. |
 | `envyos` | CLI symlink → `scripts/envyos` — `./envyos build|bump|publish|info` |
 | `build/` | Local build outputs (gitignored) — `build/firmware/<firmware>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` (dev); **`build/releases/<distro>/`** (published bundle snapshot) |
 | `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
@@ -80,6 +81,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | **v0.1.0** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · flat assets · **`build/firmware/v0.1.0/`** |
 | **v0.1.1** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · flat assets · **`build/firmware/v0.1.1/`** |
 
+- **Notes:** [`CHANGELOG.md`](CHANGELOG.md) — EnvyOS-owned only. MeshCore companion bumps link upstream. Publish requires a `## [vX.Y.Z]` section.
 - Distro tags in **`RELEASED_DISTROS`**; firmware artifact trees in **`RELEASED_FIRMWARE`** (`.released` markers immutable).
 - **Canonical local bundle:** `build/releases/<distro>/` — flat release files (GitHub uploads), local `ASSETS` manifest, `RELEASE_MANIFEST` after lock.
 - **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — flat files from `build/releases/<distro>/`.
@@ -99,7 +101,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 - **Build identity:** `./scripts/build-mota.sh` stamps **`v<semver>-<envycore-sha>`** into `-DFIRMWARE_VERSION`, UTC time into `-DFIRMWARE_BUILD_DATE`; device `ver` → `v0.1.3-abc1234 (Build: 13 Aug 2026 05:00 UTC)`. Host copy: **`build/firmware/<ver>/<slug>/version.txt`** (semver, stamp, sha).
 - **Publish** snapshots component versions into **`build/releases/<distro>/RELEASE_MANIFEST`** (includes submodule SHAs).
 - **Earns firmware version:** release freshen bundle (`envycore/FRESHEN.lock`) + `./envyos bump firmware` + `./envyos build firmware`.
-- Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_envyos_versions`
+- Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_envyos_versions`, `changelog_notes_for_distro`
 - `./scripts/build-mota.sh` defaults to **`read_firmware_version`**; override: `./scripts/build-mota.sh v0.1.1`
 - Stock MeshCore (no EndF/OTA): `./envyos build firmware --hex-only`
 

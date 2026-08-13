@@ -13,6 +13,8 @@ EnvyOS adds these enhancements:
 * mOTA (Mesh Over the Air) updates
 * Bug fixes in advance of upstream 
 
+Release notes: [CHANGELOG.md](CHANGELOG.md) (EnvyOS-owned changes). MeshCore companion bumps link to [their releases](https://github.com/meshcore-dev/MeshCore/releases).
+
 All projects are licenced and distributed under their original licenses. Code written independently is licensed under MIT.
 
 Human-supervised AI is used in this project.

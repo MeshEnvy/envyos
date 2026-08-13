@@ -112,9 +112,10 @@ Update `envycore/FRESHEN.lock`, then **ota repo**:
 
 1. Bump **`ENVYOS_VERSIONS`** (all keys together unless intentional; patch `distro` unless milestone)
 2. Sync `envycore/envyos/VERSION` + `motatool/Cargo.toml` to match
-3. `./scripts/build.sh` (or `build-bl.sh` + `build-mota.sh` separately)
-4. Git tag **`v<distro>`** on ota repo
-5. Bump `envycore` / `bootloader` / `motatool` submodule pointers if needed
+3. `CHANGELOG.md` — EnvyOS overlay/fixes under Unreleased. MeshCore companion bump is one line + [upstream release](https://github.com/meshcore-dev/MeshCore/releases) link. Do not copy MeshCore notes.
+4. `./scripts/build.sh` (or `build-bl.sh` + `build-mota.sh` separately)
+5. Git tag **`v<distro>`** on ota repo
+6. Bump `envycore` / `bootloader` / `motatool` submodule pointers if needed
 
 ```yaml
 mode: release

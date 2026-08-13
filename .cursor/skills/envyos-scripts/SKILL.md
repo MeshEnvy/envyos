@@ -27,7 +27,7 @@ All scripts live in **`scripts/`**; primary entry point is **`./envyos`** (symli
 | `info` | Dev HEAD, last published distro manifest, artifact readiness |
 | `build` | Wraps `build.sh`, `build-mota.sh`, `build-bl.sh`, `build-motatool.sh` |
 | `bump` | Independent component semver + sidecar sync (`VERSION`, `Cargo.toml`) |
-| `publish` | Distro bundle lock, stage assets, git tag, GitHub upload; ENVYOS_VERSIONS unchanged |
+| `publish` | Distro bundle lock, stage assets, git tag, GitHub upload; ENVYOS_VERSIONS unchanged. GitHub notes come from `CHANGELOG.md` |
 
 **Publish workflow:**
 
@@ -69,13 +69,16 @@ Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_
 
 **Released distros** (`RELEASED_DISTROS`): **`v0.1.0`**, **`v0.1.1`**. **Released firmware** (`RELEASED_FIRMWARE`): immutable `build/firmware/<ver>/` trees.
 
+**Changelog** — [`CHANGELOG.md`](../../../CHANGELOG.md). EnvyOS-owned changes only. MeshCore companion bumps are one line plus the upstream release URL. Add rows under `## [Unreleased]` in the same change set as the work. Before finalize, promote that block to `## [vX.Y.Z] - YYYY-MM-DD`. Finalize/upload fail if that heading is missing.
+
 **Publish** — after **`./envyos build`**:
 
-1. `./envyos publish --dry-run` — verify delta matrix + list planned assets
-2. `./envyos publish stage` — copy flat files + `ASSETS` to `build/releases/<distro>/`
-3. `./envyos publish finalize` — append `RELEASED_DISTROS`, lock `.released`, write `RELEASE_MANIFEST`, git tag
-4. `./envyos publish upload v<distro>` — GitHub Release
-5. Or `./envyos publish` — steps 2–4 in one shot
+1. Promote `CHANGELOG.md` Unreleased → `## [v<distro>]`
+2. `./envyos publish --dry-run` — verify delta matrix + list planned assets + preview notes
+3. `./envyos publish stage` — copy flat files + `ASSETS` to `build/releases/<distro>/`
+4. `./envyos publish finalize` — append `RELEASED_DISTROS`, lock `.released`, write `RELEASE_MANIFEST`, git tag
+5. `./envyos publish upload v<distro>` — GitHub Release (notes = changelog section + component table + assets)
+6. Or `./envyos publish` — steps 3–5 in one shot
 
 Does **not** change `ENVYOS_VERSIONS` (bump distro manually when ready).
 
