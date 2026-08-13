@@ -171,8 +171,13 @@ build_target() {
   rm -rf "$out"
   mkdir -p "$out"
 
+  local mota_tid pio_flags
+  mota_tid="$(mota_target_id_for_env "$env_name")"
+  pio_flags="${PLATFORMIO_BUILD_FLAGS:-} -DMOTA_TARGET_ID=${mota_tid}"
+
   (
     cd "$MC"
+    export PLATFORMIO_BUILD_FLAGS="$pio_flags"
     pio run -e "$env_name"
     pio run -e "$env_name" -t create_uf2
   )
@@ -186,7 +191,7 @@ build_target() {
   cp -f "$hex" "$out/firmware.hex"
   [[ -f "$uf2" ]] && cp -f "$uf2" "$out/firmware.uf2"
   [[ -f "$zip" ]] && cp -f "$zip" "$out/firmware.zip"
-  write_mota_version_txt "$out" "$VER" "$BUILD_DATE"
+  write_mota_version_txt "$out" "$VER" "$BUILD_STAMP" "$GIT_SHA"
 
   echo "    saved $out/firmware.hex (+ uf2/zip if present)"
 
@@ -318,8 +323,10 @@ if [[ ${#SELECTED[@]} -eq 0 ]]; then
   rm -rf "$OUT"
 fi
 mkdir -p "$OUT"
-BUILD_DATE="$(format_firmware_build_date)"
-write_mota_version_txt "$OUT" "$VER" "$BUILD_DATE"
+BUILD_STAMP="$(format_firmware_build_date)"
+GIT_SHA="$(git_short_sha "$MC")"
+FW_VER_LABEL="${FW_VER}-${GIT_SHA}"
+write_mota_version_txt "$OUT" "$VER" "$BUILD_STAMP" "$GIT_SHA"
 
 if [[ "$HEX_ONLY" -eq 1 ]]; then
   echo "mode: hex-only (no .mota)"
@@ -327,10 +334,10 @@ else
   MT="$(motatool_bin)"
   echo "motatool: $MT"
 fi
-echo "version: $VER  firmware: $FW_VER  build: $BUILD_DATE"
+echo "version: $VER  label: $FW_VER_LABEL  envycore: $GIT_SHA  build: $BUILD_STAMP"
 echo "targets: ${BUILD_SLUGS[*]}"
 
-export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_DATE}\"'"
+export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER_LABEL}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
 
 i=0
 for i in "${!BUILD_SLUGS[@]}"; do

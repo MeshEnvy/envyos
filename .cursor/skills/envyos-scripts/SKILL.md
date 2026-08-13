@@ -139,7 +139,7 @@ Builds OTA firmware from `envycore/` and packages `.mota` into `build/firmware/<
 | `firmware.uf2` | USB drag-flash (initial flash or recovery) |
 | `fw_*_full_*.mota` | Full OTA image |
 | `delta_from_v0.1.0.mota` | In-place patch from an older release (one per prior version) |
-| `version.txt` | Normalized tag |
+| `version.txt` | Semver (line 1), UTC build stamp (line 2), envycore git sha (line 3) |
 
 Legacy flat layout (`build/firmware/<ver>/firmware.hex`) still works as a delta base for `wismesh-tag-repeater`.
 

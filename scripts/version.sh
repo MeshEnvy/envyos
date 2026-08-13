@@ -89,17 +89,33 @@ write_envyos_version_key() {
   mv "$tmp" "$ENVYOS_VERSIONS_FILE"
 }
 
-# Match firmware CLI display: "6 Jun 2026" (no leading zero on day).
+# Match firmware CLI display: "13 Aug 2026 05:00 UTC" (no leading zero on day).
 format_firmware_build_date() {
   local d
-  d="$(LC_TIME=C date '+%d %b %Y')"
-  printf '%s' "${d#0}"
+  d="$(LC_TIME=C date -u '+%d %b %Y')"
+  d="${d#0}"
+  printf '%s %s' "$d" "$(LC_TIME=C date -u '+%H:%M UTC')"
 }
 
-# version.txt: line 1 = firmware version, line 2 = build date.
+# Short git SHA for the tree that produced firmware (default: envycore submodule).
+git_short_sha() {
+  local dir="${1:-$OTA_ROOT/envycore}"
+  git -C "$dir" rev-parse --short HEAD 2>/dev/null || printf 'unknown'
+}
+
+# PlatformIO env name → MOTA_TARGET_ID (sha256:4 little-endian), same as envycore/build.sh.
+mota_target_id_for_env() {
+  python3 -c "import hashlib,sys;print('0x%08x'%int.from_bytes(hashlib.sha256(sys.argv[1].encode()).digest()[:4],'little'))" "$1" 2>/dev/null || echo "0x00000000"
+}
+
+# version.txt: line 1 = semver, line 2 = build stamp, line 3 = envycore git sha.
 write_mota_version_txt() {
-  local dir=$1 ver=$2 build_date=$3
-  printf '%s\n%s\n' "$ver" "$build_date" >"$dir/version.txt"
+  local dir=$1 ver=$2 build_date=$3 git_sha=$4
+  if [[ -n "$git_sha" ]]; then
+    printf '%s\n%s\n%s\n' "$ver" "$build_date" "$git_sha" >"$dir/version.txt"
+  else
+    printf '%s\n%s\n' "$ver" "$build_date" >"$dir/version.txt"
+  fi
 }
 
 verify_firmware_version_sync() {
