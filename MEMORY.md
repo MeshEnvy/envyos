@@ -7,13 +7,13 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | Path | Role |
 |------|------|
 | `envycore/` | MeshCore firmware submodule (`MeshEnvy/meshcore-firmware`); **`envyos/main`** is distro head |
-| `ENVYOS_VERSIONS` | Dev HEAD semver — independent `distro`, `firmware`, `bootloader`, `motatool` (currently **v0.1.3**) |
+| `ENVYOS_VERSIONS` | Dev HEAD semver — independent `distro`, `firmware`, `bootloader`, `motatool` (bootloader **0.2.0** WDT in progress; distro **0.1.3**) |
 | `CHANGELOG.md` | EnvyOS-owned release notes. MeshCore companion bumps link upstream. |
 | `envyos` | CLI symlink → `scripts/envyos` — `./envyos build|bump|publish|info` |
 | `build/` | Local build outputs (gitignored) — `build/firmware/<firmware>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` (dev); **`build/releases/<distro>/`** (published bundle snapshot) |
 | `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
-| `bootloader/` | **EnvyBoot** nRF52 bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**, interim **0.1.3** pin; fleet ships **0.1.2** in **v0.1.2**); release notes [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md) |
+| `bootloader/` | **EnvyBoot** nRF52 bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**, **0.2.0** WDT; fleet ships **0.1.2** in **v0.1.2**); release notes [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md) |
 | `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `seeder.sh`, `targets.txt` |
 | `apps/app/` | Flutter MeshCore client submodule (`zjs81/meshcore-open`) |
 
@@ -82,7 +82,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | **v0.1.1** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · flat assets · **`build/firmware/v0.1.1/`** |
 | **v0.1.2** | **Released** distro — latest shipped; bootloader **0.1.2** | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.2) · **`build/releases/v0.1.2/`** |
 
-EnvyBoot **0.1.3** is an interim bootloader submodule pin (branding, artifact names, OTAFIX 2.3 freshen). It is **not** in any published EnvyOS distro bundle. Next EnvyBoot work targets **0.2.0** (WDT).
+EnvyBoot **0.1.3** / **0.2.0** are interim bootloader submodule pins (not in any published EnvyOS distro bundle). **0.2.0** adds WDT feed; bench-validated on RAK4631 slim (2026-08-14).
 
 - **Notes:** [`CHANGELOG.md`](CHANGELOG.md) — EnvyOS-owned only. MeshCore companion bumps link upstream. Publish requires a `## [vX.Y.Z]` section.
 - Distro tags in **`RELEASED_DISTROS`**; firmware artifact trees in **`RELEASED_FIRMWARE`** (`.released` markers immutable).
@@ -251,7 +251,6 @@ Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
 <!-- In-flight work only; delete when done -->
 - **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. Postmortem: `docs/incidents/2026-08-13-remote-admin-advert-lockup.md`. Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
 - **Bench (2026-08-13): EndF self-locate on nRF52** — CC310 flash-hash fix + **EndF RAM cache** + **chunked merkle self-serve** (`OTA_SELF_BLOCKS_PER_TICK=1`); **remote admin CLI deferred** out of RX.
-- **Watchdog (in progress → EnvyBoot 0.2.0):** nRF52 WDT + `MOTA_BL_FEAT_WDT_FEED`; firmware gated on BL capability. Port refs: meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged.
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `build-mota.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)

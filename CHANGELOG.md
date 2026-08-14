@@ -17,6 +17,8 @@ Add user-visible EnvyOS work under **Unreleased** in the same change set. Before
 - SenseCAP P1-Pro NOR mini-superseeder (`sensecap-p1pro-superseeder`).
 - Firmware `ver` stamp includes envycore SHA and UTC build date (`v0.1.3-<sha> (Build: … UTC)`).
 - **EnvyBoot 0.1.3** (interim submodule pin; not in distro bundle) — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
+- **EnvyBoot 0.2.0** — WDT feed in bootloader; repeater `watchdog` CLI gated on `MOTA_BL_FEAT_WDT_FEED` — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
+- nRF52 repeater hardware WDT (30 s default, prefs + CLI); companions excluded.
 
 ### Changed
 
