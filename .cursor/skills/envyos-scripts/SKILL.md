@@ -144,10 +144,10 @@ Concurrency: `--mota-jobs` / `$ENVYOS_MOTA_JOBS` (alias `--delta-jobs` / `$ENVYO
 
 | File | Purpose |
 |------|---------|
-| `firmware.hex` | **Keep as delta base** for next patch (same slug) |
-| `firmware.uf2` | USB drag-flash (initial flash or recovery) |
-| `fw_*_full_*.mota` | Full OTA image |
-| `delta_from_v0.1.0.mota` | In-place patch from an older release (one per prior version) |
+| `fw-<slug>-<ver>.hex` | **Keep as delta base** for next patch (same slug) |
+| `fw-<slug>-<ver>.uf2` | USB drag-flash (initial flash or recovery) |
+| `fw-<slug>-<ver>-full-<mid8>.mota` | Full OTA image |
+| `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota` | In-place patch; `base8` matches that base's full-mota merkle |
 | `version.txt` | Semver (line 1), UTC build stamp (line 2), envycore git sha (line 3) |
 
 Legacy flat layout (`build/firmware/<ver>/firmware.hex`) still works as a delta base for `wismesh-tag-repeater`.
@@ -199,11 +199,11 @@ Default dir: `./build/firmware` (recursive `.mota` scan). Sends `ota folder on` 
 # flash build/bootloader/v0.1.0/*.uf2 on Tag B (match board profile)
 
 ./scripts/build-mota.sh v0.1.0
-# flash Tag B from build/firmware/v0.1.0/wismesh-tag-repeater/firmware.uf2
-# flash Tag C from build/firmware/v0.1.0/wismesh-tag-client-ble/firmware.uf2
+# flash Tag B from build/firmware/v0.1.0/wismesh-tag-repeater/fw-wismesh-tag-repeater-v0.1.0.uf2
+# flash Tag C from build/firmware/v0.1.0/wismesh-tag-client-ble/fw-wismesh-tag-client-ble-v0.1.0.uf2
 
 ./scripts/build-mota.sh v0.1.1
-# produces delta_from_v0.1.0.mota
+# produces fw-<slug>-v0.1.1-delta-from-v0.1.0-<base8>.mota per prior base
 
 ./scripts/seeder.sh /dev/cu.… ./build/firmware/v0.1.1   # Tag A USB
 

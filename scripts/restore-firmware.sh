@@ -7,7 +7,10 @@
 #   ./scripts/restore-firmware.sh --force v0.1.2
 #
 # Legacy releases (v0.1.0, v0.1.1): firmware-vX.Y.Z.zip with per-slug firmware.hex trees.
-# Flat releases (v0.1.2+): fw-<slug>-full-vX.Y.Z.mota (+ .uf2) → firmware.bin base image.
+# Flat releases: keep GitHub .mota basenames. v0.2.0+ is motatool-native
+#   fw-<slug>-<ver>-full-<mid8>.mota /
+#   fw-<slug>-<ver>-delta-from-<base>-<base8>.mota. v0.1.2 used
+#   fw-<slug>-full-<ver>.mota / fw-<slug>-delta-from-<base>.mota.
 
 set -euo pipefail
 
@@ -45,10 +48,30 @@ require_gh() {
   }
 }
 
+RELEASE_ASSET_CACHE_VER=""
+RELEASE_ASSET_CACHE=()
+
+load_release_assets() {
+  local ver="$1"
+  local name
+  [[ "$RELEASE_ASSET_CACHE_VER" == "$ver" && ${#RELEASE_ASSET_CACHE[@]} -gt 0 ]] && return 0
+  RELEASE_ASSET_CACHE_VER="$ver"
+  RELEASE_ASSET_CACHE=()
+  while IFS= read -r name || [[ -n "$name" ]]; do
+    [[ -n "$name" ]] || continue
+    RELEASE_ASSET_CACHE+=("$name")
+  done < <(gh release view "$ver" --json assets --jq '.assets[].name' 2>/dev/null)
+}
+
 release_has_asset() {
   local ver="$1"
   local pattern="$2"
-  gh release view "$ver" --json assets --jq '.assets[].name' 2>/dev/null | grep -qxF "$pattern"
+  local name
+  load_release_assets "$ver"
+  for name in "${RELEASE_ASSET_CACHE[@]}"; do
+    [[ "$name" == "$pattern" ]] && return 0
+  done
+  return 1
 }
 
 firmware_slug_has_base_image() {
@@ -57,16 +80,53 @@ firmware_slug_has_base_image() {
   resolve_base_image "$slug" "$ver" >/dev/null 2>&1
 }
 
+# Release .mota names for a slug: current, plus v0.1.2 GitHub fallbacks.
+release_mota_assets_for_slug() {
+  local ver="$1" slug="$2"
+  local t8="" name
+  t8="$(firmware_target8_for_slug "$slug" 2>/dev/null || true)"
+  load_release_assets "$ver"
+  for name in "${RELEASE_ASSET_CACHE[@]}"; do
+    [[ "$name" == *.mota ]] || continue
+    if [[ "$name" == fw-${slug}-${ver}-full-*.mota ]] \
+      || [[ "$name" == fw-${slug}-${ver}-delta-from-*.mota ]] \
+      || [[ "$name" == "$(github_full_mota_name "$slug" "$ver")" ]] \
+      || [[ "$name" == fw-${slug}-delta-from-*.mota ]]; then
+      printf '%s\n' "$name"
+      continue
+    fi
+    if [[ -n "$t8" && "$name" == *_${t8}_${ver}_full_*.mota ]] \
+      || [[ -n "$t8" && "$name" == *_${t8}_${ver}_ipdelta_*.mota ]]; then
+      printf '%s\n' "$name"
+    fi
+  done
+}
+
+firmware_slug_restore_complete() {
+  local slug="$1"
+  local ver="$2"
+  local asset
+
+  firmware_slug_has_base_image "$slug" "$ver" || return 1
+  while IFS= read -r asset || [[ -n "$asset" ]]; do
+    [[ -n "$asset" ]] || continue
+    [[ -f "$FIRMWARE_ROOT/$ver/$slug/$asset" ]] || return 1
+  done < <(release_mota_assets_for_slug "$ver" "$slug")
+  return 0
+}
+
 firmware_version_needs_restore() {
   local ver="$1"
   local slug
   while IFS= read -r slug || [[ -n "$slug" ]]; do
     [[ -n "$slug" ]] || continue
-    if firmware_slug_has_base_image "$slug" "$ver"; then
-      return 1
+    if firmware_slug_restore_complete "$slug" "$ver"; then
+      continue
     fi
-    if release_has_asset "$ver" "fw-${slug}-full-${ver}.mota" \
-      || release_has_asset "$ver" "firmware-${ver}.zip"; then
+    if release_has_asset "$ver" "firmware-${ver}.zip"; then
+      return 0
+    fi
+    if [[ -n "$(release_mota_assets_for_slug "$ver" "$slug")" ]]; then
       return 0
     fi
   done < <(list_target_slugs_from_file "$TARGETS_FILE")
@@ -103,17 +163,35 @@ restore_slug_from_flat_assets() {
   local ver="$1"
   local slug="$2"
   local out="$FIRMWARE_ROOT/$ver/$slug"
-  local tmp asset_mota asset_uf2
+  local tmp asset_uf2 asset
+  local -a dl_patterns=()
 
-  if [[ "$FORCE" -eq 0 ]] && firmware_slug_has_base_image "$slug" "$ver"; then
-    echo "    skip $ver/$slug (base image present)"
+  if [[ "$FORCE" -eq 0 ]] && firmware_slug_restore_complete "$slug" "$ver"; then
+    echo "    skip $ver/$slug (complete)"
     return 0
   fi
 
-  asset_mota="fw-${slug}-full-${ver}.mota"
-  asset_uf2="fw-${slug}-${ver}.uf2"
-  if ! release_has_asset "$ver" "$asset_mota"; then
-    echo "    skip $ver/$slug (no $asset_mota on release $ver)" >&2
+  while IFS= read -r asset || [[ -n "$asset" ]]; do
+    [[ -n "$asset" ]] || continue
+    if [[ "$FORCE" -eq 0 && -f "$out/$asset" ]]; then
+      continue
+    fi
+    dl_patterns+=(-p "$asset")
+  done < <(release_mota_assets_for_slug "$ver" "$slug")
+
+  asset_uf2="$(firmware_artifact_name "$slug" "$ver" uf2)"
+  if release_has_asset "$ver" "$asset_uf2"; then
+    if [[ "$FORCE" -eq 1 || ! -f "$out/$asset_uf2" ]]; then
+      dl_patterns+=(-p "$asset_uf2")
+    fi
+  fi
+
+  if ((${#dl_patterns[@]} == 0)); then
+    if firmware_slug_has_base_image "$slug" "$ver"; then
+      echo "    skip $ver/$slug (complete)"
+      return 0
+    fi
+    echo "    skip $ver/$slug (no .mota assets on release $ver)" >&2
     return 0
   fi
 
@@ -122,18 +200,25 @@ restore_slug_from_flat_assets() {
   trap "rm -rf '$tmp'" RETURN
 
   echo "    restore $ver/$slug from flat release assets"
-  gh release download "$ver" -p "$asset_mota" -D "$tmp"
-  if release_has_asset "$ver" "$asset_uf2"; then
-    gh release download "$ver" -p "$asset_uf2" -D "$tmp"
-  fi
-
+  gh release download "$ver" "${dl_patterns[@]}" -D "$tmp"
   mkdir -p "$out"
-  extract_full_mota_payload "$tmp/$asset_mota" "$out/firmware.bin"
-  if [[ -f "$tmp/$asset_uf2" ]]; then
-    cp -f "$tmp/$asset_uf2" "$out/firmware.uf2"
+
+  for asset in "$tmp"/*; do
+    [[ -f "$asset" ]] || continue
+    cp -f "$asset" "$out/$(basename "$asset")"
+    echo "    → $out/$(basename "$asset")"
+  done
+
+  if [[ "$FORCE" -eq 1 ]] || ! firmware_slug_has_base_image "$slug" "$ver"; then
+    while IFS= read -r asset || [[ -n "$asset" ]]; do
+      [[ -n "$asset" && -f "$out/$asset" ]] || continue
+      if [[ "$asset" == *-full-*.mota || "$asset" == *_full_*.mota || "$asset" == fw-${slug}-full-*.mota ]]; then
+        extract_full_mota_payload "$out/$asset" "$out/$(firmware_artifact_name "$slug" "$ver" bin)"
+        echo "    → $out/$(firmware_artifact_name "$slug" "$ver" bin)"
+        break
+      fi
+    done < <(release_mota_assets_for_slug "$ver" "$slug")
   fi
-  cp -f "$tmp/$asset_mota" "$out/"
-  echo "    → $out/firmware.bin"
 }
 
 restore_from_legacy_zip() {
@@ -175,6 +260,7 @@ restore_from_flat_release() {
   local ver="$1"
   local slug restored=0
 
+  load_release_assets "$ver"
   echo "==> restore $ver from flat GitHub release assets"
   while IFS= read -r slug || [[ -n "$slug" ]]; do
     [[ -n "$slug" ]] || continue

@@ -621,28 +621,113 @@ append_released_bootloader() {
   printf '%s\n' "$ver" >>"$RELEASED_BOOTLOADER_FILE"
 }
 
-resolve_base_image() {
+# Flash (USB / delta base): fw-<slug>-vX.Y.Z.<ext>
+# Motas: fw-<slug>-<ver>-full-<mid8>.mota
+#        fw-<slug>-<ver>-delta-from-<base>-<base8>.mota
+firmware_artifact_name() {
+  local slug="$1" ver="$2" ext="$3"
+  ver="$(normalize_version "$ver")" || return 1
+  printf 'fw-%s-%s.%s' "$slug" "$ver" "$ext"
+}
+
+firmware_target8_for_slug() {
   local slug="$1"
-  local base_ver="$2"
-  local candidates=(
-    "$FIRMWARE_ROOT/$base_ver/$slug/firmware.hex"
-    "$FIRMWARE_ROOT/$base_ver/$slug/firmware.bin"
-  )
-  if [[ "$slug" == "wismesh-tag-repeater" ]]; then
-    candidates+=(
-      "$FIRMWARE_ROOT/$base_ver/repeater/firmware.hex"
-      "$FIRMWARE_ROOT/$base_ver/repeater/firmware.bin"
-      "$FIRMWARE_ROOT/$base_ver/firmware.hex"
-      "$FIRMWARE_ROOT/$base_ver/firmware.bin"
-    )
+  local env id
+  if ! type target_env_for_slug >/dev/null 2>&1; then
+    # shellcheck source=scripts/targets-lib.sh
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/targets-lib.sh"
   fi
+  env="$(target_env_for_slug "$slug")" || return 1
+  id="$(mota_target_id_for_env "$env")"
+  printf '%08X' "$((id))"
+}
+
+firmware_mota_glob() {
+  local slug="$1" ver="$2" kind="$3"
+  ver="$(normalize_version "$ver")" || return 1
+  case "$kind" in
+    full) printf 'fw-%s-%s-full-*.mota' "$slug" "$ver" ;;
+    delta | ipdelta) printf 'fw-%s-%s-delta-from-*.mota' "$slug" "$ver" ;;
+    *)
+      echo "error: unknown mota kind: $kind" >&2
+      return 1
+      ;;
+  esac
+}
+
+list_firmware_motas_in_dir() {
+  local dir="$1" slug="$2" ver="$3" kind="$4"
+  local g f
+  g="$(firmware_mota_glob "$slug" "$ver" "$kind")" || return 1
+  shopt -s nullglob
+  for f in "$dir"/$g; do
+    printf '%s\n' "$f"
+  done
+}
+
+count_firmware_motas_in_dir() {
+  local n=0
+  while IFS= read -r _ || [[ -n "$_" ]]; do
+    [[ -n "$_" ]] || continue
+    n=$((n + 1))
+  done < <(list_firmware_motas_in_dir "$@")
+  printf '%s' "$n"
+}
+
+# v0.1.2 GitHub names (restore fallback only).
+github_full_mota_name() {
+  local slug="$1" ver="$2"
+  ver="$(normalize_version "$ver")" || return 1
+  printf 'fw-%s-full-%s.mota' "$slug" "$ver"
+}
+
+github_delta_mota_name() {
+  local slug="$1" base_ver="$2"
+  base_ver="$(normalize_version "$base_ver")" || return 1
+  printf 'fw-%s-delta-from-%s.mota' "$slug" "$base_ver"
+}
+
+resolve_firmware_image_in_dir() {
+  local dir="$1" slug="$2" ver="$3"
   local p
-  for p in "${candidates[@]}"; do
+  for p in \
+    "$dir/$(firmware_artifact_name "$slug" "$ver" hex)" \
+    "$dir/$(firmware_artifact_name "$slug" "$ver" bin)" \
+    "$dir/firmware.hex" \
+    "$dir/firmware.bin"; do
     if [[ -f "$p" ]]; then
       printf '%s' "$p"
       return 0
     fi
   done
+  return 1
+}
+
+resolve_firmware_uf2_in_dir() {
+  local dir="$1" slug="$2" ver="$3"
+  local p
+  for p in \
+    "$dir/$(firmware_artifact_name "$slug" "$ver" uf2)" \
+    "$dir/firmware.uf2"; do
+    if [[ -f "$p" ]]; then
+      printf '%s' "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+resolve_base_image() {
+  local slug="$1"
+  local base_ver="$2"
+  local dir="$FIRMWARE_ROOT/$base_ver/$slug"
+  if resolve_firmware_image_in_dir "$dir" "$slug" "$base_ver"; then
+    return 0
+  fi
+  if [[ "$slug" == "wismesh-tag-repeater" ]]; then
+    resolve_firmware_image_in_dir "$FIRMWARE_ROOT/$base_ver/repeater" "$slug" "$base_ver" && return 0
+    resolve_firmware_image_in_dir "$FIRMWARE_ROOT/$base_ver" "$slug" "$base_ver" && return 0
+  fi
   return 1
 }
 
@@ -686,8 +771,8 @@ ensure_firmware_bases_for_build() {
 verify_release_delta_matrix() {
   local firmware_ver="$1"
   local targets_file="$2"
-  local line slug base_ver delta
-  local missing=0
+  local line slug base_ver
+  local missing=0 need=0 have=0
 
   firmware_ver="$(normalize_version "$firmware_ver")" || return 1
   [[ -f "$targets_file" ]] || {
@@ -701,16 +786,18 @@ verify_release_delta_matrix() {
     [[ -n "$line" ]] || continue
     read -r slug _ <<<"$line"
     [[ -n "$slug" ]] || continue
+    need=0
 
     while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
       [[ -n "$base_ver" ]] || continue
       resolve_base_hex "$slug" "$base_ver" >/dev/null || continue
-      delta="$FIRMWARE_ROOT/$firmware_ver/$slug/delta_from_${base_ver}.mota"
-      if [[ ! -f "$delta" ]]; then
-        echo "error: missing $delta (base hex exists for $base_ver/$slug)" >&2
-        missing=1
-      fi
+      need=$((need + 1))
     done < <(list_delta_base_versions "$firmware_ver")
+    have="$(count_firmware_motas_in_dir "$FIRMWARE_ROOT/$firmware_ver/$slug" "$slug" "$firmware_ver" ipdelta)"
+    if ((have < need)); then
+      echo "error: $firmware_ver/$slug has $have ipdelta .mota, need $need (one per prior base with an image)" >&2
+      missing=1
+    fi
   done <"$targets_file"
 
   [[ "$missing" -eq 0 ]]
@@ -725,7 +812,7 @@ write_firmware_released_marker() {
   cat >"$dir/.released" <<EOF
 EnvyOS firmware $firmware_ver — published in distro $distro_ver on $today.
 Do not delete or rebuild this directory.
-Includes delta_from_<base>.mota for every prior released firmware with base hex.
+Includes fw-<slug>-<ver>-delta-from-<base>-<base8>.mota for every prior released firmware with a base image.
 EOF
 }
 
@@ -818,7 +905,7 @@ stage_flat_release_asset() {
 
 stage_firmware_release_assets() {
   local firmware_ver=$1 firmware_root=$2 release_dir=$3 manifest_file=$4
-  local targets_file slug f base delta_base name
+  local targets_file slug f name uf2
   # shellcheck source=scripts/targets-lib.sh
   source "$OTA_ROOT/scripts/targets-lib.sh"
   targets_file="$OTA_ROOT/scripts/targets.txt"
@@ -834,23 +921,14 @@ stage_firmware_release_assets() {
       echo "error: missing firmware target dir $firmware_root/$slug" >&2
       return 1
     }
-    if [[ -f "$firmware_root/$slug/firmware.uf2" ]]; then
-      name="fw-${slug}-${firmware_ver}.uf2"
-      stage_flat_release_asset "$firmware_root/$slug/firmware.uf2" "$name" "$release_dir" "$manifest_file"
+    if uf2="$(resolve_firmware_uf2_in_dir "$firmware_root/$slug" "$slug" "$firmware_ver")"; then
+      name="$(firmware_artifact_name "$slug" "$firmware_ver" uf2)"
+      stage_flat_release_asset "$uf2" "$name" "$release_dir" "$manifest_file"
     fi
     shopt -s nullglob
-    for f in "$firmware_root/$slug"/delta_from_*.mota; do
-      base="$(basename "$f")"
-      delta_base="${base#delta_from_}"
-      delta_base="${delta_base%.mota}"
-      delta_base="$(normalize_version "$delta_base")"
-      name="fw-${slug}-delta-from-${delta_base}.mota"
-      stage_flat_release_asset "$f" "$name" "$release_dir" "$manifest_file"
-    done
     for f in "$firmware_root/$slug"/*.mota; do
-      base="$(basename "$f")"
-      [[ "$base" == delta_from_* ]] && continue
-      name="fw-${slug}-full-${firmware_ver}.mota"
+      [[ -f "$f" ]] || continue
+      name="$(basename "$f")"
       stage_flat_release_asset "$f" "$name" "$release_dir" "$manifest_file"
     done
     shopt -u nullglob
@@ -1109,7 +1187,7 @@ lock_release_components() {
 
 plan_firmware_release_assets() {
   local firmware_ver=$1 firmware_root=$2
-  local targets_file slug f base delta_base name rel_src
+  local targets_file slug f base delta_base name rel_src uf2
   # shellcheck source=scripts/targets-lib.sh
   source "$OTA_ROOT/scripts/targets-lib.sh"
   targets_file="$OTA_ROOT/scripts/targets.txt"
@@ -1125,26 +1203,15 @@ plan_firmware_release_assets() {
       echo "error: missing firmware target dir $firmware_root/$slug" >&2
       return 1
     }
-    if [[ -f "$firmware_root/$slug/firmware.uf2" ]]; then
-      name="fw-${slug}-${firmware_ver}.uf2"
-      rel_src="${firmware_root}/${slug}/firmware.uf2"
-      rel_src="${rel_src#"$OTA_ROOT"/}"
+    if uf2="$(resolve_firmware_uf2_in_dir "$firmware_root/$slug" "$slug" "$firmware_ver")"; then
+      name="$(firmware_artifact_name "$slug" "$firmware_ver" uf2)"
+      rel_src="${uf2#"$OTA_ROOT"/}"
       printf '  asset: %s  source: %s\n' "$name" "$rel_src"
     fi
     shopt -s nullglob
-    for f in "$firmware_root/$slug"/delta_from_*.mota; do
-      base="$(basename "$f")"
-      delta_base="${base#delta_from_}"
-      delta_base="${delta_base%.mota}"
-      delta_base="$(normalize_version "$delta_base")"
-      name="fw-${slug}-delta-from-${delta_base}.mota"
-      rel_src="${f#"$OTA_ROOT"/}"
-      printf '  asset: %s  source: %s\n' "$name" "$rel_src"
-    done
     for f in "$firmware_root/$slug"/*.mota; do
-      base="$(basename "$f")"
-      [[ "$base" == delta_from_* ]] && continue
-      name="fw-${slug}-full-${firmware_ver}.mota"
+      [[ -f "$f" ]] || continue
+      name="$(basename "$f")"
       rel_src="${f#"$OTA_ROOT"/}"
       printf '  asset: %s  source: %s\n' "$name" "$rel_src"
     done
@@ -1395,8 +1462,8 @@ ${notes}
 Flat per-artifact files in \`build/releases/${distro_ver}/\` (see local \`ASSETS\` manifest for sha256).
 
 - \`fw-<slug>-${firmware_ver}.uf2\` — initial flash per target in \`scripts/targets.txt\`
-- \`fw-<slug>-full-${firmware_ver}.mota\` — OTA full image
-- \`fw-<slug>-delta-from-vX.Y.Z.mota\` — OTA deltas from prior firmware releases
+- \`fw-<slug>-${firmware_ver}-full-<mid8>.mota\` — OTA full image
+- \`fw-<slug>-${firmware_ver}-delta-from-vX.Y.Z-<base8>.mota\` — in-place deltas (release version + base full-mota merkle)
 - \`bl-<board>-${bootloader_ver}.uf2\` — EnvyBoot bootloader update
 - \`bl-<board>-recovery-${bootloader_ver}.zip\` — bootloader recovery package (when built)
 - \`motatool-<platform>-${motatool_ver}\` — bench CLI (\`serve\`, pack, verify)

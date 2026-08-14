@@ -79,3 +79,25 @@ list_target_slugs_from_file() {
     printf '%s\n' "$slug"
   done <"$file"
 }
+
+# Slug from targets.txt → PlatformIO env name.
+target_env_for_slug() {
+  local want="$1"
+  local file="${2:-}"
+  local line slug env
+  if [[ -z "$file" ]]; then
+    file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/targets.txt"
+  fi
+  [[ -f "$file" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$line" ]] || continue
+    read -r slug env _ <<<"$line"
+    if [[ "$slug" == "$want" && -n "$env" ]]; then
+      printf '%s' "$env"
+      return 0
+    fi
+  done <"$file"
+  return 1
+}

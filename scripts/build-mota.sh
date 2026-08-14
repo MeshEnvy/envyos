@@ -40,11 +40,13 @@ MOTA_POOL_PIDS=()
 
 reap_mota_pool() {
   local i
-  ((${#MOTA_POOL_PIDS[@]} == 0)) && return 0
+  if ((${#MOTA_POOL_PIDS[@]} == 0)); then
+    return 0
+  fi
   for i in "${!MOTA_POOL_PIDS[@]}"; do
     if ! kill -0 "${MOTA_POOL_PIDS[$i]}" 2>/dev/null; then
       wait "${MOTA_POOL_PIDS[$i]}" || MOTA_POOL_FAILED=1
-      unset 'MOTA_POOL_PIDS[i]'
+      unset "MOTA_POOL_PIDS[$i]"
     fi
   done
   if ((${#MOTA_POOL_PIDS[@]} > 0)); then
@@ -57,7 +59,9 @@ reap_mota_pool() {
 wait_mota_pool_slot() {
   while ((${#MOTA_POOL_PIDS[@]} >= MOTA_JOBS_LIMIT)); do
     reap_mota_pool
-    ((${#MOTA_POOL_PIDS[@]} >= MOTA_JOBS_LIMIT)) && sleep 0.05
+    if ((${#MOTA_POOL_PIDS[@]} >= MOTA_JOBS_LIMIT)); then
+      sleep 0.05
+    fi
   done
 }
 
@@ -193,46 +197,52 @@ delta_base_versions_for_build() {
 
 collect_delta_jobs_for_slug() {
   local slug="$1"
-  local out="$OUT_ROOT/$VER/$slug"
-  local base_ver base_hex delta_out base_versions=()
+  local base_ver base_hex
 
   while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
     [[ -n "$base_ver" ]] || continue
-    base_versions+=("$base_ver")
-  done < <(delta_base_versions_for_build)
-
-  for base_ver in "${base_versions[@]}"; do
-      if ! base_hex="$(resolve_base_image "$slug" "$base_ver")"; then
+    if ! base_hex="$(resolve_base_image "$slug" "$base_ver")"; then
       echo "    skip delta $base_ver → $VER ($slug): no base hex" >&2
       continue
     fi
-    delta_out="$out/delta_from_${base_ver}.mota"
-    printf '%s|%s|%s|%s\n' "$slug" "$base_ver" "$base_hex" "$delta_out"
-  done
+    printf '%s|%s|%s\n' "$slug" "$base_ver" "$base_hex"
+  done < <(delta_base_versions_for_build)
 }
 
 run_full_mota_job() {
   local mt="$1"
   local slug="$2"
   local out="$3"
+  local fw_sem="${FW_VER#v}"
+  local fw_image
+
+  fw_image="$(resolve_firmware_image_in_dir "$out" "$slug" "$VER")" || {
+    echo "error: no firmware image in $out" >&2
+    return 1
+  }
 
   echo "==> full .mota ($slug)"
-  "$mt" build --fw "$out/firmware.hex" --out-dir "$out"
-  echo "    full .mota → $out/"
+  "$mt" build --fw "$fw_image" --fw-version "$fw_sem" \
+    --name-stem "fw-${slug}-${VER}" --out-dir "$out"
 }
 
 run_one_delta_job() {
   local mt="$1"
   local job="$2"
-  local slug base_ver base_hex delta_out fw_hex
+  local slug base_ver base_hex fw_hex out
 
-  IFS='|' read -r slug base_ver base_hex delta_out <<<"$job"
-  fw_hex="$OUT_ROOT/$VER/$slug/firmware.hex"
+  IFS='|' read -r slug base_ver base_hex <<<"$job"
+  out="$OUT_ROOT/$VER/$slug"
+  fw_hex="$(resolve_firmware_image_in_dir "$out" "$slug" "$VER")" || {
+    echo "error: no firmware image for $slug $VER" >&2
+    return 1
+  }
   echo "==> in-place delta ($slug) $base_ver → $VER"
   echo "    base: $base_hex"
   echo "    fw:   $fw_hex"
-  "$mt" build --base "$base_hex" --fw "$fw_hex" --patch-type in-place --out "$delta_out"
-  echo "    delta: $delta_out"
+  "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "${FW_VER#v}" \
+    --patch-type in-place --name-stem "fw-${slug}-${VER}" --base-version "$base_ver" \
+    --out-dir "$out"
 }
 
 queue_mota_jobs_for_slug() {
@@ -306,15 +316,19 @@ build_target_firmware() {
   local hex="$build_dir/firmware.hex"
   local uf2="$build_dir/firmware.uf2"
   local zip="$build_dir/firmware.zip"
+  local dest_hex dest_uf2 dest_zip
 
   [[ -f "$hex" ]] || { echo "error: missing $hex" >&2; exit 1; }
 
-  cp -f "$hex" "$out/firmware.hex"
-  [[ -f "$uf2" ]] && cp -f "$uf2" "$out/firmware.uf2"
-  [[ -f "$zip" ]] && cp -f "$zip" "$out/firmware.zip"
+  dest_hex="$out/$(firmware_artifact_name "$slug" "$VER" hex)"
+  dest_uf2="$out/$(firmware_artifact_name "$slug" "$VER" uf2)"
+  dest_zip="$out/$(firmware_artifact_name "$slug" "$VER" zip)"
+  cp -f "$hex" "$dest_hex"
+  [[ -f "$uf2" ]] && cp -f "$uf2" "$dest_uf2"
+  [[ -f "$zip" ]] && cp -f "$zip" "$dest_zip"
   write_mota_version_txt "$out" "$VER" "$BUILD_STAMP" "$GIT_SHA"
 
-  echo "    saved $out/firmware.hex (+ uf2/zip if present)"
+  echo "    saved $dest_hex"
 
   if [[ "$HEX_ONLY" -eq 1 ]]; then
     echo "    (--hex-only: skipping .mota packaging)"
@@ -444,7 +458,7 @@ fi
 echo "version: $VER  label: $FW_VER_LABEL  envycore: $GIT_SHA  build: $BUILD_STAMP"
 echo "targets: ${BUILD_SLUGS[*]}"
 
-export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER_LABEL}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
+export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -UFIRMWARE_VERSION -DFIRMWARE_VERSION='\"${FW_VER_LABEL}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
 
 if [[ "$HEX_ONLY" -eq 0 ]]; then
   ensure_firmware_bases_for_build "$VER" "${BUILD_SLUGS[@]}"
@@ -457,7 +471,10 @@ done
 
 if [[ "$HEX_ONLY" -eq 0 ]]; then
   echo "==> waiting for motatool jobs"
-  drain_mota_pool
+  if ! drain_mota_pool; then
+    echo "error: one or more motatool jobs failed" >&2
+    exit 1
+  fi
 fi
 
 echo "==> all done $VER (${#BUILD_SLUGS[@]} target(s))"

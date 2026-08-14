@@ -8,7 +8,7 @@ description: >-
 
 # motatool
 
-Rust CLI at **`motatool/`** (submodule: `vk496/motatool`). Byte-compatible with MeshCore's on-wire `.mota` format.
+Rust CLI at **`motatool/`** (MeshEnvy fork of `vk496/motatool`; canonical **`envyos/main`** on `MeshEnvy/motatool`, **0.1.1**). Byte-compatible with MeshCore's on-wire `.mota` format. vk496 PRs are optional.
 
 Build: `./envyos build motatool` (linux targets via **`docker/motatool-build/`**; darwin native on macOS)  
 Staged as **`build/motatool/<ver>/motatool-<platform>`** (e.g. `motatool-darwin-aarch64`).  
@@ -52,7 +52,7 @@ Or via bench wrapper: **`./scripts/seeder.sh <serial> [dir]`**
 
 - Input: `.hex` (Intel HEX parsed to flat image) or `.bin`, or `https://` URL
 - Identity from **EndF trailer** (override with `--target-env`, `--target-id`, `--fw-version`, `--hw-id`)
-- Output naming: `fw_<target_id>_<version>_full_<mid>.mota`
+- Output naming: `{stem}-full-{mid8}.mota` / `{stem}-delta-from-{basever}-{base8}.mota` (`--name-stem`, `--base-version`)
 - Produces merkle tree (1024-byte blocks default), manifest, optional Ed25519 signature
 
 ## `build --base` — delta patches
@@ -76,7 +76,7 @@ Optional in-place tuning: `--inplace-memory` (override; default derives from tar
 
 ### Correctness model
 
-A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder (`src/encode.rs`) is proven against the detools oracle in tests.
+A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder (`src/encode.rs`) is proven against the detools oracle in tests. In-place encode builds one suffix array of the shifted base and filters it per segment (same matches, much faster). Frozen on-wire bytes live in `motatool/tests/fixtures/` (`tests/golden.rs`).
 
 ## `serve`
 
@@ -101,9 +101,12 @@ Flags: `--baud`, `--no-recursive`, `-v` (log requests), `--seed <file>`.
 `build-mota.sh` calls:
 
 ```bash
-motatool build --fw "$OUT/firmware.hex" --out-dir "$OUT"
-motatool build --base "$BASE_HEX" --fw "$OUT/firmware.hex" --patch-type in-place --out "$DELTA_OUT"
+motatool build --fw "$OUT/fw-<slug>-<ver>.hex" --fw-version … --name-stem "fw-<slug>-<ver>" --out-dir "$OUT"
+motatool build --base "$BASE" --fw "$OUT/fw-<slug>-<ver>.hex" --patch-type in-place \
+  --name-stem "fw-<slug>-<ver>" --base-version "$BASE_VER" --out-dir "$OUT"
 ```
+
+Names: `fw-<slug>-<ver>-full-<mid8>.mota` and `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota`. `serve` indexes by content, not filename.
 
 Serve step is separate: `seeder.sh` → `motatool serve --dir … --serial … -v`
 
