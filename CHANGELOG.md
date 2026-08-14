@@ -10,6 +10,8 @@ Add user-visible EnvyOS work under **Unreleased** in the same change set. Before
 
 ### Fixed
 
+- nRF52 watchdog gate: block only when bootloader advertises mota-apply (`MOTABLDR`) but lacks `MOTA_BL_FEAT_WDT_FEED`. Stock / non-mota bootloaders no longer blocked.
+
 - Remote admin + Send Advert lockup on RAK4631 slim (RX-path stack overflow). Remote CLI now runs deferred off the packet RX handler. [Incident](docs/incidents/2026-08-13-remote-admin-advert-lockup.md).
 
 ### Added
