@@ -14,6 +14,8 @@ All scripts live in **`scripts/`**; primary entry point is **`./envyos`** (symli
 
 ```bash
 ./envyos info
+./envyos restore firmware              # all RELEASED_FIRMWARE versions
+./envyos restore firmware v0.1.0       # one version
 ./envyos build [firmware|bootloader|motatool]   # default: all
 ./envyos bump patch|minor|major distro|firmware|bootloader|motatool
 ./envyos publish [--dry-run]
@@ -26,6 +28,9 @@ All scripts live in **`scripts/`**; primary entry point is **`./envyos`** (symli
 |---------|------|
 | `info` | Dev HEAD, last published distro manifest, artifact readiness |
 | `build` | Wraps `build.sh`, `build-mota.sh`, `build-bl.sh`, `build-motatool.sh` |
+| `restore firmware` | Hydrate `build/firmware/<released>/` from GitHub (delta bases) |
+| `restore bootloader` | Hydrate `build/bootloader/<released>/` from GitHub (bench flash / publish) |
+| `restore` | Both firmware and bootloader |
 | `bump` | Independent component semver + sidecar sync (`VERSION`, `Cargo.toml`) |
 | `publish` | Distro bundle lock, stage assets, git tag, GitHub upload; ENVYOS_VERSIONS unchanged. GitHub notes come from `CHANGELOG.md` |
 
@@ -127,12 +132,13 @@ Output: `build/firmware/<ver>/<slug>/`. Default build = **all lines**. Override 
 
 Builds OTA firmware from `envycore/` and packages `.mota` into `build/firmware/<version>/<slug>/`.
 
-**Steps (per target):**
+**Steps:**
 
-1. `pio run -e <env>` (+ `create_uf2`)
-2. Copy `firmware.hex`, `.uf2`, `.zip` → `build/firmware/<ver>/<slug>/`
-3. `motatool build --fw … --out-dir` → full `.mota`
-4. For each prior version with base hex for that slug: `motatool build --base <B.hex> …` → `delta_from_<B>.mota` (new targets skip older bases; `--base` limits to one)
+1. **pio (serial):** `pio run -e <env>` (+ `create_uf2`) per target, one at a time
+2. **motatool (pipelined):** as soon as each target's hex is saved, queue full `.mota` + all in-place deltas for that slug into a shared worker pool (runs in parallel with later pio builds)
+3. After the last pio build, drain remaining motatool jobs
+
+Concurrency: `--mota-jobs` / `$ENVYOS_MOTA_JOBS` (alias `--delta-jobs` / `$ENVYOS_DELTA_JOBS`; default CPU count). One pool slot = one `motatool build` (full or delta).
 
 **Output layout (`build/firmware/<ver>/<slug>/`):**
 

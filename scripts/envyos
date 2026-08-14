@@ -31,9 +31,15 @@ commands:
   publish stage [vX.Y.Z]            Copy release files (no lock)
   publish finalize [vX.Y.Z]         Lock release + git tag (requires stage)
   publish upload vX.Y.Z             GitHub Release from staged files
+  restore firmware [vX.Y.Z]…        Hydrate released firmware trees from GitHub
+  restore bootloader [vX.Y.Z]…      Hydrate released EnvyBoot trees from GitHub
+  restore [vX.Y.Z]…                 Restore firmware + bootloader (default)
 
 examples:
   envyos info
+  envyos restore
+  envyos restore firmware
+  envyos restore bootloader v0.1.0
   envyos build
   envyos build motatool --host-only     # host platform only (quick bench)
   envyos build firmware --target wismesh-tag-repeater
@@ -138,6 +144,35 @@ cmd_bump() {
   echo "$id: $old → $new"
 }
 
+cmd_restore() {
+  local component="all"
+  if [[ $# -ge 1 ]]; then
+    case "$1" in
+      firmware | fw | bootloader | bl | all)
+        component="$1"
+        shift
+        ;;
+    esac
+  fi
+
+  case "$component" in
+    firmware | fw)
+      exec "$SCRIPTS/restore-firmware.sh" "$@"
+      ;;
+    bootloader | bl)
+      exec "$SCRIPTS/restore-bootloader.sh" "$@"
+      ;;
+    all)
+      "$SCRIPTS/restore-firmware.sh" "$@"
+      "$SCRIPTS/restore-bootloader.sh" "$@"
+      ;;
+    *)
+      echo "error: unknown restore target '$component' (want firmware, bootloader, or all)" >&2
+      exit 1
+      ;;
+  esac
+}
+
 cmd_publish() {
   case "${1:-}" in
     stage)
@@ -173,6 +208,10 @@ case "$1" in
   publish)
     shift
     cmd_publish "$@"
+    ;;
+  restore)
+    shift
+    cmd_restore "$@"
     ;;
   -h | --help | help)
     usage

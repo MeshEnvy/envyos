@@ -7,6 +7,7 @@ ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
 CHANGELOG_FILE="$OTA_ROOT/CHANGELOG.md"
 RELEASED_DISTROS_FILE="$OTA_ROOT/RELEASED_DISTROS"
 RELEASED_FIRMWARE_FILE="$OTA_ROOT/RELEASED_FIRMWARE"
+RELEASED_BOOTLOADER_FILE="$OTA_ROOT/RELEASED_BOOTLOADER"
 BUILD_ROOT="$OTA_ROOT/build"
 FIRMWARE_ROOT="$BUILD_ROOT/firmware"
 RELEASES_ROOT="$BUILD_ROOT/releases"
@@ -581,16 +582,58 @@ submodule_git_sha() {
   git -C "$OTA_ROOT" submodule status "$subpath" 2>/dev/null | awk '{print $1}' | sed 's/^[+-U]//'
 }
 
-resolve_base_hex() {
+list_released_firmware_versions() {
+  local line ver
+  [[ -f "$RELEASED_FIRMWARE_FILE" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" ]] || continue
+    ver="$(normalize_version "$line" 2>/dev/null)" || continue
+    printf '%s\n' "$ver"
+  done <"$RELEASED_FIRMWARE_FILE"
+}
+
+list_released_bootloader_versions() {
+  local line ver
+  [[ -f "$RELEASED_BOOTLOADER_FILE" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" ]] || continue
+    ver="$(normalize_version "$line" 2>/dev/null)" || continue
+    printf '%s\n' "$ver"
+  done <"$RELEASED_BOOTLOADER_FILE"
+}
+
+is_released_bootloader() {
+  version_in_list_file "$RELEASED_BOOTLOADER_FILE" "$1"
+}
+
+append_released_bootloader() {
+  local ver="$1"
+  ver="$(normalize_version "$ver")" || return 1
+  if version_in_list_file "$RELEASED_BOOTLOADER_FILE" "$ver"; then
+    return 0
+  fi
+  printf '%s\n' "$ver" >>"$RELEASED_BOOTLOADER_FILE"
+}
+
+resolve_base_image() {
   local slug="$1"
   local base_ver="$2"
   local candidates=(
     "$FIRMWARE_ROOT/$base_ver/$slug/firmware.hex"
+    "$FIRMWARE_ROOT/$base_ver/$slug/firmware.bin"
   )
   if [[ "$slug" == "wismesh-tag-repeater" ]]; then
     candidates+=(
       "$FIRMWARE_ROOT/$base_ver/repeater/firmware.hex"
+      "$FIRMWARE_ROOT/$base_ver/repeater/firmware.bin"
       "$FIRMWARE_ROOT/$base_ver/firmware.hex"
+      "$FIRMWARE_ROOT/$base_ver/firmware.bin"
     )
   fi
   local p
@@ -601,6 +644,43 @@ resolve_base_hex() {
     fi
   done
   return 1
+}
+
+resolve_base_hex() {
+  resolve_base_image "$@"
+}
+
+ensure_firmware_bases_for_build() {
+  local target_ver="$1"
+  shift
+  local slugs=("$@")
+  local slug base_ver
+  local -a need_restore=()
+  local seen="|"
+
+  [[ ${#slugs[@]} -gt 0 ]] || return 0
+
+  for slug in "${slugs[@]}"; do
+    while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
+      [[ -n "$base_ver" ]] || continue
+      is_released_firmware "$base_ver" || continue
+      resolve_base_image "$slug" "$base_ver" >/dev/null 2>&1 && continue
+      case "$seen" in
+        *"|$base_ver|"*) continue ;;
+      esac
+      seen="${seen}${base_ver}|"
+      need_restore+=("$base_ver")
+    done < <(list_delta_base_versions "$target_ver")
+  done
+
+  ((${#need_restore[@]} == 0)) && return 0
+
+  echo "==> missing delta base images for: ${need_restore[*]}"
+  echo "    restoring released firmware from GitHub Releases"
+  local ver
+  for ver in "${need_restore[@]}"; do
+    "$OTA_ROOT/scripts/restore-firmware.sh" "$ver"
+  done
 }
 
 verify_release_delta_matrix() {
@@ -1020,6 +1100,7 @@ lock_release_components() {
   fi
   if ! is_component_tree_released bootloader "$bootloader_ver"; then
     write_component_released_marker bootloader "$bootloader_ver" "$distro_ver"
+    append_released_bootloader "$bootloader_ver"
   fi
   if ! is_component_tree_released motatool "$motatool_ver"; then
     write_component_released_marker motatool "$motatool_ver" "$distro_ver"

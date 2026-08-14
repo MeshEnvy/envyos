@@ -36,7 +36,7 @@ usage: $0 [options] [firmware-version] [build-mota options…]
 
   firmware-version  Optional override for build-mota (default: ENVYOS_VERSIONS firmware)
 
-  Other flags (--target, --hex-only, --base, --targets-file, …) are forwarded to
+  Other flags (--target, --hex-only, --base, --mota-jobs, --targets-file, …) are forwarded to
   build-mota.sh.
 
 examples:
