@@ -713,7 +713,7 @@ file_size_bytes() {
   printf '%s' "$size"
 }
 
-# otafix board slug for release filenames (wismesh_tag → wismesh-tag).
+# otafix board slug for release filenames (rak4631 → rak4631, wismesh_tag → wismesh-tag).
 normalize_release_board_slug() {
   tr '_' '-' <<<"$1"
 }
@@ -787,15 +787,14 @@ stage_bootloader_release_assets() {
   }
 
   shopt -s nullglob
-  for uf2 in "$bl_root"/update-*_nosd.uf2; do
+  for uf2 in "$bl_root"/*_bootloader-*.uf2; do
     base="$(basename "$uf2" .uf2)"
-    board="${base#update-}"
-    board="${board%_bootloader-*}"
+    board="${base%_bootloader-*}"
     name="bl-$(normalize_release_board_slug "$board")-${bl_ver}.uf2"
     stage_flat_release_asset "$uf2" "$name" "$release_dir" "$manifest_file"
   done
-  for zip in "$bl_root"/*_s140_*.zip; do
-    base="$(basename "$zip" .zip)"
+  for zip in "$bl_root"/*_bootloader-*.recovery.zip; do
+    base="$(basename "$zip" .recovery.zip)"
     board="${base%_bootloader-*}"
     name="bl-$(normalize_release_board_slug "$board")-recovery-${bl_ver}.zip"
     stage_flat_release_asset "$zip" "$name" "$release_dir" "$manifest_file"
@@ -1082,16 +1081,15 @@ plan_bootloader_release_assets() {
   }
 
   shopt -s nullglob
-  for uf2 in "$bl_root"/update-*_nosd.uf2; do
+  for uf2 in "$bl_root"/*_bootloader-*.uf2; do
     base="$(basename "$uf2" .uf2)"
-    board="${base#update-}"
-    board="${board%_bootloader-*}"
+    board="${base%_bootloader-*}"
     name="bl-$(normalize_release_board_slug "$board")-${bl_ver}.uf2"
     rel_src="${uf2#"$OTA_ROOT"/}"
     printf '  asset: %s  source: %s\n' "$name" "$rel_src"
   done
-  for zip in "$bl_root"/*_s140_*.zip; do
-    base="$(basename "$zip" .zip)"
+  for zip in "$bl_root"/*_bootloader-*.recovery.zip; do
+    base="$(basename "$zip" .recovery.zip)"
     board="${base%_bootloader-*}"
     name="bl-$(normalize_release_board_slug "$board")-recovery-${bl_ver}.zip"
     rel_src="${zip#"$OTA_ROOT"/}"
@@ -1318,7 +1316,7 @@ Flat per-artifact files in \`build/releases/${distro_ver}/\` (see local \`ASSETS
 - \`fw-<slug>-${firmware_ver}.uf2\` — initial flash per target in \`scripts/targets.txt\`
 - \`fw-<slug>-full-${firmware_ver}.mota\` — OTA full image
 - \`fw-<slug>-delta-from-vX.Y.Z.mota\` — OTA deltas from prior firmware releases
-- \`bl-<board>-${bootloader_ver}.uf2\` — OTAFIX bootloader update
+- \`bl-<board>-${bootloader_ver}.uf2\` — EnvyBoot bootloader update
 - \`bl-<board>-recovery-${bootloader_ver}.zip\` — bootloader recovery package (when built)
 - \`motatool-<platform>-${motatool_ver}\` — bench CLI (\`serve\`, pack, verify)
 EOF

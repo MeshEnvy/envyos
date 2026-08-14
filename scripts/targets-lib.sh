@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Shared helpers for scripts/targets.txt (sourced, not executed).
 
-# Map a PlatformIO env name to an otafix BOARD= value (nRF52 hardware profile).
-# Extend when EnvyOS adds another nRF52840 family to targets.txt.
+# Map a PlatformIO env name to an EnvyBoot BOARD= profile (nRF52 hardware).
+# Profile names align with firmware target slugs in scripts/targets.txt:
+#   rak4631            ↔ rak4631-*
+#   wismesh_tag        ↔ wismesh-tag-*
+#   sensecap_solar_p1  ↔ sensecap-p1pro-*
 otafix_board_for_env() {
   local env=$1
   case "$env" in
     RAK_4631_*)
-      echo wiscore_rak4631_board
+      echo rak4631
       ;;
     RAK_WisMesh_Tag_*)
       echo wismesh_tag

@@ -150,22 +150,23 @@ Legacy flat layout (`build/firmware/<ver>/firmware.hex`) still works as a delta 
 
 ## `scripts/build-bl.sh`
 
-Builds **OTAFIX** nRF52 bootloader via Docker (`bootloader/`).
+Builds **EnvyBoot** nRF52 bootloaders via Docker (`bootloader/`).
 
 ```bash
 ./scripts/build-bl.sh                    # → build/bootloader/<bootloader>/
-./scripts/build-bl.sh v0.9.3             # override bootloader version for one build
+./scripts/build-bl.sh v0.1.3             # override bootloader version for one build
 ./scripts/build-bl.sh --list-boards
-./scripts/build-bl.sh wiscore_rak4631_board   # explicit board override
+./scripts/build-bl.sh rak4631   # explicit board override
 ```
 
-Env prefix → otafix `BOARD=` mapping lives in **`scripts/targets-lib.sh`** (`RAK_4631_*` → `wiscore_rak4631_board`, `RAK_WisMesh_Tag_*` → `wismesh_tag`).
+Env prefix → EnvyBoot `BOARD=` mapping lives in **`scripts/targets-lib.sh`** (`RAK_4631_*` → `rak4631`, `RAK_WisMesh_Tag_*` → `wismesh_tag`).
 
 - Docker image: `vk-otafix-build` (cached after first build)
-- UF2: `bootloader/_build/build-<board>/update-*_nosd.uf2`
+- UF2: `bootloader/_build/build-<board>/*_bootloader-*.uf2` (normal EnvyBoot upgrade)
+- Recovery: `*_bootloader-*.recovery.zip` (break-glass BL+SD; `README.txt` inside)
 - Copied to **`build/bootloader/<ver>/`** for bench flash
 
-**Only Tag B (DUT)** needs OTAFIX to apply in-place deltas. Flash: double-tap reset → drag UF2.
+**Only Tag B (DUT)** needs **EnvyBoot** to apply in-place deltas. Flash: double-tap reset → drag UF2.
 
 If coming from companion/Ripple firmware, **erase ExtraFS** before flashing bench repeater.
 
@@ -210,7 +211,7 @@ ota ls → ota get N flash → ota install → ota status  # expect v0.1.1
 |---------|-------|
 | Delta rejected at apply | `base_hash` vs `ota self` on device; hex base must be exact prior build |
 | No entries in `ota ls` | Tag A has OTA build + `ota folder on`; serve dir contains valid `.mota`; mesh path |
-| `bootloader: apply` missing | Tag B not on OTAFIX |
+| `bootloader: apply` missing | Tag B not on EnvyBoot |
 | motatool not found | `git submodule update --init motatool`; scripts auto-run `cargo build --release` |
 | Wrong `[yours]` tag | `target_id` / env name mismatch |
 

@@ -16,10 +16,12 @@ Add user-visible EnvyOS work under **Unreleased** in the same change set. Before
 
 - SenseCAP P1-Pro NOR mini-superseeder (`sensecap-p1pro-superseeder`).
 - Firmware `ver` stamp includes envycore SHA and UTC build date (`v0.1.3-<sha> (Build: … UTC)`).
+- **EnvyBoot 0.1.3** (interim submodule pin; not in distro bundle) — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
 
 ### Changed
 
 - MeshCore base: [companion-v1.17.0](https://github.com/meshcore-dev/MeshCore/releases/tag/companion-v1.17.0).
+- EnvyBoot upstream freshen + overlay: [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md) (OTAFIX 2.3-BP1.3 pin).
 
 ### Improved
 

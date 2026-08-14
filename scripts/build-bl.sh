@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Build the OTAFIX nRF52 bootloader (MOTA in-place apply) via Docker.
+# Build EnvyBoot nRF52 bootloaders (in-place .mota apply) via Docker.
 #
 # Usage:
 #   ./scripts/build-bl.sh [version] [--targets-file <path>] [--list-boards]
 #   ./scripts/build-bl.sh [version] BOARD [BOARD…]
 #
-# version defaults to ENVYOS_VERSIONS bootloader (e.g. v0.1.0).
-# With no BOARD args, otafix profiles are inferred from scripts/targets.txt.
+# version defaults to ENVYOS_VERSIONS bootloader (e.g. v0.1.3).
+# With no BOARD args, board profiles are inferred from scripts/targets.txt.
 #
-# UF2: bootloader/_build/build-<board>/update-<board>_bootloader-*_nosd.uf2
+# UF2: bootloader/_build/build-<board>/<board>_bootloader-<ver>.uf2
+# Recovery: bootloader/_build/build-<board>/<board>_bootloader-*.recovery.zip
 # Output: build/bootloader/<version>/
 #
 # Requires: Docker. Submodules under bootloader/ are initialized if needed.
@@ -121,24 +122,31 @@ build_board() {
 
   (
     cd "$OTAFIX"
-    echo "    docker run … make BOARD=$board GIT_VERSION=$git_version all"
-    docker run --rm -v "$PWD":/src -w /src "$IMAGE" make "BOARD=$board" "GIT_VERSION=$git_version" all
+    echo "    docker run … make BOARD=$board ENVYBOOT_VERSION=$git_version all"
+    docker run --rm -v "$PWD":/src -w /src "$IMAGE" make "BOARD=$board" "ENVYBOOT_VERSION=$git_version" all
   )
 
   local build_dir="$OTAFIX/_build/build-$board"
   local uf2
-  uf2="$(ls -1 "$build_dir"/update-*_nosd.uf2 2>/dev/null | head -1 || true)"
-  [[ -n "$uf2" && -f "$uf2" ]] || { echo "error: no update-*_nosd.uf2 in $build_dir" >&2; exit 1; }
+  uf2="$(ls -1t "$build_dir"/"${board}"_bootloader-"${git_version}".uf2 2>/dev/null | head -1 || true)"
+  if [[ -z "$uf2" ]]; then
+    uf2="$(ls -1t "$build_dir"/*_bootloader-*.uf2 2>/dev/null | head -1 || true)"
+  fi
+  [[ -n "$uf2" && -f "$uf2" ]] || { echo "error: no *_bootloader-*.uf2 in $build_dir" >&2; exit 1; }
 
   mkdir -p "$OUT"
   cp -f "$uf2" "$OUT/"
-  # merged zip (full BL+SD) if present — useful for recovery
+  # recovery zip (break-glass BL+SD) if present
   local zip
-  zip="$(ls -1 "$build_dir"/*_s140_*.zip 2>/dev/null | head -1 || true)"
+  zip="$(ls -1t "$build_dir"/"${board}"_bootloader-"${git_version}".recovery.zip 2>/dev/null | head -1 || true)"
+  if [[ -z "$zip" ]]; then
+    zip="$(ls -1t "$build_dir"/*_bootloader-*.recovery.zip 2>/dev/null | head -1 || true)"
+  fi
   [[ -n "$zip" && -f "$zip" ]] && cp -f "$zip" "$OUT/"
 
   echo "    UF2: $uf2"
   echo "    copy: $OUT/$(basename "$uf2")"
+  [[ -n "${zip:-}" && -f "${zip:-}" ]] && echo "    recovery: $OUT/$(basename "$zip")"
 }
 
 if ((${#EXPLICIT_BOARDS[@]} > 0)); then

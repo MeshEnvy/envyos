@@ -13,7 +13,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `build/` | Local build outputs (gitignored) — `build/firmware/<firmware>/`, `build/bootloader/<bootloader>/`, `build/motatool/<motatool>/` (dev); **`build/releases/<distro>/`** (published bundle snapshot) |
 | `motatool/` | Rust CLI — pack/serve `.mota` (`MeshEnvy/motatool`; **`envyos/main`**) |
 | `vendor/detools/` | Delta/diff encoding library (in-place `.mota` patches) |
-| `bootloader/` | nRF52 OTAFIX bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**) |
+| `bootloader/` | **EnvyBoot** nRF52 bootloader submodule (`MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX`; **`envyos/main`**, interim **0.1.3** pin; fleet ships **0.1.2** in **v0.1.2**); release notes [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md) |
 | `scripts/` | Bench scripts — `build.sh`, `build-mota.sh`, `build-bl.sh`, `seeder.sh`, `targets.txt` |
 | `apps/app/` | Flutter MeshCore client submodule (`zjs81/meshcore-open`) |
 
@@ -29,7 +29,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 | Remote | Repository | Role |
 |--------|------------|------|
-| `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | EnvyOS fork — head **`envyos/main`** |
+| `origin` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | **EnvyBoot** fork — head **`envyos/main`**, tags `v0.1.x` |
 | `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | OTA delta apply — **`feature/ota-delta-apply`** |
 | `oltaco` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` | Official OTAFIX releases (`0.9.2-OTAFIX*` tags) |
 
@@ -80,6 +80,9 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 |---------|--------|---------------------|
 | **v0.1.0** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · flat assets · **`build/firmware/v0.1.0/`** |
 | **v0.1.1** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · flat assets · **`build/firmware/v0.1.1/`** |
+| **v0.1.2** | **Released** distro — latest shipped; bootloader **0.1.2** | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.2) · **`build/releases/v0.1.2/`** |
+
+EnvyBoot **0.1.3** is an interim bootloader submodule pin (branding, artifact names, OTAFIX 2.3 freshen). It is **not** in any published EnvyOS distro bundle. Next EnvyBoot work targets **0.2.0** (WDT).
 
 - **Notes:** [`CHANGELOG.md`](CHANGELOG.md) — EnvyOS-owned only. MeshCore companion bumps link upstream. Publish requires a `## [vX.Y.Z]` section.
 - Distro tags in **`RELEASED_DISTROS`**; firmware artifact trees in **`RELEASED_FIRMWARE`** (`.released` markers immutable).
@@ -112,7 +115,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller. **Staging headroom ~372 KB at current app size (434 KB app in the 815 KB 0x26000–0xED000 region) — a full slim `.mota` (~426 KB) does NOT fit; deltas only** (corrected 2026-07-25; full fits only if app ≤ ~406 KB) |
-| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater — no GPS/sensors/BLE; S140 v7 app @ `0x27000`; OTAFIX `sensecap_solar_p1`. ~384 KB app → ~416 KB staging headroom (full `.mota` ~386 KB fits) |
+| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater — no GPS/sensors/BLE; S140 v7 app @ `0x27000`; EnvyBoot `sensecap_solar_p1`. ~384 KB app → ~416 KB staging headroom (full `.mota` ~386 KB fits) |
 | `sensecap-p1pro-superseeder` | `SenseCap_Solar_superseeder` | SenseCAP P1-Pro mini-superseeder — slim + 2 MB QSPI NOR LittleFS (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_QSPI`); allowlisted **deltas only** to `/motas/`; flash staging for self-update |
 | `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_SD`); allowlisted **deltas only** to `/motas/` on SD; flash staging for self-update |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
@@ -160,7 +163,7 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 | Tag | Role | Bootloader |
 |-----|------|------------|
 | A (seeder) | `wismesh-tag-repeater` — OTA-capable + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
-| B (DUT) | `wismesh-tag-repeater` — device under test | **`bootloader/` OTAFIX required** (WisMesh Tag BL beeps 3× on DFU entry) |
+| B (DUT) | `wismesh-tag-repeater` — device under test | **EnvyBoot required** (WisMesh Tag BL beeps 3× on DFU entry) |
 | C (companion) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
 | D (companion) | `wismesh-tag-client-ble` — second companion on deck | stock OK |
 
@@ -170,9 +173,9 @@ Flow: `motatool serve --dir ./build/firmware/<firmware> --serial …` → Tag A 
 
 | Node | Role | Build | Bootloader |
 |------|------|-------|------------|
-| SD superseeder | RAK4631 + RAK15002 SD | `RAK_4631_superseeder` | OTAFIX if self-update needed |
-| NOR mini-superseeder | SenseCAP P1-Pro (2 MB QSPI) | `SenseCap_Solar_superseeder` | OTAFIX if self-update needed |
-| DUT | slim repeater in mesh | `*_repeater_slim` | OTAFIX required |
+| SD superseeder | RAK4631 + RAK15002 SD | `RAK_4631_superseeder` | EnvyBoot if self-update needed |
+| NOR mini-superseeder | SenseCAP P1-Pro (2 MB QSPI) | `SenseCap_Solar_superseeder` | EnvyBoot if self-update needed |
+| DUT | slim repeater in mesh | `*_repeater_slim` | EnvyBoot required |
 | Laptop seeder (optional) | USB `motatool serve` + `ota folder on` | `wismesh-tag-repeater` or any OTA repeater | stock OK |
 
 Superseeder auto-queries heard beacons and captures **deltas only** to external FS (`/motas/<midhex>.mota` on SD or QSPI LittleFS). Full snapshots are never stored (self-serve / USB bootstrap cover those). Default target filter is **all targets**; narrow with `ota seed allow add|rm|list|clear|reset` (persisted). `clear` = empty filter (admit none); `reset`/`defaults` = admit all. CLI: `ota seed` (alias `ota sd`). Flash staging below `MOTA_STAGE_CEILING` is for this node's own update only.
@@ -248,7 +251,7 @@ Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
 <!-- In-flight work only; delete when done -->
 - **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. Postmortem: `docs/incidents/2026-08-13-remote-admin-advert-lockup.md`. Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
 - **Bench (2026-08-13): EndF self-locate on nRF52** — CC310 flash-hash fix + **EndF RAM cache** + **chunked merkle self-serve** (`OTA_SELF_BLOCKS_PER_TICK=1`); **remote admin CLI deferred** out of RX.
-- **Watchdog:** port from meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); note [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged (power-saving feed change).
+- **Watchdog (in progress → EnvyBoot 0.2.0):** nRF52 WDT + `MOTA_BL_FEAT_WDT_FEED`; firmware gated on BL capability. Port refs: meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged.
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `build-mota.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
