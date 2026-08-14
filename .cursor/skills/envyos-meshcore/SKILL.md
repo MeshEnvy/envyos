@@ -18,7 +18,7 @@ Firmware lives in `envycore/`; `motatool/` and `bootloader/` at repo root — al
 | Submodule | MeshEnvy fork (`origin`) | vk496 remote | vk496 PR base |
 |-----------|--------------------------|--------------|---------------|
 | `envycore/` | `MeshEnvy/meshcore-firmware` | `vk496/MeshCore` | `feature/ota-lora` |
-| `motatool/` | `MeshEnvy/motatool` (`meshenvy` remote in submodule) | `vk496/motatool` | `main` |
+| `motatool/` | `MeshEnvy/motatool` (`meshenvy` remote in submodule) | `vk496/motatool` (origin only) | **none required** — MeshEnvy-canonical as of **0.1.1** |
 | `bootloader/` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` |
 
 All three MeshEnvy forks use **`envyos/main`** as the GitHub default branch and distro integration head.
@@ -109,7 +109,7 @@ For each feature:
 1. **Choose the vk496 PR base** — branch from the remote that owns the target:
    - Core mesh / repeater behavior → `meshcore/dev` (PR to meshcore-dev)
    - OTA firmware → `vk496/feature/ota-lora`
-   - motatool → `vk496/main`
+   - motatool → **`envyos/main` only** (vk496 PR optional; not required)
    - otafix → `vk496/feature/ota-delta-apply`
 2. **Implement on a focused branch** — e.g. `feature/ota-stage-ceiling`
 3. **Push to MeshEnvy `origin`** (or `meshenvy` for motatool) — `git push -u origin feature/<name>`
@@ -132,7 +132,7 @@ meshcore/dev ──► feature/foo ──► PR → meshcore-dev/MeshCore
 | Defer remote admin CLI | `feature/defer-remote-cli` | `dev` | `meshcore-dev/MeshCore` [#3196](https://github.com/meshcore-dev/MeshCore/pull/3196) (draft) | yes |
 | OTA ls pagination | `fix/ota-ls-start-at-n` | `feature/ota-lora` | `vk496/MeshCore` | yes |
 | OTA staging ceiling | `feature/ota-stage-ceiling` | `feature/ota-lora` | `vk496/MeshCore` | yes |
-| motatool delta layout | `meshenvy/feature/ota-stage-ceiling` | `main` | `vk496/motatool` | yes |
+| motatool (any) | n/a | n/a | no required upstream PR (optional `vk496/motatool`) | **`envyos/main` only** |
 | otafix scan ceiling | `feature/ota-stage-ceiling` | `feature/ota-delta-apply` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | yes |
 | EnvyOS-only glue | n/a | n/a | no upstream PR | `envyos/main` only |
 

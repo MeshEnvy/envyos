@@ -8,24 +8,34 @@ Add user-visible EnvyOS work under **Unreleased** in the same change set. Before
 
 ## [Unreleased]
 
+### Changed
+
+- Local flash artifacts use `fw-<slug>-vX.Y.Z.{uf2,hex,zip}`. Full `.mota` names are `fw-<slug>-vX.Y.Z-full-<mid8>.mota`. Delta names are `fw-<slug>-vX.Y.Z-delta-from-vA.B.C-<base8>.mota` (`base8` is the previous full mota's merkle). GitHub uploads use those names. v0.1.2 restore still accepts the old `fw-<slug>-full-…` / `fw-<slug>-delta-from-…` names.
+
+### Improved
+
+- **motatool 0.1.1** — MeshEnvy-canonical fork (keep the name). In-place deltas share one suffix array across segments (same patch bytes). Auto `memory_size` reuses the converged patch instead of encoding a third time.
+
+## [v0.2.0] - 2026-08-14
+
+Practice distro release bundling WDT work and accumulated v0.1.3 dev.
+
 ### Fixed
 
-- nRF52 watchdog gate: block only when bootloader advertises mota-apply (`MOTABLDR`) but lacks `MOTA_BL_FEAT_WDT_FEED`. Stock / non-mota bootloaders no longer blocked.
-
 - Remote admin + Send Advert lockup on RAK4631 slim (RX-path stack overflow). Remote CLI now runs deferred off the packet RX handler. [Incident](docs/incidents/2026-08-13-remote-admin-advert-lockup.md).
+- nRF52 watchdog gate: block only when bootloader advertises mota-apply (`MOTABLDR`) but lacks `MOTA_BL_FEAT_WDT_FEED`. Stock / non-mota bootloaders no longer blocked.
 
 ### Added
 
 - SenseCAP P1-Pro NOR mini-superseeder (`sensecap-p1pro-superseeder`).
-- Firmware `ver` stamp includes envycore SHA and UTC build date (`v0.1.3-<sha> (Build: … UTC)`).
-- **EnvyBoot 0.1.3** (interim submodule pin; not in distro bundle) — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
-- **EnvyBoot 0.2.0** — WDT feed in bootloader; repeater `watchdog` CLI gated on `MOTA_BL_FEAT_WDT_FEED` — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
+- Firmware `ver` stamp includes envycore SHA and UTC build date (`v0.2.0-<sha> (Build: … UTC)`).
+- **EnvyBoot 0.2.0** — WDT feed during mota apply/DFU; repeater `watchdog` CLI gated on `MOTA_BL_FEAT_WDT_FEED` — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
 - nRF52 repeater hardware WDT (30 s default, prefs + CLI); companions excluded.
 
 ### Changed
 
 - MeshCore base: [companion-v1.17.0](https://github.com/meshcore-dev/MeshCore/releases/tag/companion-v1.17.0).
-- EnvyBoot upstream freshen + overlay: [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md) (OTAFIX 2.3-BP1.3 pin).
+- EnvyBoot branding, artifact names, OTAFIX 2.3 freshen — see [`bootloader/CHANGELOG.md`](bootloader/CHANGELOG.md).
 
 ### Improved
 
