@@ -82,7 +82,7 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | **v0.1.1** | **Released** distro — frozen firmware tree | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · flat assets · **`build/firmware/v0.1.1/`** |
 | **v0.1.2** | **Released** distro — latest shipped; bootloader **0.1.2** | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.2) · **`build/releases/v0.1.2/`** |
 
-EnvyBoot **0.1.3** / **0.2.0** are interim bootloader submodule pins (not in any published EnvyOS distro bundle). **0.2.0** adds WDT feed; bench-validated on RAK4631 slim (2026-08-14).
+EnvyBoot **0.1.3** / **0.2.0** are interim bootloader submodule pins (not in any published EnvyOS distro bundle). **0.2.0** adds WDT feed; **WDT trip/recover confirmed on RAK4631 slim (2026-08-14)**. LoRa mota apply **not retested** against WDT-feed BL + lockup-fix (operator: no expected regression).
 
 - **Notes:** [`CHANGELOG.md`](CHANGELOG.md) — EnvyOS-owned only. MeshCore companion bumps link upstream. Publish requires a `## [vX.Y.Z]` section.
 - Distro tags in **`RELEASED_DISTROS`**; firmware trees in **`RELEASED_FIRMWARE`**; bootloader trees in **`RELEASED_BOOTLOADER`**. Hydrate missing released trees with **`./envyos restore`** (GitHub Releases).
@@ -249,7 +249,7 @@ Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
-- **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. Postmortem: `docs/incidents/2026-08-13-remote-admin-advert-lockup.md`. Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
+- **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. **WDT trip/recover ✅ RAK4631 (08-14).** No field freezes (adverts disabled). Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
 - **Bench (2026-08-13): EndF self-locate on nRF52** — CC310 flash-hash fix + **EndF RAM cache** + **chunked merkle self-serve** (`OTA_SELF_BLOCKS_PER_TICK=1`); **remote admin CLI deferred** out of RX.
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `build-mota.sh` writes `fw-<slug>-<ver>-full-<mid8>.mota` and `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota` (`--name-stem` / `--base-version`). One delta per prior base with an image. Full + delta jobs pipelined after each target's pio (`--mota-jobs` / `$ENVYOS_MOTA_JOBS`, default CPU count).
