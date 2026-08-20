@@ -3,8 +3,10 @@
 #
 # Usage:
 #   ./scripts/build-mota.sh                    # firmware version from ./ENVYOS_VERSIONS
-#   ./scripts/build-mota.sh v0.1.1             # override version (output + FIRMWARE_VERSION stamp)
+#   ./scripts/build-mota.sh v0.1.1             # override firmware version (output dir + device ver)
 #   ./scripts/build-mota.sh --target wismesh-tag-repeater
+#   ./scripts/build-mota.sh --debug            # *-debug twins only
+#   ./scripts/build-mota.sh --release          # field slugs only (skip *-debug)
 #   ./scripts/build-mota.sh v0.1.2 --base v0.1.0   # delta from one base only
 #   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
 #   ./scripts/build-mota.sh --list-targets
@@ -17,6 +19,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MC="$ROOT/envycore"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
+# shellcheck source=scripts/targets-lib.sh
+source "$ROOT/scripts/targets-lib.sh"
 OUT_ROOT="$FIRMWARE_ROOT"
 TARGETS_FILE="$ROOT/scripts/targets.txt"
 
@@ -85,11 +89,13 @@ drain_mota_pool() {
 
 usage() {
   cat >&2 <<EOF
-usage: $0 [version] [--target <slug>]… [--base <version>] [--hex-only] [--targets-file <path>]
+usage: $0 [version] [--target <slug>]… [--release|--debug] [--base <version>] [--hex-only] [--targets-file <path>]
        $0 [--mota-jobs <n>] [--delta-jobs <n>] --list-targets [--targets-file <path>]
 
-  version         Optional override for output dir and -DFIRMWARE_VERSION (default: ENVYOS_VERSIONS firmware)
-  --target        Build one target slug (repeatable; default: all in targets file)
+  version         Optional override for ENVYOS_VERSIONS firmware (output dir + -DFIRMWARE_VERSION). Never distro.
+  --target        Build one target slug (repeatable; default: all targets in targets.txt)
+  --release       With no --target: field slugs only (skip *-debug)
+  --debug         With no --target: *-debug twins only (does not wipe field artifacts)
   --base          Build delta from one base only (default: all prior versions with base hex)
   --mota-jobs     Max concurrent motatool jobs — full + delta (default: \$ENVYOS_MOTA_JOBS or CPU count)
   --delta-jobs    Alias for --mota-jobs
@@ -101,6 +107,9 @@ examples:
   $0
   $0 v0.1.1
   $0 --target wismesh-tag-repeater --target rak4631-repeater
+  $0 --release
+  $0 --debug
+  $0 --target rak4631-repeater-slim-debug
   $0 v0.1.2 --base v0.1.0
   $0 --hex-only
   $0 --list-targets
@@ -146,9 +155,9 @@ list_targets() {
   local file="$1"
   load_targets "$file"
   local i
-  printf '%-24s  %-36s  %s\n' "SLUG" "PLATFORMIO_ENV" "DESCRIPTION"
+  printf '%-40s  %-42s  %s\n' "SLUG" "PLATFORMIO_ENV" "DESCRIPTION"
   for i in "${!TARGET_SLUGS[@]}"; do
-    printf '%-24s  %-36s  %s\n' "${TARGET_SLUGS[$i]}" "${TARGET_ENVS[$i]}" "${TARGET_DESCS[$i]}"
+    printf '%-40s  %-42s  %s\n' "${TARGET_SLUGS[$i]}" "${TARGET_ENVS[$i]}" "${TARGET_DESCS[$i]}"
   done
 }
 
@@ -342,6 +351,7 @@ build_target_firmware() {
 
 LIST_ONLY=0
 HEX_ONLY=0
+TARGET_SET=all
 VER=""
 VER_EXPLICIT=0
 BASE_VER=""
@@ -351,6 +361,22 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --hex-only)
       HEX_ONLY=1
+      shift
+      ;;
+    --debug)
+      [[ "$TARGET_SET" == release ]] && {
+        echo "error: --debug and --release are mutually exclusive" >&2
+        exit 1
+      }
+      TARGET_SET=debug
+      shift
+      ;;
+    --release)
+      [[ "$TARGET_SET" == debug ]] && {
+        echo "error: --debug and --release are mutually exclusive" >&2
+        exit 1
+      }
+      TARGET_SET=release
       shift
       ;;
     --list-targets)
@@ -415,8 +441,20 @@ load_targets "$TARGETS_FILE"
 BUILD_SLUGS=()
 BUILD_ENVS=()
 if [[ ${#SELECTED[@]} -eq 0 ]]; then
-  BUILD_SLUGS=("${TARGET_SLUGS[@]}")
-  BUILD_ENVS=("${TARGET_ENVS[@]}")
+  local_idx=""
+  for local_idx in "${!TARGET_SLUGS[@]}"; do
+    if [[ "$TARGET_SET" == release ]]; then
+      is_debug_target_slug "${TARGET_SLUGS[$local_idx]}" && continue
+    elif [[ "$TARGET_SET" == debug ]]; then
+      is_debug_target_slug "${TARGET_SLUGS[$local_idx]}" || continue
+    fi
+    BUILD_SLUGS+=("${TARGET_SLUGS[$local_idx]}")
+    BUILD_ENVS+=("${TARGET_ENVS[$local_idx]}")
+  done
+  [[ ${#BUILD_SLUGS[@]} -gt 0 ]] || {
+    echo "error: no matching targets in $TARGETS_FILE" >&2
+    exit 1
+  }
 else
   local_slug=""
   local_idx=""
@@ -432,7 +470,7 @@ fi
 
 OUT="$OUT_ROOT/$VER"
 assert_version_not_released "$VER"
-if [[ ${#SELECTED[@]} -eq 0 ]]; then
+if [[ ${#SELECTED[@]} -eq 0 && "$TARGET_SET" != debug ]]; then
   rm -rf "$OUT"
 fi
 mkdir -p "$OUT"
@@ -456,6 +494,9 @@ else
   echo "mota jobs: $MOTA_JOBS_LIMIT (full + delta, pipelined after each pio build)"
 fi
 echo "version: $VER  label: $FW_VER_LABEL  envycore: $GIT_SHA  build: $BUILD_STAMP"
+if [[ ${#SELECTED[@]} -eq 0 ]]; then
+  echo "target set: $TARGET_SET"
+fi
 echo "targets: ${BUILD_SLUGS[*]}"
 
 export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -UFIRMWARE_VERSION -DFIRMWARE_VERSION='\"${FW_VER_LABEL}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"

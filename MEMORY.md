@@ -69,7 +69,9 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 | Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
 | Defer remote admin CLI | `feature/defer-remote-cli` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3196](https://github.com/meshcore-dev/MeshCore/pull/3196) (draft) | `dev` | yes |
 | FS corruption boot fsck (companion) | `feature/fs-corruption-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) (draft) | `dev` | yes |
-| Prefs atomic save (write tmp + rename) | `feature/prefs-atomic-save` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(open next)* | `dev` | yes — `saveConfigJsonAtomic` / `writeFileAtomic`; prefs, ACL, regions, companion contacts/channels/blobs |
+| Prefs atomic save (write tmp + rename) | `feature/prefs-atomic-save` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes — `saveConfigJsonAtomic` / `writeFileAtomic`; prefs, ACL, regions, companion contacts/channels/blobs |
+| Doctor fs check + fix | `feature/doctor-fs-recovery` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes |
+| nRF52 repeater hardware WDT | `feature/nrf52-watchdog` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes — branch on origin |
 
 **Sync rule:** while a PR is open, commits for that feature go to **`envyos/main` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
 
@@ -128,7 +130,7 @@ EnvyBoot **0.1.3** / **0.2.0** are interim bootloader submodule pins accumulated
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
 
-**Debug twins** (`<slug>-debug` / `*_debug` PIO env): `LOG_TAIL_ON_BOOT` + `OTA_DEBUG` + `ADMIN_DEBUG`. Distinct MOTA `target_id` (env-name hash). Not in default `./envyos build firmware` or publish. `./envyos build firmware --debug` or `--target <slug>-debug`.
+**Debug twins** (`<slug>-debug` / `*_debug` PIO env): `LOG_TAIL_ON_BOOT` + `OTA_DEBUG` + `ADMIN_DEBUG`. Distinct MOTA `target_id` (env-name hash). Not published. Every `targets.txt` release slug has a `-debug` row. Default `./envyos build firmware` builds field + debug. `./envyos build firmware --release` or `--debug` limits to one set.
 
 Add a line to `targets.txt` to ship another board/role.
 
@@ -200,7 +202,8 @@ Bench: laptop seeder advertises → superseeder captures (`ota seed` shows files
 ./envyos build                             # bootloader + firmware + motatool (all platforms)
 ./envyos build motatool --host-only        # bench: host platform only
 ./envyos build firmware --target rak4631-repeater-slim
-./envyos build firmware --debug            # all *-debug repeater twins
+./envyos build firmware --release          # field slugs only
+./envyos build firmware --debug            # *-debug twins only
 ./envyos bump patch firmware
 ./envyos publish --dry-run
 ./envyos publish stage
@@ -261,7 +264,7 @@ Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
 
 <!-- In-flight work only; delete when done -->
 - **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. **WDT trip/recover ✅ RAK4631 (08-14).** No field freezes (adverts disabled). Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
-- **Bench (2026-08-19): wedged InternalFS** — Doc: `envycore/docs/envyos_cli_extensions.md`. `doctor fs check|fix|format|dump|stat|ls|probe`; `doctor gc`; fail-fast NOSPC on critically full FS; atomic prefs save. Serial `erase` = wipe with no restore.
+- **Bench (2026-08-19): wedged InternalFS** — Doc: `envycore/docs/envyos_cli_extensions.md`. GUCP v0.2.0: atomic prefs + doctor check/fix + WDT + EndF restamp flagged **`candidate`** (PR prep before finalize). Bench tooling + FsLastErr = envyos-only.
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `build-mota.sh` writes `fw-<slug>-<ver>-full-<mid8>.mota` and `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota` (`--name-stem` / `--base-version`). One delta per prior base with an image. Full + delta jobs pipelined after each target's pio (`--mota-jobs` / `$ENVYOS_MOTA_JOBS`, default CPU count).
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)

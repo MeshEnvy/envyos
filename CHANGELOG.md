@@ -21,7 +21,7 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 
 ### Added
 
-- **firmware:** Bench debug twins of each shipped repeater/superseeder (`<slug>-debug`). Log tail, OTA, and admin serial on boot. Separate MOTA target id. `./envyos build firmware --debug` or `--target <slug>-debug`. Not published.
+- **firmware:** Bench debug twins of each shipped target (`<slug>-debug`). Log tail, OTA, and admin serial on boot. Separate MOTA target id. `./envyos build firmware --debug` or `--target <slug>-debug`. Not published.
 - **firmware:** `doctor fs` / `doctor gc` recovery CLI for wedged InternalFS; atomic prefs save.
 - **firmware:** SenseCAP P1-Pro NOR mini-superseeder (`sensecap-p1pro-superseeder`).
 - **firmware:** `ver` stamp includes envycore SHA and UTC build date (`v0.2.0-<sha> (Build: … UTC)`).
@@ -32,6 +32,7 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 
 - **firmware:** OTA self-serve disabled (`OTA_SELF_SERVE=0`). Nodes no longer hash/serve their running firmware as a full `.mota`. `ota announce` beacons folder/superseeder/captured motas only. Rare full images: origin USB/motatool. **Remove self-serve code in v0.3.0.**
 - **firmware:** OTA self-serve merkle no longer starts at boot. Repeaters stay quiet until `ota announce` (or `ota folder on`). Superseeder / folder catalogs still beacon if they already have files.
+- **tooling:** Default `./envyos build firmware` builds field slugs and `*-debug` twins. `--release` or `--debug` limits to one set.
 - **tooling:** Local flash artifacts use `fw-<slug>-vX.Y.Z.{uf2,hex,zip}`. Full `.mota` names are `fw-<slug>-vX.Y.Z-full-<mid8>.mota`. Delta names are `fw-<slug>-vX.Y.Z-delta-from-vA.B.C-<base8>.mota` (`base8` is the previous full mota's merkle). GitHub uploads use those names. v0.1.2 restore still accepts the old `fw-<slug>-full-…` / `fw-<slug>-delta-from-…` names.
 - **firmware:** Device `ver` stamps `ENVYOS_VERSIONS` `firmware` (`v<firmware>-<sha>`). No longer a hardcoded `platformio.ini` define or a `-U` override that fell through to MeshCore `v1.17.0`.
 - **firmware:** Field `rak4631-repeater-slim` no longer enables log tail / OTA_DEBUG / ADMIN_DEBUG at boot. Use `rak4631-repeater-slim-debug`.

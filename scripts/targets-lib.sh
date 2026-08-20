@@ -61,6 +61,11 @@ otafix_boards_from_targets_file() {
   printf '%s\n' "${boards[@]}" | sort -u
 }
 
+# Bench debug twins: distinct PIO env / MOTA target_id. Not published.
+is_debug_target_slug() {
+  [[ "$1" == *-debug ]]
+}
+
 # Print target slugs from targets.txt (one per line, in file order).
 list_target_slugs_from_file() {
   local file=$1
@@ -78,6 +83,16 @@ list_target_slugs_from_file() {
     [[ -n "$slug" ]] || continue
     printf '%s\n' "$slug"
   done <"$file"
+}
+
+# Field/release slugs only (skips *-debug).
+list_release_target_slugs_from_file() {
+  local slug
+  while IFS= read -r slug || [[ -n "$slug" ]]; do
+    [[ -n "$slug" ]] || continue
+    is_debug_target_slug "$slug" && continue
+    printf '%s\n' "$slug"
+  done < <(list_target_slugs_from_file "$1")
 }
 
 # Slug from targets.txt → PlatformIO env name.

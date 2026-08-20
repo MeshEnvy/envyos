@@ -6,6 +6,10 @@
 #
 # Add a line here to ship a new board/role; rebuild motatool targets if the env set changes.
 # otafix BOARD= is inferred from platformio_env by scripts/targets-lib.sh (for build-bl.sh).
+#
+# Slugs ending in -debug are bench-only (log tail + OTA/admin serial). They are skipped by
+# publish/restore. Default `./envyos build firmware` builds field + debug; `--release` or
+# `--debug` limits to one set; `--target <slug>` builds explicit slugs.
 
 wismesh-tag-repeater   RAK_WisMesh_Tag_repeater              WisMesh Tag repeater (OTA bench seeder/DUT)
 rak4631-repeater-slim   RAK_4631_repeater_slim                RAK4631 slim repeater (no OLED/sensors/BLE)
@@ -13,3 +17,10 @@ sensecap-p1pro-repeater-slim  SenseCap_Solar_repeater_slim    SenseCAP Solar P1-
 sensecap-p1pro-superseeder    SenseCap_Solar_superseeder      SenseCAP P1-Pro NOR mini-superseeder (deltas)
 rak4631-superseeder     RAK_4631_superseeder                  RAK4631 slim + SD superseeder (deltas)
 wismesh-tag-client-ble  RAK_WisMesh_Tag_companion_radio_ble   WisMesh Tag companion (BLE)
+
+wismesh-tag-client-ble-debug       RAK_WisMesh_Tag_companion_radio_ble_debug  WisMesh Tag companion BLE (bench debug)
+wismesh-tag-repeater-debug          RAK_WisMesh_Tag_repeater_debug         WisMesh Tag repeater (bench debug)
+rak4631-repeater-slim-debug         RAK_4631_repeater_slim_debug           RAK4631 slim repeater (bench debug)
+sensecap-p1pro-repeater-slim-debug  SenseCap_Solar_repeater_slim_debug     SenseCAP P1-Pro slim (bench debug)
+sensecap-p1pro-superseeder-debug    SenseCap_Solar_superseeder_debug       SenseCAP P1-Pro superseeder (bench debug)
+rak4631-superseeder-debug           RAK_4631_superseeder_debug             RAK4631 SD superseeder (bench debug)

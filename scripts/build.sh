@@ -36,13 +36,15 @@ usage: $0 [options] [firmware-version] [build-mota options…]
 
   firmware-version  Optional override for build-mota (default: ENVYOS_VERSIONS firmware)
 
-  Other flags (--target, --hex-only, --base, --mota-jobs, --targets-file, …) are forwarded to
+  Other flags (--target, --hex-only, --base, --release, --debug, --mota-jobs, --targets-file, …) are forwarded to
   build-mota.sh.
 
 examples:
   $0
   $0 --bootloader-only
   $0 --target rak4631-repeater-slim
+  $0 --release
+  $0 --debug
   $0 v0.1.1 --base v0.1.0
   $0 --hex-only
 EOF
