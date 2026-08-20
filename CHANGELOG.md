@@ -45,7 +45,8 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 
 ### Planned (v0.3.0)
 
-- Multi-volume FS CLI naming: replace companion `UserData`/`ExtraFS` path prefixes with a virtual root (e.g. `int0`/`int1`); unify with repeater `doctor fs` TBD. [Design notes](docs/planned/v0.3.0.md).
+- Multi-volume FS CLI naming: replace companion `UserData`/`ExtraFS` path prefixes with a virtual root (e.g. `int0`/`int1`); unify with repeater `doctor fs` TBD.
+- WisMesh companion `EXTRAFS=1` + `doctor fs check`/`gc` on serial path (companion InternalFS wedge; deferred from v0.2.0). [Design notes](docs/planned/v0.3.0.md).
 
 ## [v0.1.2] - 2026-08-03
 
