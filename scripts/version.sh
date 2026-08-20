@@ -5,9 +5,11 @@ set -euo pipefail
 OTA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
 CHANGELOG_FILE="$OTA_ROOT/CHANGELOG.md"
+UPSTREAM_PRS_FILE="$OTA_ROOT/docs/upstream-prs.md"
 RELEASED_DISTROS_FILE="$OTA_ROOT/RELEASED_DISTROS"
 RELEASED_FIRMWARE_FILE="$OTA_ROOT/RELEASED_FIRMWARE"
 RELEASED_BOOTLOADER_FILE="$OTA_ROOT/RELEASED_BOOTLOADER"
+RELEASE_MANIFESTS_DOC="$OTA_ROOT/docs/release-manifests.md"
 BUILD_ROOT="$OTA_ROOT/build"
 FIRMWARE_ROOT="$BUILD_ROOT/firmware"
 RELEASES_ROOT="$BUILD_ROOT/releases"
@@ -796,6 +798,7 @@ verify_release_delta_matrix() {
     [[ -n "$line" ]] || continue
     read -r slug _ <<<"$line"
     [[ -n "$slug" ]] || continue
+    is_debug_target_slug "$slug" && continue
     need=0
 
     while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
@@ -942,7 +945,7 @@ stage_firmware_release_assets() {
       stage_flat_release_asset "$f" "$name" "$release_dir" "$manifest_file"
     done
     shopt -u nullglob
-  done < <(list_target_slugs_from_file "$targets_file")
+  done < <(list_release_target_slugs_from_file "$targets_file")
 }
 
 stage_bootloader_release_assets() {
@@ -1063,28 +1066,53 @@ read_release_manifest_key() {
   if [[ ! -f "$file" ]]; then
     file="$MOTAS_ROOT/$(normalize_version "$distro_ver")/RELEASE_MANIFEST"
   fi
-  [[ -f "$file" ]] || return 1
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    [[ -n "$line" ]] || continue
-    k="${line%%=*}"
-    k="${k%"${k##*[![:space:]]}"}"
-    [[ "$k" == "$key" ]] || continue
-    val="${line#*=}"
-    val="${val#"${val%%[![:space:]]*}"}"
-    val="${val%"${val##*[![:space:]]}"}"
-    case "$key" in
-      published | envycore_sha | bootloader_sha | motatool_sha)
-        printf '%s' "$val"
-        ;;
-      *)
-        normalize_version "$val"
-        ;;
-    esac
-    return 0
-  done <"$file"
-  return 1
+  if [[ -f "$file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%%#*}"
+      line="${line#"${line%%[![:space:]]*}"}"
+      [[ -n "$line" ]] || continue
+      k="${line%%=*}"
+      k="${k%"${k##*[![:space:]]}"}"
+      [[ "$k" == "$key" ]] || continue
+      val="${line#*=}"
+      val="${val#"${val%%[![:space:]]*}"}"
+      val="${val%"${val##*[![:space:]]}"}"
+      case "$key" in
+        published | envycore_sha | bootloader_sha | motatool_sha)
+          printf '%s' "$val"
+          ;;
+        *)
+          normalize_version "$val"
+          ;;
+      esac
+      return 0
+    done <"$file"
+  fi
+  read_archived_release_manifest_key "$distro_ver" "$key"
+}
+
+# docs/release-manifests.md — committed pins for published distros
+read_archived_release_manifest_key() {
+  local distro_ver=$1 key=$2
+  local heading val
+  heading="$(normalize_version "$distro_ver")" || return 1
+  [[ -f "$RELEASE_MANIFESTS_DOC" ]] || return 1
+  val="$(awk -v heading="$heading" -v key="$key" '
+    $0 == "## " heading { in_section = 1; next }
+    in_section && /^## / { exit }
+    in_section {
+      line = $0
+      sub(/^[ \t]+|[ \t]+$/, "", line)
+      if (index(line, key "=") != 1) next
+      print substr(line, length(key) + 2)
+      exit
+    }
+  ' "$RELEASE_MANIFESTS_DOC")"
+  [[ -n "$val" ]] || return 1
+  case "$key" in
+    published) printf '%s' "$val" ;;
+    *) normalize_version "$val" ;;
+  esac
 }
 
 manifest_component_version() {
@@ -1226,7 +1254,7 @@ plan_firmware_release_assets() {
       printf '  asset: %s  source: %s\n' "$name" "$rel_src"
     done
     shopt -u nullglob
-  done < <(list_target_slugs_from_file "$targets_file")
+  done < <(list_release_target_slugs_from_file "$targets_file")
 }
 
 plan_bootloader_release_assets() {
@@ -1445,6 +1473,246 @@ changelog_notes_for_distro() {
 
 require_changelog_section() {
   changelog_notes_for_distro "$1" 0 >/dev/null
+}
+
+# --- Upstream PR registry (docs/upstream-prs.md) ---
+
+_upstream_prs_allowed_status() {
+  case "$1" in
+    submitted | merged | envyos-only | declined) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_upstream_prs_valid_status() {
+  case "$1" in
+    candidate | extracting | submitted | merged | envyos-only | declined) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Parse ## Release vX.Y.Z table rows. Prints: status<TAB>feature<TAB>branch
+_upstream_prs_rows_for_distro() {
+  local distro_ver=$1
+  local heading="Release ${distro_ver}"
+  [[ -f "$UPSTREAM_PRS_FILE" ]] || {
+    echo "error: missing $UPSTREAM_PRS_FILE" >&2
+    return 1
+  }
+  awk -v heading="$heading" '
+    function trim(s) {
+      gsub(/^[ \t]+|[ \t]+$/, "", s)
+      return s
+    }
+    function strip_ticks(s) {
+      gsub(/^`+|`+$/, "", s)
+      return s
+    }
+    $0 == "## " heading { in_section = 1; next }
+    in_section && /^## / { exit }
+    in_section && /^\|/ {
+      if ($0 ~ /^\|[[:space:]]*-/) next
+      n = split($0, cells, "|")
+      feature = trim(cells[2])
+      branch = strip_ticks(trim(cells[4]))
+      status = tolower(trim(cells[7]))
+      if (feature == "" || feature == "Feature") next
+      printf "%s\t%s\t%s\n", status, feature, branch
+    }
+  ' "$UPSTREAM_PRS_FILE"
+}
+
+check_upstream_prs_for_distro() {
+  local distro_ver=$1
+  local -a blockers=()
+  local row status feature branch rows
+  [[ -f "$UPSTREAM_PRS_FILE" ]] || {
+    echo "error: missing $UPSTREAM_PRS_FILE" >&2
+    return 1
+  }
+  if ! grep -qE "^## Release ${distro_ver//./\\.}[[:space:]]*$" "$UPSTREAM_PRS_FILE"; then
+    echo "error: docs/upstream-prs.md has no '## Release ${distro_ver}' section" >&2
+    echo "Assign Unreleased rows to this release (or add an empty table stating envyos-only)." >&2
+    echo "See .cursor/skills/envyos-upstream-prs/SKILL.md" >&2
+    return 1
+  fi
+  rows="$(_upstream_prs_rows_for_distro "$distro_ver")" || return 1
+  if [[ -z "$rows" ]]; then
+    echo "error: docs/upstream-prs.md '## Release ${distro_ver}' has no table rows" >&2
+    echo "Every release needs at least one row (use envyos-only when nothing is upstreamable)." >&2
+    return 1
+  fi
+  while IFS=$'\t' read -r status feature branch; do
+    [[ -n "$status" ]] || continue
+    if _upstream_prs_allowed_status "$status"; then
+      continue
+    fi
+    if ! _upstream_prs_valid_status "$status"; then
+      blockers+=("unknown status '$status': $feature (${branch:-no branch})")
+      continue
+    fi
+    blockers+=("$status: $feature (${branch:-no branch})")
+  done <<<"$rows"
+
+  if [[ ${#blockers[@]} -eq 0 ]]; then
+    echo "upstream PRs: $distro_ver OK (all upstreamable rows submitted, merged, envyos-only, or declined)"
+    return 0
+  fi
+
+  echo "error: docs/upstream-prs.md ## Release $distro_ver has upstreamable work not submitted:" >&2
+  for row in "${blockers[@]}"; do
+    echo "  - $row" >&2
+  done
+  echo "Open cross-fork PRs and set status to submitted (or merged / envyos-only / declined)." >&2
+  echo "See docs/upstream-prs.md and .cursor/skills/envyos-upstream-prs/SKILL.md" >&2
+  return 1
+}
+
+require_upstream_prs_for_distro() {
+  check_upstream_prs_for_distro "$1"
+}
+
+# --- Per-package changelog gate (docs/change-management.md) ---
+
+component_changelog_file() {
+  case "$1" in
+    firmware) printf '%s' "$OTA_ROOT/envycore/envyos/CHANGELOG.md" ;;
+    bootloader) printf '%s' "$OTA_ROOT/bootloader/CHANGELOG.md" ;;
+    motatool) printf '%s' "$OTA_ROOT/motatool/CHANGELOG.md" ;;
+    *)
+      echo "error: unknown component '$1'" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ## [X.Y.Z] or ## [vX.Y.Z] heading present?
+component_changelog_has_version() {
+  local file=$1 ver=$2
+  local bare
+  bare="$(normalize_version "$ver")" || return 1
+  bare="${bare#v}"
+  [[ -f "$file" ]] || return 1
+  grep -qE "^## \[v?${bare//./\\.}\]" "$file"
+}
+
+# Component version for a distro: RELEASE_MANIFEST / docs/release-manifests.md, else dev HEAD for in-progress only.
+resolve_component_version_for_distro() {
+  local id=$1 distro_ver=$2
+  local v dev_distro
+  if v="$(read_release_manifest_key "$distro_ver" "$id" 2>/dev/null)" && [[ -n "$v" ]]; then
+    normalize_version "$v"
+    return
+  fi
+  dev_distro="$(read_distro_version 2>/dev/null || true)"
+  if [[ "$(normalize_version "$distro_ver")" == "$(normalize_version "$dev_distro")" ]]; then
+    normalize_version "$(read_envyos_version_key "$id")"
+    return
+  fi
+  if [[ "$id" == firmware ]] && [[ -d "$(component_build_dir firmware "$(normalize_version "$distro_ver")")" ]]; then
+    normalize_version "$distro_ver"
+    return
+  fi
+  echo "error: no component version for ${id} in distro ${distro_ver} (hydrate manifest or add docs/release-manifests.md)" >&2
+  return 1
+}
+
+# Latest released distro strictly below the given version.
+previous_released_distro() {
+  local distro_ver=$1 ver prev=""
+  while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    version_lt "$ver" "$distro_ver" || continue
+    if [[ -z "$prev" ]] || version_lt "$prev" "$ver"; then
+      prev="$ver"
+    fi
+  done < <(list_released_distros)
+  [[ -n "$prev" ]] || return 1
+  printf '%s' "$prev"
+}
+
+# Prints: component<TAB>prev-version-or-—<TAB>new-version<TAB>changed|unchanged
+changelog_package_delta() {
+  local distro_ver=$1
+  local prev_distro="" id prev_ver new_ver state
+  prev_distro="$(previous_released_distro "$distro_ver" 2>/dev/null || true)"
+  for id in firmware bootloader motatool; do
+    new_ver="$(resolve_component_version_for_distro "$id" "$distro_ver")" || return 1
+    prev_ver=""
+    if [[ -n "$prev_distro" ]]; then
+      prev_ver="$(manifest_component_version "$id" "$prev_distro" 2>/dev/null || true)"
+      prev_ver="$(normalize_version "$prev_ver" 2>/dev/null || true)"
+    fi
+    if [[ -n "$prev_ver" && "$prev_ver" == "$new_ver" ]]; then
+      state=unchanged
+    else
+      state=changed
+    fi
+    printf '%s\t%s\t%s\t%s\n' "$id" "${prev_ver:-—}" "$new_ver" "$state"
+  done
+}
+
+check_changelog_packages_for_distro() {
+  local distro_ver=$1
+  local body id prev_ver new_ver state file
+  local -a errors=()
+
+  body="$(changelog_notes_for_distro "$distro_ver" 1)" || return 1
+
+  if ! printf '%s\n' "$body" | grep -q '^### Packages'; then
+    errors+=("root CHANGELOG.md ${distro_ver} section is missing '### Packages' version-delta table")
+  fi
+
+  while IFS=$'\t' read -r id prev_ver new_ver state; do
+    [[ -n "$id" ]] || continue
+    if ! printf '%s\n' "$body" | grep -qE "^\| *${id} *\|"; then
+      errors+=("'### Packages' table has no row for ${id}")
+    fi
+    if [[ "$state" == changed ]]; then
+      file="$(component_changelog_file "$id")"
+      if ! component_changelog_has_version "$file" "$new_ver"; then
+        errors+=("${id} bumped ${prev_ver} → ${new_ver} but ${file#"$OTA_ROOT"/} has no ## [${new_ver#v}] section")
+      fi
+    fi
+  done < <(changelog_package_delta "$distro_ver") || return 1
+
+  if [[ ${#errors[@]} -eq 0 ]]; then
+    echo "changelog: $distro_ver OK (Packages table + package changelog sections present)"
+    return 0
+  fi
+
+  echo "error: change-management gate failed for $distro_ver:" >&2
+  local err
+  for err in "${errors[@]}"; do
+    echo "  - $err" >&2
+  done
+  echo "See docs/change-management.md" >&2
+  return 1
+}
+
+require_changelog_packages_for_distro() {
+  check_changelog_packages_for_distro "$1"
+}
+
+list_upstream_prs_blockers() {
+  local section heading distro_ver row status feature branch
+  [[ -f "$UPSTREAM_PRS_FILE" ]] || {
+    echo "error: missing $UPSTREAM_PRS_FILE" >&2
+    return 1
+  }
+  while IFS= read -r section; do
+    [[ "$section" == "## Release v"* ]] || continue
+    heading="${section### }"
+    distro_ver="${heading#Release }"
+    echo "$distro_ver"
+    while IFS=$'\t' read -r status feature branch; do
+      [[ -n "$status" ]] || continue
+      if _upstream_prs_allowed_status "$status"; then
+        continue
+      fi
+      echo "  BLOCKED  $status  $feature  (${branch:-—})"
+    done < <(_upstream_prs_rows_for_distro "$distro_ver" 2>/dev/null || true)
+  done <"$UPSTREAM_PRS_FILE"
 }
 
 release_notes_for_distro() {

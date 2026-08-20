@@ -170,7 +170,7 @@ EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
 - **Canonical file:** `ENVYOS_VERSIONS` at ota repo root (`distro`, `firmware`, `bootloader`, `motatool`)
 - **Build:** `./envyos build firmware` → `build/firmware/<firmware>/`; `./scripts/build-mota.sh v0.1.1` overrides for one-off builds
-- **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
+- **Firmware stamp:** `-DFIRMWARE_VERSION` from `ENVYOS_VERSIONS` `firmware=` (not `distro=`) via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
 - **Explicit delta base:** `./scripts/build-mota.sh v0.1.2 --base v0.1.0` (default builds all prior bases)
 
 Bump `ENVYOS_VERSIONS` at repo root for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
@@ -188,6 +188,7 @@ When shipping EnvyOS work:
 - [ ] Bench builds use **`envyos/main`** checkout in `envycore/`, not a PR branch
 - [ ] Version references use EnvyOS `v0.1.x`, not upstream `v1.17.x`
 - [ ] EnvyOS-owned change noted in `CHANGELOG.md` `## [Unreleased]` (MeshCore-only rebase: one companion-tag line)
+- [ ] Upstreamable work registered in `docs/upstream-prs.md`; before finalize → `### Upstream PRs` + `./envyos upstream-prs check` (see `envyos-upstream-prs` skill)
 - [ ] Monorepo submodule pins bumped when cutting a release (not required for every feature merge)
 
 ## Do not

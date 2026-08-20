@@ -1,0 +1,26 @@
+---
+description: Per-package changelog discipline and distro release change-management gates
+alwaysApply: true
+---
+
+# Change management
+
+Policy: [`docs/change-management.md`](../../docs/change-management.md). Four packages: **firmware**, **bootloader**, **motatool**, **tooling** (ota repo).
+
+## On every change set
+
+1. Code change in a package → entry in that **package's changelog** `## [Unreleased]`, same commit:
+   - firmware → `envycore/envyos/CHANGELOG.md`
+   - bootloader → `bootloader/CHANGELOG.md`
+   - motatool → `motatool/CHANGELOG.md`
+   - tooling → root `CHANGELOG.md` directly
+2. User-visible highlights also go to root `CHANGELOG.md` `## [Unreleased]`, **package-tagged** (`**firmware:**`, `**bootloader:**`, `**motatool:**`, `**tooling:**`).
+3. `./envyos bump <level> <component>` → promote that package changelog's Unreleased to `## [X.Y.Z]` (same change set, or before finalize).
+
+## Before distro finalize
+
+1. Root release section needs **`### Packages`** (version-delta table; `./envyos changelog delta` prints it) and **`### Upstream PRs`**.
+2. Run **`./envyos changelog check vX.Y.Z`** — must pass (Packages table + a `## [ver]` section in each bumped package's changelog).
+3. **`./envyos publish finalize`** enforces both this gate and the upstream PR gate.
+
+Releases before v0.2.0 predate this policy — do not backfill.

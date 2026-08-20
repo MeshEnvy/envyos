@@ -1,0 +1,25 @@
+---
+description: Per-distro upstream PR registry, changelog mirror, and publish finalize gate
+alwaysApply: true
+---
+
+# Upstream PR release tracking
+
+Read [`docs/upstream-prs.md`](../../docs/upstream-prs.md) for the registry. Skill: [`.cursor/skills/envyos-upstream-prs/SKILL.md`](../skills/envyos-upstream-prs/SKILL.md).
+
+## On every upstreamable feature
+
+1. **Classify** each sub-change: upstreamable vs `envyos-only` (see skill table).
+2. **Register** a row in `docs/upstream-prs.md` § **Unreleased** in the same change set as the merge to `envyos/main`.
+3. **Extract** when ready: pure `feature/<name>` from the PR base → cross-fork PR → status **`submitted`**.
+
+While a PR is open, sync commits per [upstream-pr-sync.mdc](upstream-pr-sync.mdc).
+
+## Before distro finalize
+
+1. Promote registry rows to **`## Release vX.Y.Z`** (match the tag).
+2. Add **`### Upstream PRs`** to that release in `CHANGELOG.md` (mirror the table).
+3. Run **`./envyos upstream-prs check vX.Y.Z`** — must pass.
+4. **`./envyos publish finalize`** also enforces the gate.
+
+**Release is incomplete** until every upstreamable row for that version is **`submitted`** or **`merged`**. `candidate` and `extracting` block finalize.

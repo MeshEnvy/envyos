@@ -106,6 +106,8 @@ fi
 publish_finalize() {
   local distro_ver=$1
   require_changelog_section "$distro_ver" || return 1
+  require_changelog_packages_for_distro "$distro_ver" || return 1
+  require_upstream_prs_for_distro "$distro_ver" || return 1
   append_released_distro "$distro_ver"
   lock_release_components "$distro_ver"
   if [[ "$GIT_TAG" -eq 1 ]]; then

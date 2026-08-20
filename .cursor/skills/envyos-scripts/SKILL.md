@@ -39,9 +39,11 @@ All scripts live in **`scripts/`**; primary entry point is **`./envyos`** (symli
 ```bash
 ./envyos publish --dry-run      # verify + list assets (no writes)
 ./envyos publish stage          # copy flat files to build/releases/<distro>/
-./envyos publish finalize       # lock RELEASED_* + RELEASE_MANIFEST + git tag
+./envyos publish finalize       # lock RELEASED_* + RELEASE_MANIFEST + git tag + upstream PR gate
 ./envyos publish upload v0.1.2  # GitHub Release
 ./envyos publish                # stage + finalize + upload
+./envyos upstream-prs check vX.Y.Z
+./envyos upstream-prs list
 ```
 
 Legacy scripts remain callable directly.
@@ -66,15 +68,17 @@ All component versions live in **`ENVYOS_VERSIONS`** at ota repo root:
 | Key | Role |
 |-----|------|
 | `distro` | Next bundle to publish — git tag `v<distro>`, manifest at `build/releases/<distro>/` |
-| `firmware` | `-DFIRMWARE_VERSION` → `build/firmware/<firmware>/` (sync `envycore/envyos/VERSION`) |
+| `firmware` | device `ver` / `-DFIRMWARE_VERSION` + `build/firmware/<firmware>/` (sync `envycore/envyos/VERSION`). Not `distro`. |
 | `bootloader` | `build/bootloader/<bootloader>/` |
 | `motatool` | `motatool/Cargo.toml` + `build/motatool/<motatool>/motatool-<platform>` |
 
 Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_envyos_versions`, `is_released_distro`, `is_released_firmware`
 
-**Released distros** (`RELEASED_DISTROS`): **`v0.1.0`**, **`v0.1.1`**. **Released firmware** (`RELEASED_FIRMWARE`): immutable `build/firmware/<ver>/` trees.
+**Released distros** (`RELEASED_DISTROS`): **`v0.1.0`**, **`v0.1.1`**, **`v0.1.2`** (latest on [GitHub](https://github.com/MeshEnvy/envyos/releases)). **In progress:** v0.2.0 dev HEAD. **Internal only:** v0.1.3 (no distro tag). **Released firmware** (`RELEASED_FIRMWARE`): immutable `build/firmware/<ver>/` trees.
 
-**Changelog** — [`CHANGELOG.md`](../../../CHANGELOG.md). EnvyOS-owned changes only. MeshCore companion bumps are one line plus the upstream release URL. Add rows under `## [Unreleased]` in the same change set as the work. Before finalize, promote that block to `## [vX.Y.Z] - YYYY-MM-DD`. Finalize/upload fail if that heading is missing.
+**Changelog** — policy [`docs/change-management.md`](../../../docs/change-management.md). Package changelogs (firmware `envycore/envyos/CHANGELOG.md`, `bootloader/CHANGELOG.md`, `motatool/CHANGELOG.md`) own per-package detail; root [`CHANGELOG.md`](../../../CHANGELOG.md) carries package-tagged highlights. Before finalize, promote Unreleased to `## [vX.Y.Z] - YYYY-MM-DD` with **`### Packages`** (`./envyos changelog delta` prints it) and **`### Upstream PRs`**. Finalize fails unless `./envyos changelog check` and `./envyos upstream-prs check` pass.
+
+**Upstream PRs** — registry [`docs/upstream-prs.md`](../../../docs/upstream-prs.md). `./envyos upstream-prs check vX.Y.Z` before finalize. Skill: [`envyos-upstream-prs`](../envyos-upstream-prs/SKILL.md).
 
 **Publish** — after **`./envyos build`**:
 
@@ -90,6 +94,7 @@ Does **not** change `ENVYOS_VERSIONS` (bump distro manually when ready).
 ```bash
 ./envyos info
 ./envyos build firmware --target wismesh-tag-repeater
+./envyos build firmware --debug
 ./envyos bump patch firmware
 ./scripts/build-mota.sh v0.1.2 --base v0.1.0
 ```
@@ -126,7 +131,9 @@ slug  platformio_env  [description…]
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` |
 
-Output: `build/firmware/<ver>/<slug>/`. Default build = **all lines**. Override with `--target <slug>` (repeatable) or `--targets-file`.
+`*-debug` twins (log tail + OTA/admin serial on boot) are in the same file. Distinct MOTA `target_id`. Default build and publish skip them.
+
+Output: `build/firmware/<ver>/<slug>/`. Default build = **field slugs**. `--debug` = all debug twins. `--target <slug>` (repeatable) or `--targets-file`.
 
 ## `scripts/build-mota.sh`
 
