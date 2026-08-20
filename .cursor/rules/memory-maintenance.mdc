@@ -20,8 +20,8 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 
 | Area | Examples |
 |------|----------|
-| Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync, **`docs/upstream-prs.md`** |
-| Versioning | `ENVYOS_VERSIONS`, `CHANGELOG.md` + package changelogs, `docs/change-management.md`, `docs/upstream-prs.md`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
+| Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync, **`docs/good-upstream-contributor-policy.md`** |
+| Versioning | `ENVYOS_VERSIONS`, `CHANGELOG.md` + package changelogs, `docs/change-management.md`, `docs/good-upstream-contributor-policy.md`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
 | Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
 | Build outputs | `build/`, `scripts/build.sh`, `scripts/build-mota.sh`, `scripts/build-bl.sh` |
@@ -29,7 +29,7 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Bootloader | `bootloader/` submodule vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
-| Agent skills | `.cursor/skills/envyos-{upstream-prs,ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |
+| Agent skills | `.cursor/skills/envyos-{good-upstream-contributor,ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |
 | Greenfield breaks | Removed APIs, renamed paths, invalidated `.mota` or hex bases |
 
 ## Style

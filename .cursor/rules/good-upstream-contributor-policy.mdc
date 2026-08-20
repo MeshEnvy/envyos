@@ -1,0 +1,27 @@
+---
+description: EnvyOS Good Upstream Contributor Policy (GUCP) — triage on commit, submit before release
+alwaysApply: true
+---
+
+# Good Upstream Contributor Policy (GUCP)
+
+Read [`docs/good-upstream-contributor-policy.md`](../../docs/good-upstream-contributor-policy.md) for the registry. Skill: [`.cursor/skills/envyos-good-upstream-contributor/SKILL.md`](../skills/envyos-good-upstream-contributor/SKILL.md).
+
+## On every envycore / bootloader / motatool commit batch
+
+1. **Triage** — split the batch into logical upstream units; classify each (see skill table).
+2. **Register** — add or update rows in `docs/good-upstream-contributor-policy.md` in the **same session** (target release section when CHANGELOG `[Unreleased]` names that distro; else § Unreleased).
+3. **Flag** — status **`candidate`** is correct at commit time. Do not defer registration to release prep.
+4. **Audit** — run `./envyos gucp audit` when unsure anything was missed.
+
+While a PR is open, sync commits per [upstream-pr-sync.mdc](upstream-pr-sync.mdc).
+
+## Before distro finalize (release prep)
+
+1. Run `./envyos gucp audit vX.Y.Z` — handle every **`candidate`** / **`extracting`** row.
+2. Extract pure `feature/<name>` branches and open cross-fork PRs → status **`submitted`**.
+3. Promote registry rows to **`## Release vX.Y.Z`**; mirror **`### Upstream PRs`** in CHANGELOG.
+4. Run **`./envyos gucp check vX.Y.Z`** — must pass.
+5. **`./envyos publish finalize`** also enforces the gate.
+
+**Release is incomplete** until every upstreamable row for that version is **`submitted`** or **`merged`**. `candidate` and `extracting` block finalize.

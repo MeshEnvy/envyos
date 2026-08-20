@@ -33,7 +33,7 @@ All changelogs follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/): 
 - Code change in a package → entry in that **package's changelog** `## [Unreleased]`, same commit/PR. No orphan changes.
 - Root `CHANGELOG.md` bullets are **tagged** with their package: `**firmware:**`, `**bootloader:**`, `**motatool:**`, `**tooling:**`. One change may appear in both the package changelog (detail) and root (highlight); root may omit minor internal changes that the package changelog still records.
 - Version bump (`./envyos bump <level> <component>`) → promote that package changelog's `Unreleased` to `## [X.Y.Z]` in the same change set, or at latest before distro finalize.
-- Upstreamable work additionally gets a registry row (`docs/upstream-prs.md`, see `envyos-upstream-prs` skill).
+- Upstreamable work additionally gets a GUCP row (`docs/good-upstream-contributor-policy.md`, see `envyos-good-upstream-contributor` skill).
 
 ## Distro release section (root CHANGELOG.md)
 
@@ -55,7 +55,7 @@ Each `## [vX.Y.Z]` must contain, in order:
 Unchanged packages keep a row (`0.1.1 (unchanged)`) so every release states the full bundle.
 
 3. Keep-a-Changelog sections (`### Fixed` / `### Added` / `### Changed` / `### Improved`) with **package-tagged** bullets.
-4. **`### Upstream PRs`** — mirror of `docs/upstream-prs.md` for this release.
+4. **`### Upstream PRs`** — mirror of `docs/good-upstream-contributor-policy.md` for this release.
 
 GitHub Release notes are generated from this section plus the component table (`release_notes_for_distro`).
 
@@ -66,7 +66,7 @@ GitHub Release notes are generated from this section plus the component table (`
 1. Root `CHANGELOG.md` has `## [vX.Y.Z]` (existing gate).
 2. That section contains a `### Packages` table with a row for each of firmware, bootloader, motatool.
 3. Every package whose version **changed since the previous released distro** (or all packages, on the first release) has a matching `## [<version>]` section in its package changelog.
-4. Upstream PR registry gate passes (`./envyos upstream-prs check`).
+4. GUCP gate passes (`./envyos gucp check`).
 
 `./envyos changelog delta [vX.Y.Z]` prints the package version deltas (previous release → this release) to author the Packages table from.
 
@@ -76,9 +76,9 @@ GitHub Release notes are generated from this section plus the component table (`
 - [ ] Package changelogs: promote Unreleased → ## [X.Y.Z] for every bumped package
 - [ ] Root CHANGELOG.md: promote Unreleased → ## [vX.Y.Z] - YYYY-MM-DD
 - [ ] ./envyos changelog delta   # author ### Packages table from output
-- [ ] ### Upstream PRs (mirror docs/upstream-prs.md)
+- [ ] ### Upstream PRs (mirror docs/good-upstream-contributor-policy.md)
 - [ ] ./envyos changelog check vX.Y.Z
-- [ ] ./envyos upstream-prs check vX.Y.Z
+- [ ] ./envyos gucp check vX.Y.Z
 - [ ] ./envyos publish finalize
 ```
 

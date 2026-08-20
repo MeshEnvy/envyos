@@ -21,6 +21,6 @@ Policy: [`docs/change-management.md`](../../docs/change-management.md). Four pac
 
 1. Root release section needs **`### Packages`** (version-delta table; `./envyos changelog delta` prints it) and **`### Upstream PRs`**.
 2. Run **`./envyos changelog check vX.Y.Z`** — must pass (Packages table + a `## [ver]` section in each bumped package's changelog).
-3. **`./envyos publish finalize`** enforces both this gate and the upstream PR gate.
+3. **`./envyos publish finalize`** enforces both this gate and the GUCP gate.
 
 Releases before v0.2.0 predate this policy — do not backfill.

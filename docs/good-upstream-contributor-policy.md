@@ -1,6 +1,10 @@
-# Upstream PR registry
+# EnvyOS Good Upstream Contributor Policy (GUCP)
+
+EnvyOS ships on **`envyos/main`**, but upstreamable work also lives on pure **`feature/<name>`** branches and cross-fork PRs. **GUCP** is the per-distro registry and release gate: every upstreamable change is classified, extracted, and submitted before a distro tag ships.
 
 Each **distro release** lists upstreamable work shipped in that bundle. `./envyos publish finalize` fails until every row that is not `envyos-only` or `declined` is **`submitted`** (PR open) or **`merged`**.
+
+Skill: [`.cursor/skills/envyos-good-upstream-contributor/SKILL.md`](../.cursor/skills/envyos-good-upstream-contributor/SKILL.md). Verify: `./envyos gucp check vX.Y.Z`.
 
 **Status values**
 
@@ -15,7 +19,9 @@ Each **distro release** lists upstreamable work shipped in that bundle. `./envyo
 
 **Columns:** Feature · Repo (`envycore` / `bootloader` / `motatool`) · Branch on MeshEnvy fork · Upstream target (`owner/repo` + base branch) · PR link or `—` · Status
 
-Mirror the release block in `CHANGELOG.md` under `### Upstream PRs` before finalize. Skill: `.cursor/skills/envyos-upstream-prs/SKILL.md`.
+Mirror the release block in `CHANGELOG.md` under `### Upstream PRs` before finalize.
+
+**Lifecycle:** register upstreamable work as **`candidate`** when it lands on `envyos/main` (same change set as the commit batch). Open cross-fork PRs and move to **`submitted`** during release prep, before `./envyos publish finalize`.
 
 ---
 
@@ -25,16 +31,13 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 
 | Feature | Repo | Branch | Upstream target | PR | Status |
 |---------|------|--------|-----------------|-----|--------|
-| Atomic prefs save (write tmp + rename) | envycore | `feature/prefs-atomic-save` | meshcore-dev/MeshCore `dev` | — | candidate |
-| FS prefs write probe (`doctor fs check` core) | envycore | TBD | meshcore-dev/MeshCore `dev` | — | candidate |
-| Doctor fs bench tooling (stat/ls/probe/dump/gc) | envycore | `envyos/main` | — | — | envyos-only |
 | Multi-volume FS CLI naming (v0.3.0) | envycore | TBD | meshcore-dev/MeshCore `dev` | — | candidate |
 
 ---
 
 ## Release v0.2.0
 
-**Pending** — next publish (`ENVYOS_VERSIONS` `distro=0.2.0`). Bundles WDT work and v0.1.3 internal dev. Not on [GitHub Releases](https://github.com/MeshEnvy/envyos/releases) yet. Upstream rows below are prep; finalize runs `./envyos upstream-prs check v0.2.0`.
+**Pending** — next publish (`ENVYOS_VERSIONS` `distro=0.2.0`). Bundles WDT work and v0.1.3 internal dev. Not on [GitHub Releases](https://github.com/MeshEnvy/envyos/releases) yet. Upstream rows below are prep; finalize runs `./envyos gucp check v0.2.0`.
 
 | Feature | Repo | Branch | Upstream target | PR | Status |
 |---------|------|--------|-----------------|-----|--------|
@@ -49,12 +52,19 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | EnvyBoot WDT feed | bootloader | `envyos/main` | vk496/Adafruit_nRF52_Bootloader_OTAFIX `feature/ota-delta-apply` | — | envyos-only |
 | Disable OTA self-serve (fleet policy) | envycore | `envyos/main` | — | — | envyos-only |
 | Debug repeater twins (`*-debug` builds) | envycore | `envyos/main` | — | — | envyos-only |
+| Atomic prefs save (tmp + rename; fixes delete-then-write) | envycore | `feature/prefs-atomic-save` | meshcore-dev/MeshCore `dev` | — | candidate |
+| Fail-fast NOSPC when InternalFS critically full | envycore | `feature/prefs-atomic-save` | meshcore-dev/MeshCore `dev` | — | candidate |
+| Doctor stat + gc + check (flat CLI) | envycore | `feature/doctor-stat-gc-check` | meshcore-dev/MeshCore `dev` | — | candidate |
+| FS save error surfacing (LFS errno in CLI replies) | envycore | `feature/fs-save-errors` | meshcore-dev/MeshCore `dev` | — | candidate |
+| Doctor ls/probe/dump (bench) | envycore | `envyos/main` | — | — | envyos-only |
+| nRF52 repeater hardware WDT | envycore | `feature/nrf52-watchdog` | meshcore-dev/MeshCore `dev` | — | candidate |
+| EndF restamp firmware version on rebuild | envycore | TBD | vk496/MeshCore `feature/ota-lora` | — | candidate |
 
 ---
 
 ## Release v0.1.2
 
-Retrospective — predates registry gate. PRs opened after ship where applicable.
+Retrospective — predates GUCP gate. PRs opened after ship where applicable.
 
 | Feature | Repo | Branch | Upstream target | PR | Status |
 |---------|------|--------|-----------------|-----|--------|

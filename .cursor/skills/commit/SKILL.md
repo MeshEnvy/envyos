@@ -39,6 +39,7 @@ Parse `/commit` or a plain **commit** request the same way.
 3. Draft one or more Conventional Commit messages (subject **under 50 characters**).
 4. Stage only the scoped files (or hunks), then commit each logical group sequentially.
 5. Run `git status` after the last commit to verify success.
+6. **GUCP triage** — if the batch touched `envycore/`, `bootloader/`, or `motatool/`, read [`.cursor/skills/envyos-good-upstream-contributor/SKILL.md`](../envyos-good-upstream-contributor/SKILL.md) § Post-commit triage and update [`docs/good-upstream-contributor-policy.md`](../../../docs/good-upstream-contributor-policy.md) before marking done.
 
 ## Message format
 

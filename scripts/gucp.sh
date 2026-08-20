@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upstream PR registry checks — docs/upstream-prs.md
+# GUCP checks — docs/good-upstream-contributor-policy.md
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -8,18 +8,20 @@ source "$ROOT/scripts/version.sh"
 
 usage() {
   cat >&2 <<EOF
-usage: upstream-prs.sh check [vX.Y.Z]
-       upstream-prs.sh list
+usage: gucp.sh check [vX.Y.Z]
+       gucp.sh list
+       gucp.sh audit [vX.Y.Z] [N]
 
   check   Fail if any upstreamable row for the release is not submitted/merged
   list    Print release sections and blocking rows
+  audit   Show candidate/extracting rows + last N envycore commits (default 20)
 
-Registry: docs/upstream-prs.md
+Policy: docs/good-upstream-contributor-policy.md (GUCP)
 EOF
   exit 2
 }
 
-upstream_prs_check() {
+gucp_check() {
   local distro_ver="${1:-}"
   if [[ -z "$distro_ver" ]]; then
     distro_ver="$(read_distro_version)" || {
@@ -31,17 +33,25 @@ upstream_prs_check() {
   check_upstream_prs_for_distro "$distro_ver"
 }
 
-upstream_prs_list() {
+gucp_list() {
   list_upstream_prs_blockers
+}
+
+gucp_audit() {
+  audit_gucp "${1:-}" "${2:-20}"
 }
 
 case "${1:-}" in
   check)
     shift
-    upstream_prs_check "${1:-}"
+    gucp_check "${1:-}"
     ;;
   list)
-    upstream_prs_list
+    gucp_list
+    ;;
+  audit)
+    shift
+    gucp_audit "${1:-}" "${2:-20}"
     ;;
   -h | --help | help)
     usage

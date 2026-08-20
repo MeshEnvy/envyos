@@ -188,7 +188,7 @@ When shipping EnvyOS work:
 - [ ] Bench builds use **`envyos/main`** checkout in `envycore/`, not a PR branch
 - [ ] Version references use EnvyOS `v0.1.x`, not upstream `v1.17.x`
 - [ ] EnvyOS-owned change noted in `CHANGELOG.md` `## [Unreleased]` (MeshCore-only rebase: one companion-tag line)
-- [ ] Upstreamable work registered in `docs/upstream-prs.md`; before finalize → `### Upstream PRs` + `./envyos upstream-prs check` (see `envyos-upstream-prs` skill)
+- [ ] Upstreamable work registered in GUCP (`docs/good-upstream-contributor-policy.md`); before finalize → `### Upstream PRs` + `./envyos gucp check` (see `envyos-good-upstream-contributor` skill)
 - [ ] Monorepo submodule pins bumped when cutting a release (not required for every feature merge)
 
 ## Do not

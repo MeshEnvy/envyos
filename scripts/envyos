@@ -34,8 +34,9 @@ commands:
   restore firmware [vX.Y.Z]…        Hydrate released firmware trees from GitHub
   restore bootloader [vX.Y.Z]…      Hydrate released EnvyBoot trees from GitHub
   restore [vX.Y.Z]…                 Restore firmware + bootloader (default)
-  upstream-prs check [vX.Y.Z]       Verify upstream PR registry for a release
-  upstream-prs list                 List release sections and blocking rows
+  gucp check [vX.Y.Z]               Verify GUCP registry for a release
+  gucp list                         List release sections and blocking rows
+  gucp audit [vX.Y.Z] [N]           Triage: candidates + last N envycore commits
   changelog check [vX.Y.Z]          Verify Packages table + package changelogs
   changelog delta [vX.Y.Z]          Print package version deltas for a release
 
@@ -47,14 +48,16 @@ examples:
   envyos build
   envyos build motatool --host-only     # host platform only (quick bench)
   envyos build firmware --target wismesh-tag-repeater
-  envyos build firmware --debug             # all *-debug repeater twins
+  envyos build firmware --release             # field slugs only
+  envyos build firmware --debug               # *-debug twins only
   envyos bump patch firmware
   envyos publish --dry-run
   envyos publish stage
   envyos publish finalize
   envyos publish upload v0.1.2
-  envyos upstream-prs check v0.2.0
-  envyos upstream-prs list
+  envyos gucp check v0.2.0
+  envyos gucp audit v0.2.0
+  envyos gucp list
   envyos changelog check v0.2.0
   envyos changelog delta
 EOF
@@ -222,9 +225,9 @@ case "$1" in
     shift
     cmd_restore "$@"
     ;;
-  upstream-prs)
+  gucp)
     shift
-    exec "$SCRIPTS/upstream-prs.sh" "$@"
+    exec "$SCRIPTS/gucp.sh" "$@"
     ;;
   changelog)
     shift

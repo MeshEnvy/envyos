@@ -5,7 +5,7 @@ set -euo pipefail
 OTA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
 CHANGELOG_FILE="$OTA_ROOT/CHANGELOG.md"
-UPSTREAM_PRS_FILE="$OTA_ROOT/docs/upstream-prs.md"
+GUCP_FILE="$OTA_ROOT/docs/good-upstream-contributor-policy.md"
 RELEASED_DISTROS_FILE="$OTA_ROOT/RELEASED_DISTROS"
 RELEASED_FIRMWARE_FILE="$OTA_ROOT/RELEASED_FIRMWARE"
 RELEASED_BOOTLOADER_FILE="$OTA_ROOT/RELEASED_BOOTLOADER"
@@ -1475,7 +1475,7 @@ require_changelog_section() {
   changelog_notes_for_distro "$1" 0 >/dev/null
 }
 
-# --- Upstream PR registry (docs/upstream-prs.md) ---
+# --- GUCP (docs/good-upstream-contributor-policy.md) ---
 
 _upstream_prs_allowed_status() {
   case "$1" in
@@ -1495,8 +1495,8 @@ _upstream_prs_valid_status() {
 _upstream_prs_rows_for_distro() {
   local distro_ver=$1
   local heading="Release ${distro_ver}"
-  [[ -f "$UPSTREAM_PRS_FILE" ]] || {
-    echo "error: missing $UPSTREAM_PRS_FILE" >&2
+  [[ -f "$GUCP_FILE" ]] || {
+    echo "error: missing $GUCP_FILE" >&2
     return 1
   }
   awk -v heading="$heading" '
@@ -1519,26 +1519,26 @@ _upstream_prs_rows_for_distro() {
       if (feature == "" || feature == "Feature") next
       printf "%s\t%s\t%s\n", status, feature, branch
     }
-  ' "$UPSTREAM_PRS_FILE"
+  ' "$GUCP_FILE"
 }
 
 check_upstream_prs_for_distro() {
   local distro_ver=$1
   local -a blockers=()
   local row status feature branch rows
-  [[ -f "$UPSTREAM_PRS_FILE" ]] || {
-    echo "error: missing $UPSTREAM_PRS_FILE" >&2
+  [[ -f "$GUCP_FILE" ]] || {
+    echo "error: missing $GUCP_FILE" >&2
     return 1
   }
-  if ! grep -qE "^## Release ${distro_ver//./\\.}[[:space:]]*$" "$UPSTREAM_PRS_FILE"; then
-    echo "error: docs/upstream-prs.md has no '## Release ${distro_ver}' section" >&2
+  if ! grep -qE "^## Release ${distro_ver//./\\.}[[:space:]]*$" "$GUCP_FILE"; then
+    echo "error: docs/good-upstream-contributor-policy.md has no '## Release ${distro_ver}' section" >&2
     echo "Assign Unreleased rows to this release (or add an empty table stating envyos-only)." >&2
-    echo "See .cursor/skills/envyos-upstream-prs/SKILL.md" >&2
+    echo "See .cursor/skills/envyos-good-upstream-contributor/SKILL.md" >&2
     return 1
   fi
   rows="$(_upstream_prs_rows_for_distro "$distro_ver")" || return 1
   if [[ -z "$rows" ]]; then
-    echo "error: docs/upstream-prs.md '## Release ${distro_ver}' has no table rows" >&2
+    echo "error: docs/good-upstream-contributor-policy.md '## Release ${distro_ver}' has no table rows" >&2
     echo "Every release needs at least one row (use envyos-only when nothing is upstreamable)." >&2
     return 1
   fi
@@ -1555,16 +1555,16 @@ check_upstream_prs_for_distro() {
   done <<<"$rows"
 
   if [[ ${#blockers[@]} -eq 0 ]]; then
-    echo "upstream PRs: $distro_ver OK (all upstreamable rows submitted, merged, envyos-only, or declined)"
+    echo "GUCP: $distro_ver OK (all upstreamable rows submitted, merged, envyos-only, or declined)"
     return 0
   fi
 
-  echo "error: docs/upstream-prs.md ## Release $distro_ver has upstreamable work not submitted:" >&2
+  echo "error: docs/good-upstream-contributor-policy.md ## Release $distro_ver has upstreamable work not submitted:" >&2
   for row in "${blockers[@]}"; do
     echo "  - $row" >&2
   done
   echo "Open cross-fork PRs and set status to submitted (or merged / envyos-only / declined)." >&2
-  echo "See docs/upstream-prs.md and .cursor/skills/envyos-upstream-prs/SKILL.md" >&2
+  echo "See docs/good-upstream-contributor-policy.md and .cursor/skills/envyos-good-upstream-contributor/SKILL.md" >&2
   return 1
 }
 
@@ -1696,8 +1696,8 @@ require_changelog_packages_for_distro() {
 
 list_upstream_prs_blockers() {
   local section heading distro_ver row status feature branch
-  [[ -f "$UPSTREAM_PRS_FILE" ]] || {
-    echo "error: missing $UPSTREAM_PRS_FILE" >&2
+  [[ -f "$GUCP_FILE" ]] || {
+    echo "error: missing $GUCP_FILE" >&2
     return 1
   }
   while IFS= read -r section; do
@@ -1712,7 +1712,71 @@ list_upstream_prs_blockers() {
       fi
       echo "  BLOCKED  $status  $feature  (${branch:-—})"
     done < <(_upstream_prs_rows_for_distro "$distro_ver" 2>/dev/null || true)
-  done <"$UPSTREAM_PRS_FILE"
+  done <"$GUCP_FILE"
+}
+
+# Print candidate/extracting rows and recent envycore commits for triage.
+audit_gucp() {
+  local distro_ver="${1:-}"
+  local commit_limit="${2:-20}"
+
+  echo "GUCP audit — register upstreamable work as candidate; PRs open at release prep"
+  echo "Policy: docs/good-upstream-contributor-policy.md"
+  echo ""
+
+  if [[ -n "$distro_ver" ]]; then
+    distro_ver="$(normalize_version "$distro_ver")" || return 1
+    echo "## Release $distro_ver"
+    local found=0
+    while IFS=$'\t' read -r status feature branch; do
+      [[ -n "$status" ]] || continue
+      case "$status" in
+        candidate | extracting)
+          echo "  $status  $feature  (${branch:-—})"
+          found=1
+          ;;
+      esac
+    done < <(_upstream_prs_rows_for_distro "$distro_ver" 2>/dev/null || true)
+    [[ "$found" -eq 1 ]] || echo "  (no candidate/extracting rows)"
+    echo ""
+  else
+    distro_ver="$(read_distro_version 2>/dev/null || true)"
+    if [[ -n "$distro_ver" ]]; then
+      audit_gucp "$distro_ver" "$commit_limit"
+      return $?
+    fi
+  fi
+
+  echo "## Unreleased"
+  if [[ -f "$GUCP_FILE" ]]; then
+    awk '
+      $0 == "## Unreleased" { in_section = 1; next }
+      in_section && /^## / { exit }
+      in_section && /^\|/ {
+        if ($0 ~ /^\|[[:space:]]*-/) next
+        n = split($0, c, "|")
+        f = c[2]; gsub(/^[ \t]+|[ \t]+$/, "", f)
+        s = tolower(c[7]); gsub(/^[ \t]+|[ \t]+$/, "", s)
+        if (f == "" || f == "Feature") next
+        if (s == "candidate" || s == "extracting") {
+          printf "  %s  %s\n", s, f
+          found = 1
+        }
+      }
+      END { if (!found) print "  (no candidate/extracting rows)" }
+    ' "$GUCP_FILE"
+  fi
+  echo ""
+
+  local envycore="$OTA_ROOT/envycore"
+  if [[ -d "$envycore/.git" ]]; then
+    echo "Recent envycore commits on envyos/main (last $commit_limit — triage each logical unit):"
+    git -C "$envycore" log --oneline -n "$commit_limit" envyos/main 2>/dev/null | sed 's/^/  /' || echo "  (could not read envycore log)"
+  else
+    echo "envycore/ submodule not checked out — skip commit log"
+  fi
+  echo ""
+  echo "Next: add/update GUCP rows (candidate OK), then at release prep extract branches and ./envyos gucp check vX.Y.Z"
 }
 
 release_notes_for_distro() {
