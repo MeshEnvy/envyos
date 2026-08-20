@@ -18,6 +18,10 @@ Add user-visible EnvyOS work under **Unreleased** in the same change set. Before
 
 - **motatool 0.1.1** — MeshEnvy-canonical fork (keep the name). In-place deltas share one suffix array across segments (same patch bytes). Auto `memory_size` reuses the converged patch instead of encoding a third time.
 
+### Planned (v0.3.0)
+
+- Multi-volume FS CLI naming: replace companion `UserData`/`ExtraFS` path prefixes with a virtual root (e.g. `int0`/`int1`); unify with repeater `doctor fs` TBD. [Design notes](docs/planned/v0.3.0.md).
+
 ## [v0.2.0] - 2026-08-14
 
 Practice distro release bundling WDT work and accumulated v0.1.3 dev.
