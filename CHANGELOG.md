@@ -10,6 +10,8 @@ Add user-visible EnvyOS work under **Unreleased** in the same change set. Before
 
 ### Changed
 
+- OTA self-serve disabled (`OTA_SELF_SERVE=0`). Nodes no longer hash/serve their running firmware as a full `.mota`. `ota announce` beacons folder/superseeder/captured motas only. Rare full images: origin USB/motatool. **Remove self-serve code in v0.3.0.**
+- OTA self-serve merkle no longer starts at boot. Repeaters stay quiet until `ota announce` (or `ota folder on`). Superseeder / folder catalogs still beacon if they already have files.
 - Local flash artifacts use `fw-<slug>-vX.Y.Z.{uf2,hex,zip}`. Full `.mota` names are `fw-<slug>-vX.Y.Z-full-<mid8>.mota`. Delta names are `fw-<slug>-vX.Y.Z-delta-from-vA.B.C-<base8>.mota` (`base8` is the previous full mota's merkle). GitHub uploads use those names. v0.1.2 restore still accepts the old `fw-<slug>-full-…` / `fw-<slug>-delta-from-…` names.
 
 ### Improved

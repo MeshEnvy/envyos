@@ -57,6 +57,7 @@ ota get 1 flash     # download entry #1 to local flash (alias: pull)
 ota install         # verify + apply + reboot
 ota cancel          # abort fetch
 ota folder on       # enable host seeder link (needs motatool serve on USB)
+ota announce        # send discovery beacon (served folder/superseeder/captured motas only; self-serve disabled v0.2.0)
 ota seed            # superseeder status (SD or NOR; alias: ota sd)
 ota self            # print EndF / base_hash
 ota help
