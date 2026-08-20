@@ -34,6 +34,7 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 - **firmware:** OTA self-serve merkle no longer starts at boot. Repeaters stay quiet until `ota announce` (or `ota folder on`). Superseeder / folder catalogs still beacon if they already have files.
 - **tooling:** Default `./envyos build firmware` builds field slugs and `*-debug` twins. `--release` or `--debug` limits to one set.
 - **tooling:** Local flash artifacts use `fw-<slug>-vX.Y.Z.{uf2,hex,zip}`. Full `.mota` names are `fw-<slug>-vX.Y.Z-full-<mid8>.mota`. Delta names are `fw-<slug>-vX.Y.Z-delta-from-vA.B.C-<base8>.mota` (`base8` is the previous full mota's merkle). GitHub uploads use those names. v0.1.2 restore still accepts the old `fw-<slug>-full-…` / `fw-<slug>-delta-from-…` names.
+- **firmware:** Build identity codegen (`FirmwareIdentity.generated.cpp`) replaces global `-DFIRMWARE_VERSION` / build-date flags so incremental compiles survive release stamps.
 - **firmware:** Device `ver` stamps `ENVYOS_VERSIONS` `firmware` (`v<firmware>-<sha>`). No longer a hardcoded `platformio.ini` define or a `-U` override that fell through to MeshCore `v1.17.0`.
 - **firmware:** Field `rak4631-repeater-slim` no longer enables log tail / OTA_DEBUG / ADMIN_DEBUG at boot. Use `rak4631-repeater-slim-debug`.
 - **firmware:** MeshCore base: [companion-v1.17.0](https://github.com/meshcore-dev/MeshCore/releases/tag/companion-v1.17.0).

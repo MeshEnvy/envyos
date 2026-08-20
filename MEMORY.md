@@ -108,10 +108,10 @@ EnvyBoot **0.1.3** / **0.2.0** are interim bootloader submodule pins accumulated
 
 - **`ENVYOS_VERSIONS`** — dev HEAD; components bump independently via **`./envyos bump patch|minor|major <component>`**:
   - `distro` → next bundle to publish (git tag `v<distro>`); bump via **`./envyos bump patch distro`**
-  - `firmware` → device `ver` / `-DFIRMWARE_VERSION` and **`build/firmware/<firmware>/`** (must match `envycore/envyos/VERSION`). Not `distro`, even when the numbers match.
+  - `firmware` → device `ver` / `FirmwareIdentity.generated.cpp` and **`build/firmware/<firmware>/`** (must match `envycore/envyos/VERSION`). Not `distro`, even when the numbers match.
   - `bootloader` → **`build/bootloader/<bootloader>/`**
   - `motatool` → `motatool/Cargo.toml` (**0.1.1**; first tracked **0.1.0**), **`build/motatool/<motatool>/motatool-<platform>`** — default build stages all four release platforms; **linux-* via `docker/motatool-build/`**, **darwin-* native on macOS**; publish requires all four. vk496 PRs optional.
-- **Build identity:** `./scripts/build-mota.sh` reads **`firmware=`** (not `distro=`), stamps **`v<firmware>-<envycore-sha>`** into `-DFIRMWARE_VERSION` and UTC into `-DFIRMWARE_BUILD_DATE`; device `ver` → `v0.2.0-abc1234 (Build: 15 Aug 2026 05:00 UTC)`. Host copy: **`build/firmware/<firmware>/<slug>/version.txt`** (semver, stamp, sha).
+- **Build identity:** `./scripts/build-mota.sh` reads **`firmware=`** (not `distro=`), writes **`src/helpers/FirmwareIdentity.generated.cpp`** with **`v<firmware>-<envycore-sha>`**, UTC build date, and MOTA target id (incremental builds recompile only that TU). Device `ver` → `v0.2.0-abc1234 (Build: 15 Aug 2026 05:00 UTC)`. Host copy: **`build/firmware/<firmware>/<slug>/version.txt`** (semver, stamp, sha).
 - **Publish** snapshots component versions into **`build/releases/<distro>/RELEASE_MANIFEST`** (includes submodule SHAs).
 - **Earns firmware version:** release freshen bundle (`envycore/FRESHEN.lock`) + `./envyos bump firmware` + `./envyos build firmware`.
 - Helpers: **`scripts/version.sh`** — `bump_component`, `read_*_version`, `list_envyos_versions`, `changelog_notes_for_distro`

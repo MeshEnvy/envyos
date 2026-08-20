@@ -59,6 +59,7 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | Doctor ls/probe/dump (bench) | envycore | `envyos/main` | — | — | envyos-only |
 | nRF52 repeater hardware WDT | envycore | `feature/nrf52-watchdog` | meshcore-dev/MeshCore `dev` | [#3210](https://github.com/meshcore-dev/MeshCore/pull/3210) | submitted |
 | EndF restamp firmware version on rebuild | envycore | `feature/endf-restamp` | vk496/MeshCore `feature/ota-lora` | [vk496#6](https://github.com/vk496/MeshCore/pull/6) | submitted |
+| FirmwareIdentity codegen (incremental build stamps) | envycore | `envyos/main` | — | — | envyos-only |
 
 ---
 

@@ -304,6 +304,7 @@ build_target_firmware() {
   local env_name="$2"
   local out="$OUT_ROOT/$VER/$slug"
   local build_dir="$MC/.pio/build/$env_name"
+  local mota_tid identity_cpp
 
   echo "==> $VER  target=$slug  env=$env_name"
 
@@ -311,13 +312,20 @@ build_target_firmware() {
   rm -rf "$out"
   mkdir -p "$out"
 
-  local mota_tid pio_flags
   mota_tid="$(mota_target_id_for_env "$env_name")"
-  pio_flags="${PLATFORMIO_BUILD_FLAGS:-} -DMOTA_TARGET_ID=${mota_tid}"
+  identity_cpp="$MC/src/helpers/FirmwareIdentity.generated.cpp"
+  python3 "$MC/tools/mota/gen_firmware_identity.py" \
+    --out "$identity_cpp" \
+    --version "$FW_VER_LABEL" \
+    --build-date "$BUILD_STAMP" \
+    --target-id "$mota_tid" \
+    --pio-env "$env_name"
 
   (
     cd "$MC"
-    export PLATFORMIO_BUILD_FLAGS="$pio_flags"
+    export ENVYOS_FIRMWARE_VERSION="$FW_VER_LABEL"
+    export ENVYOS_FIRMWARE_BUILD_DATE="$BUILD_STAMP"
+    export ENVYOS_MOTA_TARGET_ID="$mota_tid"
     pio run -e "$env_name"
     pio run -e "$env_name" -t create_uf2
   )
@@ -499,7 +507,8 @@ if [[ ${#SELECTED[@]} -eq 0 ]]; then
 fi
 echo "targets: ${BUILD_SLUGS[*]}"
 
-export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -UFIRMWARE_VERSION -DFIRMWARE_VERSION='\"${FW_VER_LABEL}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
+export ENVYOS_FIRMWARE_VERSION="$FW_VER_LABEL"
+export ENVYOS_FIRMWARE_BUILD_DATE="$BUILD_STAMP"
 
 if [[ "$HEX_ONLY" -eq 0 ]]; then
   ensure_firmware_bases_for_build "$VER" "${BUILD_SLUGS[@]}"
