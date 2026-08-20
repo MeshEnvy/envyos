@@ -16,12 +16,17 @@ Read [`docs/good-upstream-contributor-policy.md`](../../docs/good-upstream-contr
 
 While a PR is open, sync commits per [upstream-pr-sync.mdc](upstream-pr-sync.mdc).
 
+## Public mirror (meshenvy.org)
+
+When GUCP rows gain or change PR links, or status moves to **`submitted`** / **`merged`**, sync the matching row in `meshenvy.org/src/data/open-source.ts` in the same session when possible. Run `bun run open-source:verify` in `meshenvy.org` at least **monthly** and before **`./envyos publish finalize`** to refresh **open / draft / merged / closed** from GitHub. Skill: `meshenvy.org/.cursor/skills/open-source-page/SKILL.md`.
+
 ## Before distro finalize (release prep)
 
 1. Run `./envyos gucp audit vX.Y.Z` — handle every **`candidate`** / **`extracting`** row.
 2. Extract pure `feature/<name>` branches and open cross-fork PRs → status **`submitted`**.
 3. Promote registry rows to **`## Release vX.Y.Z`**; mirror **`### Upstream PRs`** in CHANGELOG.
-4. Run **`./envyos gucp check vX.Y.Z`** — must pass.
-5. **`./envyos publish finalize`** also enforces the gate.
+4. Sync [meshenvy.org/open-source](https://meshenvy.org/open-source) EnvyOS rows; run `bun run open-source:verify` in `meshenvy.org`.
+5. Run **`./envyos gucp check vX.Y.Z`** — must pass.
+6. **`./envyos publish finalize`** also enforces the gate.
 
 **Release is incomplete** until every upstreamable row for that version is **`submitted`** or **`merged`**. `candidate` and `extracting` block finalize.

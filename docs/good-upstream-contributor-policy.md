@@ -21,6 +21,8 @@ Skill: [`.cursor/skills/envyos-good-upstream-contributor/SKILL.md`](../.cursor/s
 
 Mirror the release block in `CHANGELOG.md` under `### Upstream PRs` before finalize.
 
+**Public mirror:** EnvyOS rows with open or merged PRs also appear on [meshenvy.org/open-source](https://meshenvy.org/open-source) (`meshenvy.org/src/data/open-source.ts`). Update that table in the same session as GUCP when a PR is opened, merged, or closed. Run `bun run open-source:verify` in `meshenvy.org` at least monthly and before distro finalize to reconcile **open / draft / merged / closed** against GitHub. Skill: `meshenvy.org/.cursor/skills/open-source-page/SKILL.md`.
+
 **Lifecycle:** register upstreamable work as **`candidate`** when it lands on `envyos/main` (same change set as the commit batch). Open cross-fork PRs and move to **`submitted`** during release prep, before `./envyos publish finalize`.
 
 ---

@@ -77,6 +77,7 @@ GitHub Release notes are generated from this section plus the component table (`
 - [ ] Root CHANGELOG.md: promote Unreleased → ## [vX.Y.Z] - YYYY-MM-DD
 - [ ] ./envyos changelog delta   # author ### Packages table from output
 - [ ] ### Upstream PRs (mirror docs/good-upstream-contributor-policy.md)
+- [ ] meshenvy.org open-source table synced; bun run open-source:verify (meshenvy.org)
 - [ ] ./envyos changelog check vX.Y.Z
 - [ ] ./envyos gucp check vX.Y.Z
 - [ ] ./envyos publish finalize

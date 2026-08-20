@@ -3,17 +3,17 @@ name: envyos-good-upstream-contributor
 description: >-
   EnvyOS Good Upstream Contributor Policy (GUCP): classify upstreamable work,
   extract pure PR branches, open cross-fork PRs, mirror rows in CHANGELOG.md
-  and docs/good-upstream-contributor-policy.md, and gate ./envyos publish
-  finalize until every upstreamable row is submitted. Use when shipping
-  features, cutting a distro release, opening upstream PRs, or auditing
-  open PR debt.
+  and docs/good-upstream-contributor-policy.md, sync meshenvy.org/open-source,
+  and gate ./envyos publish finalize until every upstreamable row is submitted.
+  Use when shipping features, cutting a distro release, opening upstream PRs,
+  auditing open PR debt, or verifying draft/merged status on the public page.
 ---
 
 # EnvyOS Good Upstream Contributor Policy (GUCP)
 
 EnvyOS ships on **`envyos/main`**. Upstreamable pieces also live on pure **`feature/<name>`** branches and cross-fork PRs. A **distro release is not complete** until every upstreamable row for that release is **`submitted`** (PR open; draft OK) or **`merged`**.
 
-Registry: [`docs/good-upstream-contributor-policy.md`](../../../docs/good-upstream-contributor-policy.md). Git workflow: [`.cursor/skills/envyos-meshcore/SKILL.md`](../envyos-meshcore/SKILL.md). Open PR sync: [`.cursor/rules/upstream-pr-sync.mdc`](../../rules/upstream-pr-sync.mdc).
+Registry: [`docs/good-upstream-contributor-policy.md`](../../../docs/good-upstream-contributor-policy.md). Git workflow: [`.cursor/skills/envyos-meshcore/SKILL.md`](../envyos-meshcore/SKILL.md). Open PR sync: [`.cursor/rules/upstream-pr-sync.mdc`](../../rules/upstream-pr-sync.mdc). Public page: [`meshenvy.org/.cursor/skills/open-source-page/SKILL.md`](../../../../meshenvy.org/.cursor/skills/open-source-page/SKILL.md).
 
 ## When to load
 
@@ -23,6 +23,7 @@ Registry: [`docs/good-upstream-contributor-policy.md`](../../../docs/good-upstre
 - **Cutting a distro release** (`./envyos publish finalize`)
 - Opening, updating, or closing **upstream PRs**
 - Auditing **PR debt** for a shipped version
+- **Periodic open-source audit** (monthly or before finalize)
 
 ## Post-commit triage (required)
 
@@ -82,6 +83,7 @@ Add a row to **`docs/good-upstream-contributor-policy.md`** in the same change s
 4. Merge the feature into **`envyos/main`** for bench builds (even while PR is open).
 5. Update registry row: Status → **`extracting`** then **`submitted`**; fill PR link.
 6. While PR stays open: sync fixes to **both** `envyos/main` and `feature/<name>` (see upstream-pr-sync rule).
+7. **Public mirror:** add or update the row in `meshenvy.org/src/data/open-source.ts` (`area: 'EnvyOS'`). Run `bun run open-source:verify` in `meshenvy.org` and bump `upstreamContributionsLastVerified`.
 
 ```bash
 gh pr create -R meshcore-dev/MeshCore \
@@ -99,6 +101,8 @@ Before **`./envyos publish finalize`** for `vX.Y.Z`:
 - [ ] Add CHANGELOG ### Upstream PRs (mirror GUCP release table)
 - [ ] Move/adjust rows in docs/good-upstream-contributor-policy.md → ## Release vX.Y.Z
 - [ ] Every upstreamable row: submitted or merged (no candidate / extracting)
+- [ ] meshenvy.org `upstreamContributions` synced for EnvyOS PR rows
+- [ ] `bun run open-source:verify` in meshenvy.org (passes; `upstreamContributionsLastVerified` = today)
 - [ ] ./envyos changelog check vX.Y.Z      # must pass
 - [ ] ./envyos gucp check vX.Y.Z           # must pass
 - [ ] ./envyos publish --dry-run
@@ -135,7 +139,20 @@ Finalize runs the same check automatically.
 
 1. Registry status → **`merged`**; note merge date in PR column if useful.
 2. Rebase/pull upstream base into `envyos/main`; archive `feature/<name>`.
-3. Remove row from MEMORY.md **Active threads** if it was duplicated there.
+3. Update `meshenvy.org/src/data/open-source.ts`: `lifecycle: 'merged'`, `mergedAt`, clear `isDraft`. Run `bun run open-source:verify`.
+4. Remove row from MEMORY.md **Active threads** if it was duplicated there.
+
+## Periodic open-source audit
+
+At least **monthly**, and always before **`./envyos publish finalize`**:
+
+```bash
+cd meshenvy.org
+bun run open-source:verify
+bun run open-source:verify -- --fix-hint   # optional: suggested field values
+```
+
+Fix drift in `src/data/open-source.ts`, bump `upstreamContributionsLastVerified`, commit in `meshenvy.org`. EnvyOS-only GUCP rows stay off the public table.
 
 ## Agent checklist (new feature)
 
@@ -149,6 +166,7 @@ Finalize runs the same check automatically.
 - [ ] Ran post-commit triage for every touched submodule (`envycore/`, `bootloader/`, `motatool/`)
 - [ ] GUCP rows added/updated in the same session (not deferred to release)
 - [ ] `./envyos gucp audit` shows no obvious untriaged envycore commits for this batch
+- [ ] If a row now has a PR link: meshenvy.org open-source row synced (or deferred only when no PR yet)
 
 ## Do not
 
@@ -156,3 +174,4 @@ Finalize runs the same check automatically.
 - Mark **`submitted`** without an open PR URL
 - Fold unrelated features onto one PR branch
 - Treat **`merged`** upstream PRs as optional changelog entries — list them under `### Upstream PRs`
+- Leave meshenvy.org `/open-source` stale after GUCP PR status changes
