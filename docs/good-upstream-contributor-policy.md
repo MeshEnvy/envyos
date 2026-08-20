@@ -52,11 +52,9 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | EnvyBoot WDT feed | bootloader | `envyos/main` | vk496/Adafruit_nRF52_Bootloader_OTAFIX `feature/ota-delta-apply` | — | envyos-only |
 | Disable OTA self-serve (fleet policy) | envycore | `envyos/main` | — | — | envyos-only |
 | Debug repeater twins (`*-debug` builds) | envycore | `envyos/main` | — | — | envyos-only |
-| Atomic prefs save (tmp + rename; fixes delete-then-write) | envycore | `feature/prefs-atomic-save` | meshcore-dev/MeshCore `dev` | — | candidate |
-| Fail-fast NOSPC when InternalFS critically full | envycore | `feature/prefs-atomic-save` | meshcore-dev/MeshCore `dev` | — | candidate |
-| Doctor stat + gc + check (flat CLI) | envycore | `feature/doctor-stat-gc-check` | meshcore-dev/MeshCore `dev` | — | candidate |
-| FS save error surfacing (LFS errno in CLI replies) | envycore | `feature/fs-save-errors` | meshcore-dev/MeshCore `dev` | — | candidate |
-| Doctor ls/probe/dump (bench) | envycore | `envyos/main` | — | — | envyos-only |
+| Atomic saves (prefs/ACL/regions/blobs) | envycore | `feature/atomic-fs-save` | meshcore-dev/MeshCore `dev` | [#3254](https://github.com/meshcore-dev/MeshCore/pull/3254) | submitted |
+| FS save error replies (stacked on #3254) | envycore | `feature/fs-save-errors` | meshcore-dev/MeshCore `dev` | [#3253](https://github.com/meshcore-dev/MeshCore/pull/3253) | submitted |
+| Doctor CLI (stacked on #3253) | envycore | `feature/doctor` | meshcore-dev/MeshCore `dev` | [#3252](https://github.com/meshcore-dev/MeshCore/pull/3252) | submitted |
 | nRF52 repeater hardware WDT | envycore | `feature/nrf52-watchdog` | meshcore-dev/MeshCore `dev` | [#3210](https://github.com/meshcore-dev/MeshCore/pull/3210) | submitted |
 | EndF restamp firmware version on rebuild | envycore | `feature/endf-restamp` | vk496/MeshCore `feature/ota-lora` | [vk496#6](https://github.com/vk496/MeshCore/pull/6) | submitted |
 | FirmwareIdentity codegen (incremental build stamps) | envycore | `envyos/main` | — | — | envyos-only |
