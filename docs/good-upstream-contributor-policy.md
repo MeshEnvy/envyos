@@ -57,8 +57,8 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | Doctor stat + gc + check (flat CLI) | envycore | `feature/doctor-stat-gc-check` | meshcore-dev/MeshCore `dev` | — | candidate |
 | FS save error surfacing (LFS errno in CLI replies) | envycore | `feature/fs-save-errors` | meshcore-dev/MeshCore `dev` | — | candidate |
 | Doctor ls/probe/dump (bench) | envycore | `envyos/main` | — | — | envyos-only |
-| nRF52 repeater hardware WDT | envycore | `feature/nrf52-watchdog` | meshcore-dev/MeshCore `dev` | — | candidate |
-| EndF restamp firmware version on rebuild | envycore | TBD | vk496/MeshCore `feature/ota-lora` | — | candidate |
+| nRF52 repeater hardware WDT | envycore | `feature/nrf52-watchdog` | meshcore-dev/MeshCore `dev` | [#3210](https://github.com/meshcore-dev/MeshCore/pull/3210) | submitted |
+| EndF restamp firmware version on rebuild | envycore | `feature/endf-restamp` | vk496/MeshCore `feature/ota-lora` | [vk496#6](https://github.com/vk496/MeshCore/pull/6) | submitted |
 
 ---
 

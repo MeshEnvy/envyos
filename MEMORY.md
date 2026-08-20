@@ -72,7 +72,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 | Prefs atomic save (write tmp + rename) | `feature/prefs-atomic-save` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes — `saveConfigJsonAtomic` / `writeFileAtomic`; prefs, ACL, regions, companion contacts/channels/blobs |
 | Doctor stat + gc + check | `feature/doctor-stat-gc-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes |
 | FS save error surfacing | `feature/fs-save-errors` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes |
-| nRF52 repeater hardware WDT | `feature/nrf52-watchdog` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | *(GUCP candidate v0.2.0)* | `dev` | yes — branch on origin |
+| nRF52 repeater hardware WDT | `feature/nrf52-watchdog` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3210](https://github.com/meshcore-dev/MeshCore/pull/3210) | `dev` | yes |
 
 **Sync rule:** while a PR is open, commits for that feature go to **`envyos/main` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
 
@@ -272,6 +272,7 @@ Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, OTAFIX #2. **motatool is MeshEnvy-canonical (0.1.1)** — no required vk496 sync; historical motatool #1 can stay open or close.
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
 - vk496 MeshCore [#5](https://github.com/vk496/MeshCore/pull/5) (stacked on `feature/ota-lora`): SD superseeder (`feature/ota-superseeder` → merged on MeshEnvy `envyos/main`; generalized to `OTA_SUPERSEEDER` + SD/QSPI backends, **deltas-only + allowlist**; SenseCAP NOR mini-superseeder added; bench pending)
+- vk496 MeshCore [#6](https://github.com/vk496/MeshCore/pull/6) (draft, `feature/endf-restamp` → `feature/ota-lora`): EndF restamp on incremental rebuild (`tools/mota/pio_endf.py`; merged on MeshEnvy `envyos/main`)
 - **Direction (operator, 2026-07-23): firmware superseeders (SD warehouse + SenseCAP NOR mini) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.
 - **Candidate enhancement (operator, 2026-07-25): compressed-full codec** — **deprioritized** (self-serve removed; fleet is deltas-only). Was: heatshrink full mota for same-target slim staging gap.
 - **Candidate feature (operator, 2026-07-23): MeshCore MQTT client** — publish/subscribe channel messages ↔ broker topics, incl. parsing Meshtastic JSON topics for cross-mesh bridging. Likely home is **Lotato** (`lobbs/lotato/lotato/` — has WiFi/batching/dedup; today HTTP-POSTs to PotatoMesh), not EnvyOS; EnvyOS relevance is if the feature later lands in the distro. Consumers: ingestor edge, Burning Mesh bridge (~Aug 16), Elko interop. Context: `ops/initiatives/regional-ingestors.md`.
