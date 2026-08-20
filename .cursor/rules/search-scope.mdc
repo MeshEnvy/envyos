@@ -1,0 +1,38 @@
+---
+description: Scope code search to the EnvyOS subtree that owns the symbol or behavior
+alwaysApply: true
+---
+
+# Search scope — EnvyOS monorepo
+
+EnvyOS work lives in this repo (`envyos17`). **Always pass an explicit path** to grep, glob, and codebase search. Do not search unscoped across sibling workspace roots.
+
+## Default search roots
+
+| Topic | Path | Examples |
+|-------|------|----------|
+| Firmware, mesh, repeater, radio, CLI, prefs, FS | `envycore/` | `MyMesh`, `packet_log`, `MESH_PACKET_LOGGING`, `simple_repeater` |
+| OTA protocol, `.mota`, delta apply | `envycore/` + `motatool/` | LoRa OTA ads/blocks, `motatool pack` |
+| Build, bench, versioning, publish | `scripts/`, repo root | `build.sh`, `ENVYOS_VERSIONS`, `envyos` CLI |
+| Bootloader / EnvyBoot | `bootloader/` | OTAFIX, WDT, UF2 |
+| Flutter client (bench) | `apps/app/` | BLE companion |
+| Delta encoding lib | `vendor/detools/` | in-place patch |
+
+**Canonical firmware checkout is `envycore/`** (MeshEnvy fork submodule). Do not search a standalone `meshcore-firmware` sibling unless the user explicitly names that checkout.
+
+## When to widen
+
+Search outside this repo only when the task is cross-repo integration (e.g. meshcore-open client protocol, ops initiative, meshenvy.org). Name the target repo/path in the tool call.
+
+## Anti-patterns
+
+- Unscoped `grep` / `glob` with no `path` when the owning subtree is known or inferable from MEMORY.md / open files.
+- Searching `meshenvy/` parent or every workspace folder for a firmware symbol.
+- Duplicating the same symbol search in `envycore/` and a sibling firmware tree.
+
+## Quick routing
+
+1. Symbol or behavior in repeater/mesh firmware → start in `envycore/`.
+2. Build artifact or script failure → `scripts/` then repo root.
+3. OTA pack/verify/delta → `motatool/` (tooling) and `envycore/` (firmware side).
+4. Unsure → read [MEMORY.md](MEMORY.md) § Repo layout, then search the listed path only.
