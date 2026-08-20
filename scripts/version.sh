@@ -17,6 +17,9 @@ MOTATOOL_ROOT="$BUILD_ROOT/motatool"
 # Back-compat alias (deprecated).
 MOTAS_ROOT="$FIRMWARE_ROOT"
 
+# shellcheck source=scripts/targets-lib.sh
+source "$OTA_ROOT/scripts/targets-lib.sh"
+
 # v0.1.0 or 0.1.0 → v0.1.0
 normalize_version() {
   local v="${1#v}"
@@ -717,9 +720,18 @@ resolve_firmware_uf2_in_dir() {
   return 1
 }
 
+firmware_version_tree_present() {
+  local ver="$1"
+  ver="$(normalize_version "$ver")" || return 1
+  [[ -d "$FIRMWARE_ROOT/$ver" ]]
+}
+
 resolve_base_image() {
   local slug="$1"
   local base_ver="$2"
+  if is_debug_target_slug "$slug"; then
+    slug="${slug%-debug}"
+  fi
   local dir="$FIRMWARE_ROOT/$base_ver/$slug"
   if resolve_firmware_image_in_dir "$dir" "$slug" "$base_ver"; then
     return 0
@@ -739,24 +751,22 @@ ensure_firmware_bases_for_build() {
   local target_ver="$1"
   shift
   local slugs=("$@")
-  local slug base_ver
+  local base_ver
   local -a need_restore=()
   local seen="|"
 
   [[ ${#slugs[@]} -gt 0 ]] || return 0
 
-  for slug in "${slugs[@]}"; do
-    while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
-      [[ -n "$base_ver" ]] || continue
-      is_released_firmware "$base_ver" || continue
-      resolve_base_image "$slug" "$base_ver" >/dev/null 2>&1 && continue
-      case "$seen" in
-        *"|$base_ver|"*) continue ;;
-      esac
-      seen="${seen}${base_ver}|"
-      need_restore+=("$base_ver")
-    done < <(list_delta_base_versions "$target_ver")
-  done
+  while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
+    [[ -n "$base_ver" ]] || continue
+    is_released_firmware "$base_ver" || continue
+    firmware_version_tree_present "$base_ver" && continue
+    case "$seen" in
+      *"|$base_ver|"*) continue ;;
+    esac
+    seen="${seen}${base_ver}|"
+    need_restore+=("$base_ver")
+  done < <(list_delta_base_versions "$target_ver")
 
   ((${#need_restore[@]} == 0)) && return 0
 

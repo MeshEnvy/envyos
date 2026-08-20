@@ -30,7 +30,7 @@ usage: $0 [--force] [vX.Y.Z]…
 
   (default)     Restore every version listed in RELEASED_FIRMWARE
   vX.Y.Z        Restore one or more explicit firmware versions
-  --force       Re-download and replace existing slug trees
+  --force       Re-download and replace (same as deleting build/firmware/vX.Y.Z/)
 
 Requires: gh (GitHub CLI), unzip, python3
 EOF
@@ -102,37 +102,6 @@ release_mota_assets_for_slug() {
   done
 }
 
-firmware_slug_restore_complete() {
-  local slug="$1"
-  local ver="$2"
-  local asset
-
-  firmware_slug_has_base_image "$slug" "$ver" || return 1
-  while IFS= read -r asset || [[ -n "$asset" ]]; do
-    [[ -n "$asset" ]] || continue
-    [[ -f "$FIRMWARE_ROOT/$ver/$slug/$asset" ]] || return 1
-  done < <(release_mota_assets_for_slug "$ver" "$slug")
-  return 0
-}
-
-firmware_version_needs_restore() {
-  local ver="$1"
-  local slug
-  while IFS= read -r slug || [[ -n "$slug" ]]; do
-    [[ -n "$slug" ]] || continue
-    if firmware_slug_restore_complete "$slug" "$ver"; then
-      continue
-    fi
-    if release_has_asset "$ver" "firmware-${ver}.zip"; then
-      return 0
-    fi
-    if [[ -n "$(release_mota_assets_for_slug "$ver" "$slug")" ]]; then
-      return 0
-    fi
-  done < <(list_target_slugs_from_file "$TARGETS_FILE")
-  return 1
-}
-
 extract_full_mota_payload() {
   local mota="$1"
   local out="$2"
@@ -165,11 +134,6 @@ restore_slug_from_flat_assets() {
   local out="$FIRMWARE_ROOT/$ver/$slug"
   local tmp asset_uf2 asset
   local -a dl_patterns=()
-
-  if [[ "$FORCE" -eq 0 ]] && firmware_slug_restore_complete "$slug" "$ver"; then
-    echo "    skip $ver/$slug (complete)"
-    return 0
-  fi
 
   while IFS= read -r asset || [[ -n "$asset" ]]; do
     [[ -n "$asset" ]] || continue
@@ -226,11 +190,6 @@ restore_from_legacy_zip() {
   local zip_name="firmware-${ver}.zip"
   local tmp dest_root
 
-  if [[ "$FORCE" -eq 0 ]] && ! firmware_version_needs_restore "$ver"; then
-    echo "==> $ver already present (use --force to replace)"
-    return 0
-  fi
-
   echo "==> restore $ver from $zip_name"
   tmp="$(mktemp -d)"
   # shellcheck disable=SC2064
@@ -266,7 +225,7 @@ restore_from_flat_release() {
     [[ -n "$slug" ]] || continue
     restore_slug_from_flat_assets "$ver" "$slug"
     restored=1
-  done < <(list_target_slugs_from_file "$TARGETS_FILE")
+  done < <(list_release_target_slugs_from_file "$TARGETS_FILE")
 
   if ((restored == 0)); then
     echo "error: no restorable slugs found for $ver" >&2
@@ -278,8 +237,10 @@ restore_firmware_version() {
   local ver="$1"
   ver="$(normalize_version "$ver")" || return 1
 
-  if [[ "$FORCE" -eq 0 ]] && ! firmware_version_needs_restore "$ver"; then
-    echo "==> $ver already present (use --force to replace)"
+  if [[ "$FORCE" -eq 1 ]]; then
+    rm -rf "$FIRMWARE_ROOT/$ver"
+  elif firmware_version_tree_present "$ver"; then
+    echo "==> $ver already present (delete $FIRMWARE_ROOT/$ver to re-download, or use --force)"
     return 0
   fi
 

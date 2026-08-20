@@ -28,7 +28,7 @@ All scripts live in **`scripts/`**; primary entry point is **`./envyos`** (symli
 |---------|------|
 | `info` | Dev HEAD, last published distro manifest, artifact readiness |
 | `build` | Wraps `build.sh`, `build-mota.sh`, `build-bl.sh`, `build-motatool.sh` |
-| `restore firmware` | Hydrate `build/firmware/<released>/` from GitHub (delta bases) |
+| `restore firmware` | Hydrate missing `build/firmware/<released>/` from GitHub (skip if version dir exists; delete dir or `--force` to re-download) |
 | `restore bootloader` | Hydrate `build/bootloader/<released>/` from GitHub (bench flash / publish) |
 | `restore` | Both firmware and bootloader |
 | `bump` | Independent component semver + sidecar sync (`VERSION`, `Cargo.toml`) |
