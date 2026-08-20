@@ -26,6 +26,8 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | Feature | Repo | Branch | Upstream target | PR | Status |
 |---------|------|--------|-----------------|-----|--------|
 | Atomic prefs save (write tmp + rename) | envycore | `feature/prefs-atomic-save` | meshcore-dev/MeshCore `dev` | — | candidate |
+| FS prefs write probe (`doctor fs check` core) | envycore | TBD | meshcore-dev/MeshCore `dev` | — | candidate |
+| Doctor fs bench tooling (stat/ls/probe/dump/gc) | envycore | `envyos/main` | — | — | envyos-only |
 | Multi-volume FS CLI naming (v0.3.0) | envycore | TBD | meshcore-dev/MeshCore `dev` | — | candidate |
 
 ---
