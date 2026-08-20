@@ -34,6 +34,7 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | Feature | Repo | Branch | Upstream target | PR | Status |
 |---------|------|--------|-----------------|-----|--------|
 | Multi-volume FS CLI naming (v0.3.0) | envycore | TBD | meshcore-dev/MeshCore `dev` | — | candidate |
+| LFSv2 + chunked contacts (upstream consume) | envycore | merge from oltaco | meshcore-dev/MeshCore `dev` | [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964) | extracting |
 
 ---
 
@@ -54,7 +55,7 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 | EnvyBoot WDT feed | bootloader | `envyos/main` | vk496/Adafruit_nRF52_Bootloader_OTAFIX `feature/ota-delta-apply` | — | envyos-only |
 | Disable OTA self-serve (fleet policy) | envycore | `envyos/main` | — | — | envyos-only |
 | Debug repeater twins (`*-debug` builds) | envycore | `envyos/main` | — | — | envyos-only |
-| Atomic saves (prefs/ACL/regions/blobs) | envycore | `feature/atomic-fs-save` | meshcore-dev/MeshCore `dev` | [#3254](https://github.com/meshcore-dev/MeshCore/pull/3254) | submitted |
+| Atomic saves (prefs/ACL/regions/blobs) | envycore | `feature/atomic-fs-save` | meshcore-dev/MeshCore `dev` | [#3254](https://github.com/meshcore-dev/MeshCore/pull/3254) | submitted — complementary to [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964); #2964 does not cover repeater ACL/regions/prefs |
 | FS save error replies (stacked on #3254) | envycore | `feature/fs-save-errors` | meshcore-dev/MeshCore `dev` | [#3253](https://github.com/meshcore-dev/MeshCore/pull/3253) | submitted |
 | Doctor CLI (stacked on #3253) | envycore | `feature/doctor` | meshcore-dev/MeshCore `dev` | [#3252](https://github.com/meshcore-dev/MeshCore/pull/3252) | submitted |
 | nRF52 repeater hardware WDT | envycore | `feature/nrf52-watchdog` | meshcore-dev/MeshCore `dev` | [#3210](https://github.com/meshcore-dev/MeshCore/pull/3210) | submitted |

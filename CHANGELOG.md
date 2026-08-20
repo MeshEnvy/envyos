@@ -47,6 +47,7 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 
 ### Planned (v0.3.0)
 
+- **LFSv2 + chunked contacts** — incorporate upstream [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964) (nRF metadata durability) **plus** [#3254](https://github.com/meshcore-dev/MeshCore/pull/3254) write-rename for repeater ACL/regions/prefs (#2964 does not cover those). One-way FS migration; bench before field OTA.
 - Multi-volume FS CLI naming: replace companion `UserData`/`ExtraFS` path prefixes with a virtual root (e.g. `int0`/`int1`); unify with repeater `doctor` TBD.
 - WisMesh companion `EXTRAFS=1` + `doctor check`/`gc` on serial path (companion InternalFS wedge; deferred from v0.2.0). [Design notes](docs/planned/v0.3.0.md).
 
