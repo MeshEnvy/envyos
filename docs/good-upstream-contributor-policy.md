@@ -33,6 +33,7 @@ Work on `envyos/main` not yet tied to a distro tag. Assign rows to `## Release v
 
 | Feature | Repo | Branch | Upstream target | PR | Status |
 |---------|------|--------|-----------------|-----|--------|
+| OTA catalog ingest filter (target only) | envycore | TBD | vk496/MeshCore `feature/ota-lora` | — | candidate |
 | Multi-volume FS CLI naming (v0.3.0) | envycore | TBD | meshcore-dev/MeshCore `dev` | — | candidate |
 | LFSv2 + chunked contacts (upstream consume) | envycore | merge from oltaco | meshcore-dev/MeshCore `dev` | [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964) | extracting |
 

@@ -125,11 +125,11 @@ EnvyBoot **0.1.3** / **0.2.0** are interim bootloader submodule pins accumulated
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller. **Staging headroom ~372 KB at current app size (434 KB app in the 815 KB 0x26000–0xED000 region) — a full slim `.mota` (~426 KB) does NOT fit; deltas only** (corrected 2026-07-25; full fits only if app ≤ ~406 KB) |
-| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater — no GPS/sensors/BLE; S140 v7 app @ `0x27000`; EnvyBoot `sensecap_solar_p1`. ~384 KB app → ~416 KB staging headroom (full `.mota` ~386 KB fits) |
-| `sensecap-p1pro-superseeder` | `SenseCap_Solar_superseeder` | SenseCAP P1-Pro mini-superseeder — slim + 2 MB QSPI NOR LittleFS (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_QSPI`); allowlisted **deltas only** to `/motas/`; flash staging for self-update |
-| `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SUPERSEEDER` + `OTA_SUPERSEEDER_SD`); allowlisted **deltas only** to `/motas/` on SD; flash staging for self-update |
-| `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
+| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater (OTA) |
+| `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | **Bench only** — USB folder relay (`OTA_FOLDER_SERIAL`) + OTA DUT; not a field deploy slug |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
+
+**v0.2.0 field roles:** slim repeater (peer OTA consumer) + companion. **Cache** slugs deferred to v0.3.0 (`docs/planned/v0.3.0.md`). **`ota folder on`** exists only on `wismesh-tag-repeater` (bench relay), not on field slim images.
 
 **Debug twins** (`<slug>-debug` / `*_debug` PIO env): `LOG_TAIL_ON_BOOT` + `OTA_DEBUG` + `ADMIN_DEBUG`. Distinct MOTA `target_id` (env-name hash). Not published. Every `targets.txt` release slug has a `-debug` row. Default `./envyos build firmware` builds field + debug. `./envyos build firmware --release` or `--debug` limits to one set.
 
@@ -174,27 +174,30 @@ Typical 3-hop direct path: **C→A→B→E→D**. USB `tio` tails on repeaters i
 
 | Tag | Role | Bootloader |
 |-----|------|------------|
-| A (seeder) | `wismesh-tag-repeater` — OTA-capable + `OTA_FOLDER_SERIAL`; USB to laptop | stock OK |
+| A (relay) | `wismesh-tag-repeater` — **`OTA_FOLDER_SERIAL` only on this env**; USB to laptop | stock OK |
 | B (DUT) | `wismesh-tag-repeater` — device under test | **EnvyBoot required** (WisMesh Tag BL beeps 3× on DFU entry) |
 | C (companion) | `wismesh-tag-client-ble` — remote `ota` CLI over mesh | stock OK |
 | D (companion) | `wismesh-tag-client-ble` — second companion on deck | stock OK |
 
 Flow: `motatool serve --dir ./build/firmware/<firmware> --serial …` → Tag A advertises `.mota` over LoRa → Tag B fetch/install → Tag C/D remote admin.
 
-## OTA field superseeder (SD or NOR)
+## OTA roles
 
-| Node | Role | Build | Bootloader |
-|------|------|-------|------------|
-| SD superseeder | RAK4631 + RAK15002 SD | `RAK_4631_superseeder` | EnvyBoot if self-update needed |
-| NOR mini-superseeder | SenseCAP P1-Pro (2 MB QSPI) | `SenseCap_Solar_superseeder` | EnvyBoot if self-update needed |
-| DUT | slim repeater in mesh | `*_repeater_slim` | EnvyBoot required |
-| Laptop seeder (optional) | USB `motatool serve` + `ota folder on` | `wismesh-tag-repeater` or any OTA repeater | stock OK |
+**v0.2.0 (shipped):**
 
-Superseeder auto-queries heard beacons and captures **deltas only** to external FS (`/motas/<midhex>.mota` on SD or QSPI LittleFS). Full snapshots are never stored (self-serve / USB bootstrap cover those). Default target filter is **all targets**; narrow with `ota seed allow add|rm|list|clear|reset` (persisted). `clear` = empty filter (admit none); `reset`/`defaults` = admit all. CLI: `ota seed` (alias `ota sd`). Flash staging below `MOTA_STAGE_CEILING` is for this node's own update only.
+| Role | Slug / build | Behavior |
+|------|--------------|----------|
+| **Peer** | `*-repeater-slim` | Discover, fetch, install OTA; catalog filtered to own target |
+| **Companion** | `*-client-ble` | BLE client; remote admin / bench |
+| **Bench relay** | `wismesh-tag-repeater` only | `OTA_FOLDER_SERIAL` + `ota folder on` + `motatool serve`; not in field slim firmware |
 
-**Self-serve (removed v0.3.0):** disabled in **v0.2.0** (`OTA_SELF_SERVE=0` in `OtaFormat.h`). Was: `ota announce` → `ota_serve_self()` — EndF scan, merkle leaves, synthetic full unsigned manifest from flash. Fleet path: **delta superseeders** + origin for rare full images. `ota self` (EndF identity) unchanged.
+Field slim repeaters do **not** include folder-relay code (`MotaSourceSerial` excluded from `rak4631_hw`).
 
-Bench: laptop seeder advertises → superseeder captures (`ota seed` shows files) → detach laptop → DUT fetches/installs from superseeder alone (real version bump).
+**v0.3.0 (planned):** delta **cache** nodes (SD / QSPI / other storage variants). Naming and PIO hierarchy: [`docs/planned/v0.3.0.md`](docs/planned/v0.3.0.md) § Cache role.
+
+**Self-serve (remove v0.3.0):** disabled in v0.2.0 (`OTA_SELF_SERVE=0`). Fleet bootstrap: bench USB relay or one-time UF2; then peer OTA from mesh sources.
+
+**0.1.0 straggler upgrade:** USB flash or bench relay with a **single-motа curated folder** (`seeder.sh`); 0.1.0 firmware has no catalog ingest filter.
 
 ## Build commands
 
@@ -236,9 +239,9 @@ When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio
 
 Manifest: `envycore/FRESHEN.lock`. Otafix: `0.9.2-OTAFIX*` + `vk496/feature/ota-delta-apply`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`.
 
-## OTA greenfield
+## OTA backward compatibility
 
-Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota`/protocol/EndF changes are OK; rebuild artifacts and update docs instead of compat shims. Skill: `.cursor/skills/ota-greenfield/SKILL.md`.
+Since **v0.1.0** — OG devices in the field. **LoRa OTA wire format and `.mota` on-air layout are not greenfield.** Breaking changes need a versioned protocol bump and coordinated fleet rollout (see `docs/planned/v0.3.0.md` § OTA). Skill: `.cursor/skills/ota-greenfield/SKILL.md`.
 
 ## Agent skills
 
@@ -248,7 +251,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 | `envyos-freshen` | `/freshen` — release bundle earns VERSION; `/freshen dev` integration only |
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
-| `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
+| `ota-greenfield` | OTA wire/format changes — backward compat required (field fleet since v0.1.0) |
 | `envyos-scripts` | `./envyos` CLI, `scripts/build-mota.sh`, `build-bl.sh`, `seeder.sh`, `publish.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 | `incident` | Field bug / outage postmortems → `docs/incidents/` (see also `ops/.cursor/skills/incident/SKILL.md`) |
@@ -264,16 +267,16 @@ Postmortems live in [`docs/incidents/`](docs/incidents/). Index:
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
-- **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. **WDT trip/recover ✅ RAK4631 (08-14).** No field freezes (adverts disabled). Re-enable field adverts after flash. Ops: `initiatives/envyos-field-stability.md`.
+- **P0 field (operator, 2026-07-31): advert lockup** — **root cause confirmed 2026-08-13** (RX-path stack overflow); fix `processPendingRemoteCli`. **WDT trip/recover ✅ RAK4631 (08-14).** No field freezes while adverts were off. **Doctrine 08-21: turn adverts/GPS back on.** Hardware: jank 0032/0038 deaf at range (ops `docs/2026-08-20-janknode-deaf-rf.md`) — not a firmware bug. Ops: `initiatives/envyos-field-stability.md`.
 - **Bench (2026-08-19): wedged InternalFS** — Doc: `envycore/docs/envyos_cli_extensions.md`. `doctor` admin namespace (`stat|gc|check|ls|probe|dump`); no `doctor fix` or `doctor fs` nesting. Upstream stack: [#3252](https://github.com/meshcore-dev/MeshCore/pull/3252) doctor, [#3253](https://github.com/meshcore-dev/MeshCore/pull/3253) FS errors. [#3254](https://github.com/meshcore-dev/MeshCore/pull/3254) atomic saves **complementary to [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964)** (maintainers Aug 20: write-rename alone insufficient on nRF erase-size mismatch; #2964 does not cover repeater ACL/regions/prefs). v0.3.0: merge #2964 onto envyos/main (atomic saves already shipped); port doctor/fsck. Boot fsck [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) independent. Design: [`docs/planned/v0.3.0.md`](docs/planned/v0.3.0.md) § LFSv2.
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `build-mota.sh` writes `fw-<slug>-<ver>-full-<mid8>.mota` and `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota` (`--name-stem` / `--base-version`). One delta per prior base with an image. Full + delta jobs pipelined after each target's pio (`--mota-jobs` / `$ENVYOS_MOTA_JOBS`, default CPU count).
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
 - vk496 PRs open for role-aware OTA staging ceiling (`feature/ota-stage-ceiling` → merged on MeshEnvy `envyos/main`; pending on vk496): MeshCore #3, OTAFIX #2. **motatool is MeshEnvy-canonical (0.1.1)** — no required vk496 sync; historical motatool #1 can stay open or close.
 - vk496 MeshCore #4 (stacked on #3): slim RAK4631 repeater role (`feature/ota-slim-repeater` → merged on MeshEnvy `envyos/main`)
-- vk496 MeshCore [#5](https://github.com/vk496/MeshCore/pull/5) (stacked on `feature/ota-lora`): SD superseeder (`feature/ota-superseeder` → merged on MeshEnvy `envyos/main`; generalized to `OTA_SUPERSEEDER` + SD/QSPI backends, **deltas-only + allowlist**; SenseCAP NOR mini-superseeder added; bench pending)
+- vk496 MeshCore [#5](https://github.com/vk496/MeshCore/pull/5) (stacked on `feature/ota-lora`): SD cache seeder (`feature/ota-superseeder` → merged on MeshEnvy `envyos/main`; generalized to `OTA_SEEDER_CACHE` + SD/QSPI backends, **deltas-only + allowlist**; SenseCAP NOR cache added; bench pending)
 - vk496 MeshCore [#6](https://github.com/vk496/MeshCore/pull/6) (draft, `feature/endf-restamp` → `feature/ota-lora`): EndF restamp on incremental rebuild (`tools/mota/pio_endf.py`; merged on MeshEnvy `envyos/main`)
-- **Direction (operator, 2026-07-23): firmware superseeders (SD warehouse + SenseCAP NOR mini) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.
+- **Direction (operator, 2026-07-23): firmware cache nodes (SD warehouse + SenseCAP NOR) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.
 - **Candidate enhancement (operator, 2026-07-25): compressed-full codec** — **deprioritized** (self-serve removed; fleet is deltas-only). Was: heatshrink full mota for same-target slim staging gap.
 - **Candidate feature (operator, 2026-07-23): MeshCore MQTT client** — publish/subscribe channel messages ↔ broker topics, incl. parsing Meshtastic JSON topics for cross-mesh bridging. Likely home is **Lotato** (`lobbs/lotato/lotato/` — has WiFi/batching/dedup; today HTTP-POSTs to PotatoMesh), not EnvyOS; EnvyOS relevance is if the feature later lands in the distro. Consumers: ingestor edge, Burning Mesh bridge (~Aug 16), Elko interop. Context: `ops/initiatives/regional-ingestors.md`.
 - **v0.3.0 (2026-08-19): multi-volume FS CLI naming + companion FS wedge + LFSv2** — virtual-root ids (`int0`/`int1`); WisMesh companion `EXTRAFS=1` + `doctor` on serial path; upstream [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964) LFSv2/chunked contacts (nRF durability). Doc: [`docs/planned/v0.3.0.md`](docs/planned/v0.3.0.md).

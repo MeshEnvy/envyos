@@ -1,6 +1,7 @@
 # EnvyOS dev HEAD — independent component semver (MAJOR.MINOR.PATCH).
 # distro: next bundle to publish (git tag v<distro>). Bump via envyos bump patch distro.
-# firmware/bootloader/motatool: bump independently via envyos bump.
+# firmware: device ver + build/firmware/<ver>/ (not distro, even when equal).
+# bootloader/motatool: bump independently via envyos bump.
 distro=0.2.0
 firmware=0.2.0
 bootloader=0.2.0

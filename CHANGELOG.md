@@ -23,15 +23,18 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 
 - **firmware:** Bench debug twins of each shipped target (`<slug>-debug`). Log tail, OTA, and admin serial on boot. Separate MOTA target id. `./envyos build firmware --debug` or `--target <slug>-debug`. Not published.
 - **firmware:** `doctor stat|gc|check` recovery CLI for wedged InternalFS; atomic prefs save.
-- **firmware:** SenseCAP P1-Pro NOR mini-superseeder (`sensecap-p1pro-superseeder`).
 - **firmware:** `ver` stamp includes envycore SHA and UTC build date (`v0.2.0-<sha> (Build: … UTC)`).
 - **bootloader:** EnvyBoot 0.2.0 — WDT feed during mota apply/DFU; repeater `watchdog` CLI gated on `MOTA_BL_FEAT_WDT_FEED`.
 - **firmware:** nRF52 repeater hardware WDT (30 s default, prefs + CLI); companions excluded.
 
 ### Changed
 
-- **firmware:** OTA self-serve disabled (`OTA_SELF_SERVE=0`). Nodes no longer hash/serve their running firmware as a full `.mota`. `ota announce` beacons folder/superseeder/captured motas only. Rare full images: origin USB/motatool. **Remove self-serve code in v0.3.0.**
-- **firmware:** OTA self-serve merkle no longer starts at boot. Repeaters stay quiet until `ota announce` (or `ota folder on`). Superseeder / folder catalogs still beacon if they already have files.
+- **firmware:** OTA `ota ls` / catalog queries send `filter_target = own target_id` so seeders filter `OTA_HAVE` rows.
+- **firmware:** OTA listener catalog ingests only rows matching the node's target (or `ota want` target). No wire-format change.
+- **firmware:** OTA folder relay (`OTA_FOLDER_SERIAL`, `MotaSourceSerial`) **bench-only** on `wismesh-tag-repeater`; excluded from field slim repeater builds.
+- **motatool:** Sync `targets.rs` with firmware OTA table.
+- **firmware:** OTA self-serve disabled (`OTA_SELF_SERVE=0`). Nodes no longer hash/serve their running firmware as a full `.mota`. `ota announce` beacons folder/captured motas only (folder: bench tag). Rare full images: USB/motatool. **Remove self-serve code in v0.3.0.**
+- **firmware:** OTA self-serve merkle no longer starts at boot. Repeaters stay quiet until `ota announce` (or `ota folder on`). Cache / folder catalogs still beacon if they already have files.
 - **tooling:** Default `./envyos build firmware` builds field slugs and `*-debug` twins. `--release` or `--debug` limits to one set.
 - **tooling:** Local flash artifacts use `fw-<slug>-vX.Y.Z.{uf2,hex,zip}`. Full `.mota` names are `fw-<slug>-vX.Y.Z-full-<mid8>.mota`. Delta names are `fw-<slug>-vX.Y.Z-delta-from-vA.B.C-<base8>.mota` (`base8` is the previous full mota's merkle). GitHub uploads use those names. v0.1.2 restore still accepts the old `fw-<slug>-full-…` / `fw-<slug>-delta-from-…` names.
 - **firmware:** Build identity codegen (`FirmwareIdentity.generated.cpp`) replaces global `-DFIRMWARE_VERSION` / build-date flags so incremental compiles survive release stamps.
@@ -42,11 +45,15 @@ Targets **v0.2.0** (next publish). Accumulates v0.1.3 internal dev plus ongoing 
 
 ### Improved
 
+- **motatool:** `serve -v` labels `[host]` vs `[tag]`; `DESCRIBE` traces show mid/target/version.
 - **motatool:** 0.1.1 — MeshEnvy-canonical fork (keep the name). In-place deltas share one suffix array across segments (same patch bytes). Auto `memory_size` reuses the converged patch instead of encoding a third time.
 - **firmware:** OTA self-serve merkle on nRF52 (EndF RAM cache, chunked merkle).
 
 ### Planned (v0.3.0)
 
+- **OTA cache role** — delta warehouse on SD/QSPI/etc.; slug per medium (`rak4631-cache-sd`, …). Code in-tree; not in v0.2.0 publish. [Design notes](docs/planned/v0.3.0.md).
+- **OTA QUERY v2 + HaveRow v2** — QUERY adds optional `filter_base_hash`; HAVE rows add `base_hash`. [Design notes](docs/planned/v0.3.0.md).
+- **Direct `ota pull <mid>`** — fetch by known manifest id without prior catalog row. [Design notes](docs/planned/v0.3.0.md).
 - **LFSv2 + chunked contacts** — incorporate upstream [#2964](https://github.com/meshcore-dev/MeshCore/pull/2964) (nRF metadata durability) **plus** [#3254](https://github.com/meshcore-dev/MeshCore/pull/3254) write-rename for repeater ACL/regions/prefs (#2964 does not cover those). One-way FS migration; bench before field OTA.
 - Multi-volume FS CLI naming: replace companion `UserData`/`ExtraFS` path prefixes with a virtual root (e.g. `int0`/`int1`); unify with repeater `doctor` TBD.
 - WisMesh companion `EXTRAFS=1` + `doctor check`/`gc` on serial path (companion InternalFS wedge; deferred from v0.2.0). [Design notes](docs/planned/v0.3.0.md).
