@@ -1,6 +1,7 @@
-# EnvyOS component versions (MAJOR.MINOR.PATCH). Bump together on /freshen.
+# EnvyOS component versions (MAJOR.MINOR.PATCH).
+# v0.1.3 hotfix: firmware-only (defer-remote-cli lockup fix); bootloader unchanged.
 # Git release tag: v<distro>
-distro=0.1.2
-firmware=0.1.2
+distro=0.1.3
+firmware=0.1.3
 bootloader=0.1.2
 motatool=0.1.2
