@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Search scope — EnvyOS monorepo
 
-EnvyOS work lives in this repo (`envyos17`). **Always pass an explicit path** to grep, glob, and codebase search. Do not search unscoped across sibling workspace roots.
+EnvyOS work lives in this repo (`envyos17`). Enterprise routing: `ops/.cursor/rules/search-scope.mdc`. **Always pass an explicit path** to grep, glob, and codebase search. Do not search unscoped across sibling workspace roots.
 
 ## Default search roots
 
