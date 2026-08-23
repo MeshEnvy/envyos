@@ -9,7 +9,8 @@
 #   ./scripts/build.sh --no-bootloader
 #   ./scripts/build.sh --list-versions
 #   ./scripts/build.sh --list-targets
-#   ./scripts/build.sh --list-boards
+#   ./scripts/build.sh --peaky-only
+#   ./scripts/build.sh --no-peaky          # skip peaky when pinned in ENVYOS_VERSIONS
 
 set -euo pipefail
 
@@ -29,6 +30,8 @@ usage: $0 [options] [firmware-version] [build-mota options…]
   --list-versions   Print ENVYOS_VERSIONS and exit
   --list-targets    Print envycore/scripts/targets.txt and exit
   --list-boards     Print otafix boards inferred from targets.txt and exit
+  --peaky-only      Build pinned peaky into peaky_finders/dist/<ver>/ (local cargo)
+  --no-peaky        Skip peaky even when peaky= is pinned
   -h, --help        Show this help
 
   Other flags (--target, --hex-only, --base, …) forward to envycore/scripts/build-mota.sh.
@@ -38,16 +41,27 @@ EOF
 
 BUILD_BL=1
 BUILD_FIRMWARE=1
+BUILD_PEAKY=1
 MOTA_ARGS=()
 
 while (($# > 0)); do
   case "$1" in
     --bootloader-only)
       BUILD_FIRMWARE=0
+      BUILD_PEAKY=0
       shift
       ;;
     --firmware-only | --mota-only | --no-bootloader)
       BUILD_BL=0
+      shift
+      ;;
+    --peaky-only)
+      BUILD_BL=0
+      BUILD_FIRMWARE=0
+      shift
+      ;;
+    --no-peaky)
+      BUILD_PEAKY=0
       shift
       ;;
     --list-versions)
@@ -77,7 +91,7 @@ while (($# > 0)); do
   esac
 done
 
-if ((BUILD_BL == 0 && BUILD_FIRMWARE == 0)); then
+if ((BUILD_BL == 0 && BUILD_FIRMWARE == 0 && BUILD_PEAKY == 0)); then
   echo "error: nothing to build" >&2
   exit 1
 fi
@@ -104,6 +118,13 @@ if ((BUILD_FIRMWARE == 1)); then
   fi
 fi
 
+if ((BUILD_PEAKY == 1)) && ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
+  echo ""
+  echo "==> peaky ($ver)"
+  verify_peaky_version_sync "${ver#v}" || exit 1
+  ensure_peaky_release_cache "$ver"
+fi
+
 echo ""
 echo "==> EnvyOS build complete"
 if ((BUILD_BL == 1)); then
@@ -111,4 +132,7 @@ if ((BUILD_BL == 1)); then
 fi
 if ((BUILD_FIRMWARE == 1)); then
   echo "    motas:      $MOTAS_ROOT/$(read_firmware_version_file 2>/dev/null || read_distro_version)/"
+fi
+if ((BUILD_PEAKY == 1)) && ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
+  echo "    peaky:      $PEAKY_DIST_ROOT/$ver/"
 fi

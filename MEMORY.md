@@ -107,7 +107,7 @@ Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gat
   - `firmware` → must match `envycore/envyos/VERSION`; built by **`envycore/scripts/build-mota.sh`**
   - `bootloader` → **`$MESHENVY_ROOT/bootloader/build/<bootloader>/`**
   - `motatool` → mirrored into distro release; cache **`motatool/dist/<ver>/`**
-  - `peaky` → mirrored when `peaky=` pinned; cache **`peaky_finders/dist/<ver>/`** via `gh release download`
+  - `peaky` → local `cargo build` when pinned; cache **`peaky_finders/dist/<ver>/`**; optional `gh` fetch for other platforms
 - **Firmware build:** `$MESHENVY_ROOT/envycore/scripts/build-mota.sh` (or `./scripts/build.sh` from envyos bench). Requires **`motatool` on PATH** (or `motatool/dist/` fallback).
 
 ## OTA targets (`envycore/scripts/targets.txt`)
