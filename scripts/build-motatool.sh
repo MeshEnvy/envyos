@@ -6,8 +6,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
 
-MOTATOOL_DOCKER_IMAGE="${ENVYOS_MOTATOOL_DOCKER_IMAGE:-envyos-motatool-build}"
-MOTATOOL_DOCKERFILE="$ROOT/docker/motatool-build/Dockerfile"
+MOTATOOL_DOCKER_IMAGE="${ENVYOS_MOTATOOL_DOCKER_IMAGE:-motatool-build}"
+MOTATOOL_DOCKER_DIR="$MOTATOOL_ROOT/docker/motatool-build"
+MOTATOOL_DOCKERFILE="$MOTATOOL_DOCKER_DIR/Dockerfile"
 
 usage() {
   cat >&2 <<EOF
@@ -23,7 +24,7 @@ usage: $0 [--host-only] [--no-docker] [--target <platform>]…
   Release platforms:
     darwin-aarch64   darwin-x86_64   linux-aarch64   linux-x86_64
 
-  Linux targets always use Docker by default (see docker/motatool-build/).
+  Linux targets always use Docker by default (see motatool/docker/motatool-build/).
   Darwin targets require a macOS host.
 
 examples:
@@ -82,7 +83,7 @@ ensure_motatool_docker_image() {
     return 0
   fi
   echo "==> building $MOTATOOL_DOCKER_IMAGE"
-  docker build -t "$MOTATOOL_DOCKER_IMAGE" -f "$MOTATOOL_DOCKERFILE" "$ROOT/docker/motatool-build"
+  docker build -t "$MOTATOOL_DOCKER_IMAGE" -f "$MOTATOOL_DOCKERFILE" "$MOTATOOL_DOCKER_DIR"
 }
 
 stage_built_platform() {
