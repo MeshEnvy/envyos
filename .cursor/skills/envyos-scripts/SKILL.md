@@ -1,188 +1,143 @@
 ---
 name: envyos-scripts
 description: >-
-  Ota repo bench scripts: build.sh, build-mota.sh, build-bl.sh, seeder.sh, build/ layout,
-  EnvyOS versioning via envycore/envyos/version.sh. Use when building firmware,
-  packaging .mota, flashing OTAFIX, or running the 3-tag bench.
+  EnvyOS bench orchestration: build.sh, build-bl.sh, publish.sh, version.sh;
+  firmware build in envycore/scripts/build-mota.sh; seeder in motatool repo.
+  Use when building firmware, packaging .mota, flashing OTAFIX, or running the 3-tag bench.
 ---
 
 # EnvyOS bench scripts
 
-All scripts live in **`scripts/`**; they resolve repo root as `$(dirname "$0")/..`.
+**Ownership split:**
+
+| Component | Repo | Build / serve |
+|-----------|------|----------------|
+| Firmware + `.mota` | `envycore/` submodule | `envycore/scripts/build-mota.sh` → `envycore/build/motas/` |
+| Bootloader | `envyos17/bootloader/` | `scripts/build-bl.sh` → `build/bootloader/` |
+| motatool | [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) | install release or `cargo build`; **`motatool` on PATH** |
+| USB seeder | motatool repo | `motatool/scripts/seeder.sh` |
+| Distro manifest / publish | envyos17 | `ENVYOS_VERSIONS`, `scripts/version.sh`, `scripts/publish.sh` |
+
+Initialize submodules: `git submodule update --init envycore bootloader`
 
 ## Prerequisites
 
 | Tool | Used by |
 |------|---------|
-| PlatformIO (`pio`) | `build-mota.sh` |
-| Docker | `build-bl.sh` |
-| `motatool/target/release/motatool` (from `motatool/` submodule; auto-built) | `build-mota.sh` |
-| `build/motatool/<motatool>/motatool` (staged by build) | `seeder.sh` |
+| PlatformIO (`pio`) | `envycore/scripts/build-mota.sh` |
+| Docker | `scripts/build-bl.sh` |
+| `motatool` on PATH (or `MOTATOOL=` override) | `envycore/scripts/build-mota.sh`, `motatool/scripts/seeder.sh` |
 | `envycore/` submodule on `envyos/main` | firmware source |
 | `bootloader/` submodule | bootloader build |
 
-Initialize submodules: `git submodule update --init --recursive`
-
 ## Versioning
 
-All component versions live in **`ENVYOS_VERSIONS`** at ota repo root:
+All component versions live in **`ENVYOS_VERSIONS`** at envyos17 root:
 
 | Key | Role |
 |-----|------|
-| `distro` | Git release tag `v<distro>` → `build/motas/<distro>/` |
+| `distro` | Git release tag `v<distro>` → `envycore/build/motas/<distro>/` |
 | `firmware` | `-DFIRMWARE_VERSION` stamp (sync `envycore/envyos/VERSION`) |
 | `bootloader` | `build/bootloader/<bootloader>/` |
-| `motatool` | `motatool/Cargo.toml` + `build/motatool/<motatool>/` |
+| `motatool` | semver pin only — install from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases) |
 
-Helpers: **`scripts/version.sh`** — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`, `is_released_version`
+Helpers: **`scripts/version.sh`** (sources `envycore/scripts/version.sh` for firmware paths) — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`, `is_released_version`
 
-**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `build/motas/<ver>/` trees. **`v0.1.0`** and **`v0.1.1`** are released; `build-mota.sh` will not rebuild or delete them.
+**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `envycore/build/motas/<ver>/` trees.
 
 **Publish a distro release** — `./scripts/publish.sh [version]` (run **`./scripts/build.sh`** first):
 
-1. Verify firmware delta matrix + all component trees (motas, bootloader, motatool)
-2. Append to `RELEASED_VERSIONS`, write `.released` + `RELEASE_MANIFEST`
-3. Zip each component → `firmware-<ver>.zip`, `bootloader-<ver>.zip`, `motatool-<ver>.zip`
-4. Git tag `v<distro>`, push tag, publish **GitHub Release** with all assets
-5. Bump all `ENVYOS_VERSIONS` keys and submodule version files to next patch
-
-**Re-upload assets:** `./scripts/publish.sh --release-only v0.1.0`
-
-Released component trees are immutable (`.released` in `build/motas/`, `build/bootloader/`, `build/motatool/`).
+1. Verify firmware delta matrix + bootloader tree
+2. Append to `RELEASED_VERSIONS`, write `.released` + `RELEASE_MANIFEST` (includes motatool pin)
+3. Zip firmware + bootloader → GitHub Release assets
+4. Git tag `v<distro>`, bump `ENVYOS_VERSIONS` + `envycore/envyos/VERSION`
 
 ```bash
 source scripts/version.sh && list_envyos_versions
-./scripts/build-mota.sh --list-targets
-./scripts/build-mota.sh                    # distro from ENVYOS_VERSIONS
-./scripts/build-mota.sh v0.1.1             # override output dir + FIRMWARE_VERSION stamp
-./scripts/build-mota.sh --target wismesh-tag-repeater
-./scripts/build-mota.sh v0.1.2 --base v0.1.0   # single-base override
-./scripts/build-mota.sh --hex-only           # stock MeshCore — hex/uf2 only, no .mota
+cd envycore && ./scripts/build-mota.sh --list-targets
+cd envycore && ./scripts/build-mota.sh                    # distro from ENVYOS_VERSIONS
+cd envycore && ./scripts/build-mota.sh v0.1.1             # override output dir + FIRMWARE_VERSION stamp
+cd envycore && ./scripts/build-mota.sh --target wismesh-tag-repeater
+cd envycore && ./scripts/build-mota.sh v0.1.2 --base v0.1.0
+cd envycore && ./scripts/build-mota.sh --hex-only
 ```
 
 ## `scripts/build.sh`
 
-Consolidated entry point — runs **`build-bl.sh`** then **`build-mota.sh`** from **`ENVYOS_VERSIONS`**.
+Orchestration entry point — runs **`build-bl.sh`** then delegates firmware to **`envycore/scripts/build-mota.sh`**.
 
 ```bash
-./scripts/build.sh                       # full build
+./scripts/build.sh                       # bootloader + envycore motas
 ./scripts/build.sh --bootloader-only
 ./scripts/build.sh --mota-only
-./scripts/build.sh --list-versions
+./scripts/build.sh --list-targets
 ./scripts/build.sh v0.1.1 --target rak4631-repeater-slim
 ```
 
-Lower-level: `scripts/build-mota.sh`, `scripts/build-bl.sh`.
+## `envycore/scripts/targets.txt`
 
-## `scripts/targets.txt`
-
-Target map for **`build-mota.sh`**. One line per shipped board/role:
+Target map for **`envycore/scripts/build-mota.sh`**. One line per shipped board/role:
 
 ```text
 slug  platformio_env  [description…]
 ```
 
-| Slug | PlatformIO env |
-|------|----------------|
-| `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` |
-| `rak4631-repeater-slim` | `RAK_4631_repeater_slim` |
-| `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` |
-| `rak4631-client-ble` | `RAK_4631_companion_radio_ble` |
-| `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` |
+Output: `envycore/build/motas/<ver>/<slug>/`. Default build = **all lines**. Override with `--target <slug>`.
 
-Output: `build/motas/<ver>/<slug>/`. Default build = **all lines**. Override with `--target <slug>` (repeatable) or `--targets-file`.
+## `envycore/scripts/build-mota.sh`
 
-## `scripts/build-mota.sh`
-
-Builds OTA firmware from `envycore/` and packages `.mota` into `build/motas/<version>/<slug>/`.
+Builds OTA firmware from envycore repo root and packages `.mota` into `envycore/build/motas/<version>/<slug>/`.
 
 **Steps (per target):**
 
 1. `pio run -e <env>` (+ `create_uf2`)
-2. Copy `firmware.hex`, `.uf2`, `.zip` → `build/motas/<ver>/<slug>/`
+2. Copy `firmware.hex`, `.uf2`, `.zip` → output dir
 3. `motatool build --fw … --out-dir` → full `.mota`
-4. For each prior version with base hex for that slug: `motatool build --base <B.hex> …` → `delta_from_<B>.mota` (new targets skip older bases; `--base` limits to one)
+4. Delta from each prior release with base hex for that slug
 
-**Output layout (`build/motas/<ver>/<slug>/`):**
-
-| File | Purpose |
-|------|---------|
-| `firmware.hex` | **Keep as delta base** for next patch (same slug) |
-| `firmware.uf2` | USB drag-flash (initial flash or recovery) |
-| `fw_*_full_*.mota` | Full OTA image |
-| `delta_from_v0.1.0.mota` | In-place patch from an older release (one per prior version) |
-| `version.txt` | Normalized tag |
-
-Legacy flat layout (`build/motas/<ver>/firmware.hex`) still works as a delta base for `wismesh-tag-repeater`.
-
-`build/` is gitignored — artifacts stay local.
+Requires **`motatool` on PATH** (release install or `MOTATOOL=`).
 
 ## `scripts/build-bl.sh`
 
-Builds **OTAFIX** nRF52 bootloader via Docker (`bootloader/`).
+Builds **OTAFIX** nRF52 bootloader via Docker. Reads **`envycore/scripts/targets.txt`** for board list.
+
+Env prefix → otafix `BOARD=` mapping: **`scripts/targets-lib.sh`**.
+
+## `motatool/scripts/seeder.sh`
+
+Wraps **`motatool serve`** for Tag A USB seeder (motatool repo, not envyos17).
 
 ```bash
-./scripts/build-bl.sh                    # → build/bootloader/<bootloader>/
-./scripts/build-bl.sh v0.9.3             # override bootloader version for one build
-./scripts/build-bl.sh --list-boards
-./scripts/build-bl.sh wiscore_rak4631_board   # explicit board override
+/path/to/motatool/scripts/seeder.sh /dev/cu.usbmodem1444301
+/path/to/motatool/scripts/seeder.sh usbmodem1444301 envycore/build/motas/v0.1.1
 ```
-
-Env prefix → otafix `BOARD=` mapping lives in **`scripts/targets-lib.sh`** (`RAK_4631_*` → `wiscore_rak4631_board`, `RAK_WisMesh_Tag_*` → `wismesh_tag`).
-
-- Docker image: `vk-otafix-build` (cached after first build)
-- UF2: `bootloader/_build/build-<board>/update-*_nosd.uf2`
-- Copied to **`build/bootloader/<ver>/`** for bench flash
-
-**Only Tag B (DUT)** needs OTAFIX to apply in-place deltas. Flash: double-tap reset → drag UF2.
-
-If coming from companion/Ripple firmware, **erase ExtraFS** before flashing bench repeater.
-
-## `scripts/seeder.sh`
-
-Wraps **`motatool serve`** for Tag A seeder. Uses staged **`build/motatool/<motatool>/motatool`** (run a build first).
-
-```bash
-./scripts/seeder.sh /dev/cu.usbmodem1444301
-./scripts/seeder.sh usbmodem1444301           # → /dev/cu.usbmodem1444301
-./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.1  # serve one version dir
-```
-
-Default dir: `./build/motas` (recursive `.mota` scan). Sends `ota folder on` on serial start; Ctrl-C sends off.
-
-**Port conflict:** only one process per serial device — Tag A for serve, Tag B for `screen`/`pio device monitor`.
 
 ## Typical bench sequence
 
 ```bash
 ./scripts/build.sh
-# flash build/bootloader/v0.1.0/*.uf2 on Tag B (match board profile)
+# flash build/bootloader/<ver>/*.uf2 on Tag B
 
-./scripts/build-mota.sh v0.1.0
-# flash Tag B from build/motas/v0.1.0/wismesh-tag-repeater/firmware.uf2
-# flash Tag C from build/motas/v0.1.0/wismesh-tag-client-ble/firmware.uf2
+cd envycore && ./scripts/build-mota.sh v0.1.0
+# flash Tag B from envycore/build/motas/v0.1.0/wismesh-tag-repeater/firmware.uf2
 
-./scripts/build-mota.sh v0.1.1
-# produces delta_from_v0.1.0.mota
+cd envycore && ./scripts/build-mota.sh v0.1.1
 
-./scripts/seeder.sh /dev/cu.… ./build/motas/v0.1.1   # Tag A USB
+/path/to/motatool/scripts/seeder.sh /dev/cu.… envycore/build/motas/v0.1.1
 
-# Tag B serial:
-ota ls → ota get N flash → ota install → ota status  # expect v0.1.1
+# Tag B serial: ota ls → ota get N flash → ota install
 ```
 
 ## Troubleshooting
 
 | Symptom | Check |
 |---------|-------|
-| Delta rejected at apply | `base_hash` vs `ota self` on device; hex base must be exact prior build |
-| No entries in `ota ls` | Tag A has OTA build + `ota folder on`; serve dir contains valid `.mota`; mesh path |
+| motatool not found | Install [MeshEnvy/motatool release](https://github.com/MeshEnvy/motatool/releases) or `cargo build --release` in motatool repo; or `MOTATOOL=` |
+| Delta rejected at apply | `base_hash` vs `ota self` on device |
 | `bootloader: apply` missing | Tag B not on OTAFIX |
-| motatool not found | `git submodule update --init motatool`; scripts auto-run `cargo build --release` |
-| Wrong `[yours]` tag | `target_id` / env name mismatch |
 
 ## Related skills
 
 - OTA protocol & CLI → `envyos-ota`
-- motatool flags & delta encoding → `motatool`
+- motatool flags & delta encoding → `motatool` (motatool repo)
 - Firmware git workflow → `envyos-meshcore`

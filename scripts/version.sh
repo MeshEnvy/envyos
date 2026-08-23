@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# Version helpers for ota repo build scripts.
+# EnvyOS distro manifest + publish helpers. Component builds live in sibling repos.
 set -euo pipefail
 
 OTA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
 RELEASED_VERSIONS_FILE="$OTA_ROOT/RELEASED_VERSIONS"
-BUILD_ROOT="$OTA_ROOT/build"
-MOTAS_ROOT="$BUILD_ROOT/motas"
-BOOTLOADER_ROOT="$BUILD_ROOT/bootloader"
-MOTATOOL_ROOT="$BUILD_ROOT/motatool"
+COMPONENTS_LOCK_FILE="$OTA_ROOT/COMPONENTS.lock"
 
-# v0.1.0 or 0.1.0 → v0.1.0
-normalize_version() {
-  local v="${1#v}"
-  if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "error: invalid version '$1' (want vMAJOR.MINOR.PATCH)" >&2
-    return 1
-  fi
-  printf 'v%s' "$v"
-}
+MESHENVY_ROOT="$(cd "$OTA_ROOT/../.." && pwd)"
+ENVYCORE_ROOT="${ENVYCORE_ROOT:-$MESHENVY_ROOT/envycore}"
+BOOTLOADER_SRC="${BOOTLOADER_SRC:-$MESHENVY_ROOT/bootloader}"
+MCMT_ROOT="${MCMT_ROOT:-$MESHENVY_ROOT/mcmt-gateway}"
+MOTATOOL_ROOT="${MOTATOOL_ROOT:-$MESHENVY_ROOT/motatool}"
+
+BOOTLOADER_ROOT="$BOOTLOADER_SRC/build"
+MOTATOOL_DIST_ROOT="$MOTATOOL_ROOT/dist"
+MOTAS_ROOT="$ENVYCORE_ROOT/build/motas"
+
+export ENVYOS_ROOT="$OTA_ROOT"
+export RELEASED_VERSIONS_FILE
+
+# shellcheck source=scripts/version.sh
+source "$ENVYCORE_ROOT/scripts/version.sh"
 
 read_envyos_version_key() {
   local key=$1
@@ -75,7 +78,7 @@ write_mota_version_txt() {
 
 verify_firmware_version_sync() {
   local expected="${1#v}"
-  local submod="$OTA_ROOT/envycore/envyos/VERSION"
+  local submod="$ENVYCORE_ROOT/envyos/VERSION"
   [[ -f "$submod" ]] || return 0
   local actual
   actual="$(tr -d '[:space:]' <"$submod")"
@@ -87,7 +90,7 @@ verify_firmware_version_sync() {
 
 verify_motatool_version_sync() {
   local expected="${1#v}"
-  local cargo="$OTA_ROOT/motatool/Cargo.toml"
+  local cargo="$MOTATOOL_ROOT/Cargo.toml"
   [[ -f "$cargo" ]] || return 0
   local actual
   actual="$(sed -n 's/^version = "\(.*\)"/\1/p' "$cargo" | head -1)"
@@ -102,7 +105,7 @@ stage_motatool_binary() {
   local ver out
   ver="$(read_motatool_version)"
   assert_component_tree_not_released motatool "$ver"
-  out="$MOTATOOL_ROOT/$ver"
+  out="$MOTATOOL_DIST_ROOT/$ver"
   mkdir -p "$out"
   cp -f "$bin" "$out/motatool"
   printf '%s\n' "$ver" >"$out/version.txt"
@@ -252,14 +255,14 @@ EOF
 
 write_firmware_version_file() {
   local ver="${1#v}"
-  local f="$OTA_ROOT/envycore/envyos/VERSION"
+  local f="$ENVYCORE_ROOT/envyos/VERSION"
   [[ -f "$f" ]] || return 0
   printf '%s\n' "$ver" >"$f"
 }
 
 write_motatool_cargo_version() {
   local ver="${1#v}"
-  local cargo="$OTA_ROOT/motatool/Cargo.toml"
+  local cargo="$MOTATOOL_ROOT/Cargo.toml"
   [[ -f "$cargo" ]] || return 0
   sed -i '' "s/^version = \".*\"/version = \"$ver\"/" "$cargo"
 }
@@ -328,6 +331,109 @@ verify_release_delta_matrix() {
   [[ "$missing" -eq 0 ]]
 }
 
+
+read_mcmt_gateway_version() { read_envyos_version_key mcmt-gateway; }
+
+read_components_lock_key() {
+  local key=$1
+  local line k val
+  [[ -f "$COMPONENTS_LOCK_FILE" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$line" ]] || continue
+    k="${line%%=*}"
+    k="${k%"${k##*[![:space:]]}"}"
+    [[ "$k" == "$key" ]] || continue
+    val="${line#*=}"
+    val="${val#"${val%%[![:space:]]*}"}"
+    val="${val%"${val##*[![:space:]]}"}"
+    printf '%s' "$val"
+    return 0
+  done <"$COMPONENTS_LOCK_FILE"
+  return 1
+}
+
+write_components_lock() {
+  local firmware_sha=$1 bootloader_sha=$2 mcmt_sha=${3:-}
+  cat >"$COMPONENTS_LOCK_FILE" <<EOF
+# Git component pins — updated at publish; dev branch tracks integration heads
+firmware_repo=MeshEnvy/meshcore-firmware
+firmware_sha=$firmware_sha
+bootloader_repo=MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX
+bootloader_sha=$bootloader_sha
+mcmt_gateway_repo=MeshEnvy/mcmt-gateway
+mcmt_gateway_sha=${mcmt_sha:-}
+EOF
+}
+
+verify_sibling_sha() {
+  local repo_path=$1 expected_sha=$2 label=$3
+  [[ -n "$expected_sha" ]] || return 0
+  local actual
+  actual="$(git -C "$repo_path" rev-parse HEAD 2>/dev/null)" || {
+    echo "error: cannot read HEAD for $label at $repo_path" >&2
+    return 1
+  }
+  [[ "$actual" == "$expected_sha" ]] || {
+    echo "error: $label HEAD ($actual) != COMPONENTS.lock ($expected_sha)" >&2
+    return 1
+  }
+}
+
+verify_components_lock() {
+  local fw bl mcmt
+  fw="$(read_components_lock_key firmware_sha 2>/dev/null || true)"
+  bl="$(read_components_lock_key bootloader_sha 2>/dev/null || true)"
+  mcmt="$(read_components_lock_key mcmt_gateway_sha 2>/dev/null || true)"
+  verify_sibling_sha "$ENVYCORE_ROOT" "$fw" firmware || return 1
+  verify_sibling_sha "$BOOTLOADER_SRC" "$bl" bootloader || return 1
+  if [[ -n "$mcmt" ]]; then
+    verify_sibling_sha "$MCMT_ROOT" "$mcmt" mcmt-gateway || return 1
+  fi
+}
+
+component_in_distro_bundle() {
+  local id=$1 distro_ver=$2
+  case "$id" in
+    mcmt-gateway)
+      local major minor patch
+      read -r major minor patch <<<"$(parse_version "$distro_ver")"
+      (( major > 0 || minor >= 2 ))
+      ;;
+    *) return 0 ;;
+  esac
+}
+
+ensure_motatool_release_cache() {
+  local ver=$1
+  local dir="$MOTATOOL_DIST_ROOT/$ver"
+  if [[ -f "$dir/version.txt" ]]; then
+    return 0
+  fi
+  command -v gh >/dev/null 2>&1 || {
+    echo "error: motatool cache missing at $dir — install gh or populate dist/" >&2
+    return 1
+  }
+  mkdir -p "$dir"
+  local tag="${ver#v}"
+  tag="v$tag"
+  echo "motatool: downloading $tag release assets into $dir"
+  gh release download "$tag" -R MeshEnvy/motatool -D "$dir" || {
+    echo "error: gh release download failed for MeshEnvy/motatool $tag" >&2
+    return 1
+  }
+  local tgz
+  for tgz in "$dir"/*.tar.gz; do
+    [[ -f "$tgz" ]] || continue
+    tar -xzf "$tgz" -C "$dir"
+    rm -f "$tgz"
+  done
+  if [[ ! -f "$dir/version.txt" ]]; then
+    printf '%s\n' "$ver" >"$dir/version.txt"
+  fi
+}
+
 write_released_marker() {
   local ver="$1"
   local dir="$MOTAS_ROOT/$ver"
@@ -342,14 +448,22 @@ EOF
 
 # Distro release bundles these components (extend list when adding packages).
 list_release_component_ids() {
+  local distro_ver="${1:-}"
+  if [[ -z "$distro_ver" ]]; then
+    distro_ver="$(read_distro_version 2>/dev/null || echo v0.0.0)"
+  fi
   printf '%s\n' firmware bootloader motatool
+  if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
+    printf '%s\n' mcmt-gateway
+  fi
 }
 
 component_build_root() {
   case "$1" in
     firmware) printf '%s' "$MOTAS_ROOT" ;;
     bootloader) printf '%s' "$BOOTLOADER_ROOT" ;;
-    motatool) printf '%s' "$MOTATOOL_ROOT" ;;
+    motatool) printf '%s' "$MOTATOOL_DIST_ROOT" ;;
+    mcmt-gateway) printf '%s' "$MCMT_ROOT/dist" ;;
     *)
       echo "error: unknown release component: $1" >&2
       return 1
@@ -364,6 +478,7 @@ component_version_at_publish() {
     firmware) printf '%s' "$distro_ver" ;;
     bootloader) read_bootloader_version ;;
     motatool) read_motatool_version ;;
+    mcmt-gateway) read_mcmt_gateway_version ;;
     *)
       echo "error: unknown release component: $id" >&2
       return 1
@@ -382,6 +497,7 @@ component_zip_basename() {
     firmware) printf 'firmware-%s.zip' "$ver" ;;
     bootloader) printf 'bootloader-%s.zip' "$ver" ;;
     motatool) printf 'motatool-%s.zip' "$ver" ;;
+    mcmt-gateway) printf 'mcmt-gateway-%s.zip' "$ver" ;;
   esac
 }
 
@@ -518,8 +634,13 @@ verify_release_components() {
   }
   verify_motatool_version_sync "$motatool_ver" || return 1
 
+  ensure_motatool_release_cache "$motatool_ver"
+
   while IFS= read -r id || [[ -n "$id" ]]; do
     ver="$(component_version_at_publish "$id" "$distro_ver")" || return 1
+    if [[ "$id" == motatool ]]; then
+      ensure_motatool_release_cache "$ver" || return 1
+    fi
     dir="$(component_build_dir "$id" "$ver")"
     [[ -d "$dir" ]] || {
       echo "error: missing $id artifacts at $dir — run ./scripts/build.sh first" >&2
@@ -540,7 +661,8 @@ verify_release_components() {
     return 1
   fi
 
-  verify_release_delta_matrix "$distro_ver" "$OTA_ROOT/scripts/targets.txt"
+  verify_components_lock || true
+  verify_release_delta_matrix "$distro_ver" "$ENVYCORE_ROOT/scripts/targets.txt"
 }
 
 create_component_zip() {
@@ -573,6 +695,13 @@ lock_release_components() {
   write_released_marker "$firmware_ver"
   write_component_released_marker bootloader "$bootloader_ver" "$distro_ver"
   write_component_released_marker motatool "$motatool_ver" "$distro_ver"
+  if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
+    local mcmt_ver mcmt_sha
+    mcmt_ver="$(read_mcmt_gateway_version)"
+    mcmt_sha="$(git -C "$MCMT_ROOT" rev-parse HEAD)"
+    write_component_released_marker mcmt-gateway "$mcmt_ver" "$distro_ver"
+  fi
+  write_components_lock "$(git -C "$ENVYCORE_ROOT" rev-parse HEAD)" "$(git -C "$BOOTLOADER_SRC" rev-parse HEAD)" "$(git -C "$MCMT_ROOT" rev-parse HEAD 2>/dev/null || true)"
 }
 
 collect_distro_release_assets() {

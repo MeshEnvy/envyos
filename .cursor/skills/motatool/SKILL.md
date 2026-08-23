@@ -1,22 +1,23 @@
 ---
 name: motatool
 description: >-
-  motatool CLI (motatool/): build/verify/inspect/serve .mota containers, full images
+  motatool CLI: build/verify/inspect/serve .mota containers, full images
   and detools deltas (sequential + in-place). Use when packaging firmware, producing diff
   patches, serving a seeder folder, or validating .mota files.
 ---
 
 # motatool
 
-Rust CLI at **`motatool/`** (submodule: `vk496/motatool`). Byte-compatible with MeshCore's on-wire `.mota` format.
+Rust CLI — [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) (`envyos/main`). Byte-compatible with MeshCore's on-wire `.mota` format.
 
-Build: `cargo build --release` → `motatool/target/release/motatool`  
-Bench scripts auto-build from the `motatool/` submodule (never a system PATH install).
+**Bench:** install motatool from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases) or `cargo build --release` in the motatool repo. **`motatool` on PATH** for packaging; override with **`MOTATOOL=/path/to/motatool`**.
+
+**Releases:** tag `v*` on MeshEnvy/motatool → CI publishes Linux/macOS binaries. Cut workflow lives in the motatool repo (`.cursor/skills/motatool-release/SKILL.md` there).
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
-detools is **test-oracle only** (`make dev-setup` in motatool repo for delta unit tests).
+detools is **test-oracle only** in the motatool repo (`make dev-setup` for delta unit tests).
 
-Spec: `envycore/docs/ota_protocol.md` · Implementation: `motatool/src/`
+Spec: `envycore/docs/ota_protocol.md` · Source: https://github.com/MeshEnvy/motatool
 
 ## Commands
 
@@ -44,7 +45,7 @@ motatool serve --dir ./motas --serial /dev/cu.usbmodem1444301 -v
 motatool serve --dir ./motas --tcp 192.168.1.50:5001 -v
 ```
 
-Or via bench wrapper: **`./scripts/seeder.sh <serial> [dir]`**
+Or via bench wrapper: **`motatool/scripts/seeder.sh <serial> [dir]`** (motatool repo)
 
 ## `build` — full `.mota`
 
@@ -64,17 +65,17 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 **Requirements:**
 
-- `--base` = **exact** running firmware image (with EndF) — typically `build/motas/v0.1.0/<slug>/firmware.hex` from prior `build-mota.sh`
+- `--base` = **exact** running firmware image (with EndF) — typically `envycore/build/motas/v0.1.0/<slug>/firmware.hex` from prior `envycore/scripts/build-mota.sh`
 - `--fw` = new build's hex
 - Manifest `base_hash` = base image's `EndF.body_hash` (motatool computes this)
 
-EnvyOS bench (`build-mota.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
+EnvyOS bench (`envycore/scripts/build-mota.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
 
 Optional in-place tuning: `--inplace-memory` (override; default derives from target staging ceiling + patch size), `--segment-size`.
 
 ### Correctness model
 
-A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder (`src/encode.rs`) is proven against the detools oracle in tests.
+A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder is proven against the detools oracle in tests.
 
 ## `serve`
 
@@ -96,18 +97,18 @@ Flags: `--baud`, `--no-recursive`, `-v` (log requests), `--seed <file>`.
 
 ## Integration with EnvyOS scripts
 
-`build-mota.sh` calls:
+`envycore/scripts/build-mota.sh` resolves motatool via PATH (`resolve_motatool` in `envycore/scripts/version.sh`; override `MOTATOOL=`), then:
 
 ```bash
 motatool build --fw "$OUT/firmware.hex" --out-dir "$OUT"
 motatool build --base "$BASE_HEX" --fw "$OUT/firmware.hex" --patch-type in-place --out "$DELTA_OUT"
 ```
 
-Serve step is separate: `seeder.sh` → `motatool serve --dir … --serial … -v`
+Serve step: `motatool/scripts/seeder.sh` → `motatool serve --dir … --serial … -v`
 
 ## Target IDs
 
-`src/targets.rs` mirrors firmware `OtaTargets.h` (`target_id = sha256:4(env_name)`). Regenerate when OTA env set changes (`envycore/tools/mota/gen_targets.py`).
+Mirrors firmware `OtaTargets.h` in the motatool repo (`src/targets.rs`). Regenerate when OTA env set changes (`envycore/tools/mota/gen_targets.py`).
 
 ## Related skills
 
