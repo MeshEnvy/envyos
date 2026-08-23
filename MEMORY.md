@@ -1,19 +1,38 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Orchestration repo** — `ENVYOS_VERSIONS` manifest, bootloader bench build, distro publish/verify. **Component-owned builds:** firmware in [`envycore/`](envycore/) (`scripts/build-mota.sh`), motatool in [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) (`scripts/seeder.sh`).
+MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Orchestration repo** — `ENVYOS_VERSIONS`, `COMPONENTS.lock`, distro publish/verify. Component repos are **workspace siblings** under `$MESHENVY_ROOT/`.
 
-## Repo layout
+## Workspace siblings (`$MESHENVY_ROOT` = parent of `envyos/`)
 
 | Path | Role |
 |------|------|
-| `ENVYOS_VERSIONS` | Component semver manifest — `distro`, `firmware`, `bootloader`, `motatool` |
-| `envycore/` | Firmware submodule — **owns** PlatformIO + `.mota` build (`envycore/scripts/build-mota.sh`, `targets.txt`, `build/motas/`) |
-| `build/bootloader/` | OTAFIX outputs from `./scripts/build-bl.sh` (still owned here until bootloader repo owns releases) |
-| `bootloader/` | nRF52 OTAFIX bootloader submodule |
-| `scripts/` | **Orchestration only** — `build.sh` (delegates firmware to envycore), `build-bl.sh`, `publish.sh`, `version.sh` |
+| `envycore/` | Firmware — `scripts/build-mota.sh`, `build/motas/` |
+| `bootloader/` | EnvyBoot OTAFIX — `scripts/build-bl.sh`, `build/` |
+| `motatool/` | Bench CLI — CI releases; local cache `dist/<ver>/` |
+| `mcmt-gateway/` | MT↔MC bridge (distro bundle from v0.2.0) |
+| `envyos/envyos17/` | This repo — orchestration only |
+
+## Repo layout (envyos17)
+
+| Path | Role |
+|------|------|
+| `ENVYOS_VERSIONS` | Component semver — `distro`, `firmware`, `bootloader`, `motatool`, `mcmt-gateway` (dev) |
+| `COMPONENTS.lock` | Git SHAs for git-pinned siblings (updated at publish) |
+| `scripts/` | `build.sh` (delegates to siblings), `publish.sh`, `version.sh`, `verify-components.sh` |
 | `apps/app/` | Flutter MeshCore client submodule |
 
-## Git remotes (`envycore/`)
+## Branch model
+
+| Repo | Release | Integration |
+|------|---------|-------------|
+| envyos17 | `main` | `dev` |
+| envycore, bootloader, motatool, mcmt-gateway | `envyos/main` | `envyos/dev` |
+
+Bench day-to-day: checkout **`dev`** / **`envyos/dev`**. Publish cherry-picks to release branches.
+
+Policy: [`docs/component-release-policy.md`](docs/component-release-policy.md).
+
+## Git remotes (`envycore/` — `$MESHENVY_ROOT/envycore`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -29,16 +48,16 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `vk496` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | OTA delta apply — **`feature/ota-delta-apply`** |
 | `oltaco` | `oltaco/Adafruit_nRF52_Bootloader_OTAFIX` | Official OTAFIX releases (`0.9.2-OTAFIX*` tags) |
 
-**`envyos/main`** = merged union of shipped EnvyOS features on **each MeshEnvy fork** (firmware, motatool, otafix). GitHub default branch is `envyos/main` on all three. Feature branches merge here even while vk496 PRs are open. See `.cursor/skills/envyos-meshcore/SKILL.md`.
+**`envyos/main`** on each fork = **release line**. **`envyos/dev`** = integration WIP. Feature branches merge into **`envyos/dev`**; publish cherry-picks to **`envyos/main`**. See `.cursor/skills/envyos-meshcore/SKILL.md`.
 
-## Distro git (`envyos/main` + upstream PR branches)
+## Distro git (`main` / `dev` + upstream PR branches)
 
 Each OTA-stack repo has **two branch roles**:
 
 | Role | Branch | Where | Use |
 |------|--------|-------|-----|
-| **Distro integration** | `envyos/main` | MeshEnvy fork (`origin`) | All features merged together; **bench builds**; default dev checkout |
-| **Upstream PR** | `feature/<name>` | Same fork | One PR each; **pure** — only that feature's commits; branched from PR base |
+| **Distro integration** | `dev` (envyos17) / `envyos/dev` (components) | MeshEnvy fork | Bench WIP |
+| **Distro release** | `main` / `envyos/main` | Same | Published pins in `COMPONENTS.lock` |
 
 **PR bases** (not the same as `envyos/main`):
 
@@ -49,7 +68,7 @@ Each OTA-stack repo has **two branch roles**:
 | motatool (external) | `vk496/motatool` | `main` | … |
 | `bootloader/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` | … |
 
-Workflow: branch `feature/<name>` from PR base → implement → open cross-fork PR → **merge into `envyos/main`** (do not fold other features into the PR branch). envyos pins submodule SHAs + component semver at distro release; day-to-day `envycore/` checkout = `envyos/main`.
+Workflow: branch `feature/<name>` from PR base → implement → open cross-fork PR → merge into **`envyos/dev`**. Pin SHAs in `COMPONENTS.lock` at distro publish.
 
 Skill: `.cursor/skills/envyos-meshcore/SKILL.md`.
 
@@ -57,17 +76,17 @@ Skill: `.cursor/skills/envyos-meshcore/SKILL.md`.
 
 MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--head MeshEnvy:feature/<name>`.
 
-| Feature | PR branch | Upstream repo | PR | Base | Also on `envyos/main` |
+| Feature | PR branch | Upstream repo | PR | Base | Also on `envyos/dev` |
 |---------|-----------|---------------|-----|------|------------------------|
 | Next-hop retry (echo-primary) | `feature/next-hop-retry` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | `dev` | yes |
 | Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
 | FS corruption boot fsck (companion) | `feature/fs-corruption-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) (draft) | `dev` | yes |
 
-**Sync rule:** while a PR is open, commits for that feature go to **`envyos/main` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
+**Sync rule:** while a PR is open, commits for that feature go to **`envyos/dev` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
 
 vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore` skill PR table.
 
-**Do not** clone a standalone otafix checkout — only the **`bootloader/`** submodule.
+Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gateway}/`.
 
 ## Released versions (immutable)
 
@@ -77,19 +96,17 @@ vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
 - Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
-- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-<ver>.zip`, `bootloader-<ver>.zip`. Firmware tree: **`envycore/build/motas/<ver>/`**. motatool: [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases).
-- Delta bases may still **read** from released mota trees (`--base v0.1.0`, …).
-- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + fleet deploy: lock all components, zip, git tag, GitHub Release, bump **`ENVYOS_VERSIONS`** (dev **v0.1.2**). Extend `list_release_component_ids()` for future packages (client, ingestor).
+- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`. Local trees: **`$MESHENVY_ROOT/envycore/build/motas/`**, **`bootloader/build/`**, **`motatool/dist/`**.
+- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + bench verify: lock components, zip, GitHub Release, bump **`ENVYOS_VERSIONS`**. mcmt-gateway bundles from distro v0.2.0.
 
 ## Versioning
 
 - **`ENVYOS_VERSIONS`** at repo root — bump together on `/freshen`:
   - `distro` → git tags `v0.1.x`; firmware artifacts under **`envycore/build/motas/<distro>/`**
   - `firmware` → must match `envycore/envyos/VERSION`; built by **`envycore/scripts/build-mota.sh`**
-  - `bootloader` → **`build/bootloader/<bootloader>/`**
-  - `motatool` → semver pin only; install from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases); **`motatool` on PATH** for packaging/seeding
-- **Firmware build:** `cd envycore && ./scripts/build-mota.sh` (or `./scripts/build.sh` from envyos bench). Requires **`motatool` on PATH**.
-- **USB seeder:** `motatool/scripts/seeder.sh` (standalone repo at `/Volumes/Code/repos/meshenvy/motatool` or release install)
+  - `bootloader` → **`$MESHENVY_ROOT/bootloader/build/<bootloader>/`**
+  - `motatool` → mirrored into distro release; cache **`motatool/dist/<ver>/`**
+- **Firmware build:** `$MESHENVY_ROOT/envycore/scripts/build-mota.sh` (or `./scripts/build.sh` from envyos bench). Requires **`motatool` on PATH** (or `motatool/dist/` fallback).
 
 ## OTA targets (`envycore/scripts/targets.txt`)
 
