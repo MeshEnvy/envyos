@@ -1,0 +1,35 @@
+# EnvyOS component release policy
+
+Canonical contract for every EnvyOS distro component repo (envycore, bootloader, motatool, mcmt-gateway).
+
+## Two layers
+
+| Layer | Purpose |
+|-------|---------|
+| **Git commits** | Conventional Commits for history, review, bisect. |
+| **`CHANGELOG.md`** | User-facing bullets grouped by release (Keep a Changelog). |
+
+User-visible changes go under **`## [Unreleased]`** in the same change set as the code. At release, promote to **`## [vX.Y.Z] - YYYY-MM-DD`**, open a fresh Unreleased, run `./scripts/changelog.sh check vX.Y.Z`, tag and push.
+
+GitHub Release bodies come from `CHANGELOG.md`, not commit subjects.
+
+## Distro coupling
+
+[MeshEnvy/envyos](https://github.com/MeshEnvy/envyos) owns the **tested version matrix** (`ENVYOS_VERSIONS`) and **one-stop release assets**. Component repos own source and build machinery; `publish.sh` zips artifacts from sibling paths and uploads to the EnvyOS GitHub Release.
+
+After cutting a component release, bump `ENVYOS_VERSIONS` and `COMPONENTS.lock` in envyos when that version ships in a bundle.
+
+## Inclusion rule
+
+A component is bundled in a distro release only when it is **bench-gated**. Tracked-but-untested tools stay out of the manifest.
+
+## Per-repo reference
+
+| Repo | Policy doc | Release skill |
+|------|------------|---------------|
+| motatool | [motatool/docs/change-management.md](https://github.com/MeshEnvy/motatool/blob/envyos/main/docs/change-management.md) | `.cursor/skills/motatool-release/` |
+| envycore | `docs/change-management.md` | `.cursor/skills/envycore-release/` |
+| bootloader | `docs/change-management.md` | `.cursor/skills/bootloader-release/` |
+| mcmt-gateway | `docs/change-management.md` | `.cursor/skills/mcmt-release/` |
+
+Branch model on forks: **`envyos/main`** = release line, **`envyos/dev`** = integration (envyos17 uses **`main`** / **`dev`**).

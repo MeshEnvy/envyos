@@ -1,24 +1,32 @@
 ---
 name: motatool
 description: >-
-  motatool CLI (motatool/): build/verify/inspect/serve .mota containers, full images
+  motatool CLI: build/verify/inspect/serve .mota containers, full images
   and detools deltas (sequential + in-place). Use when packaging firmware, producing diff
   patches, serving a seeder folder, or validating .mota files.
 ---
 
 # motatool
 
+<<<<<<< HEAD
 Rust CLI at **`motatool/`** (MeshEnvy fork of `vk496/motatool`; canonical **`envyos/main`** on `MeshEnvy/motatool`, **0.1.1**). Byte-compatible with MeshCore's on-wire `.mota` format. vk496 PRs are optional.
 
 Build: `./envyos build motatool` (linux targets via **`docker/motatool-build/`**; darwin native on macOS)  
 Staged as **`build/motatool/<ver>/motatool-<platform>`** (e.g. `motatool-darwin-aarch64`).  
 Release matrix: darwin-aarch64, darwin-x86_64, linux-aarch64, linux-x86_64 (no Windows).  
 Bench scripts resolve the **host** platform binary automatically.
+=======
+Rust CLI — [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) (`envyos/main`). Byte-compatible with MeshCore's on-wire `.mota` format.
+
+**Bench:** install motatool from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases) or `cargo build --release` in the motatool repo. **`motatool` on PATH** for packaging; override with **`MOTATOOL=/path/to/motatool`**.
+
+**Releases:** tag `v*` on MeshEnvy/motatool → CI publishes Linux/macOS binaries. Cut workflow lives in the motatool repo (`.cursor/skills/motatool-release/SKILL.md` there).
+>>>>>>> hotfix/v0.1.3
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
-detools is **test-oracle only** (`make dev-setup` in motatool repo for delta unit tests).
+detools is **test-oracle only** in the motatool repo (`make dev-setup` for delta unit tests).
 
-Spec: `envycore/docs/ota_protocol.md` · Implementation: `motatool/src/`
+Spec: `envycore/docs/ota_protocol.md` · Source: https://github.com/MeshEnvy/motatool
 
 ## Commands
 
@@ -46,7 +54,7 @@ motatool serve --dir ./motas --serial /dev/cu.usbmodem1444301 -v
 motatool serve --dir ./motas --tcp 192.168.1.50:5001 -v
 ```
 
-Or via bench wrapper: **`./scripts/seeder.sh <serial> [dir]`**
+Or via bench wrapper: **`motatool/scripts/seeder.sh <serial> [dir]`** (motatool repo)
 
 ## `build` — full `.mota`
 
@@ -66,17 +74,25 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 **Requirements:**
 
+<<<<<<< HEAD
 - `--base` = **exact** running firmware image (with EndF) — typically `build/firmware/v0.1.0/<slug>/firmware.hex` from prior `build-mota.sh`
+=======
+- `--base` = **exact** running firmware image (with EndF) — typically `envycore/build/motas/v0.1.0/<slug>/firmware.hex` from prior `envycore/scripts/build-mota.sh`
+>>>>>>> hotfix/v0.1.3
 - `--fw` = new build's hex
 - Manifest `base_hash` = base image's `EndF.body_hash` (motatool computes this)
 
-EnvyOS bench (`build-mota.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
+EnvyOS bench (`envycore/scripts/build-mota.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
 
 Optional in-place tuning: `--inplace-memory` (override; default derives from target staging ceiling + patch size), `--segment-size`.
 
 ### Correctness model
 
+<<<<<<< HEAD
 A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder (`src/encode.rs`) is proven against the detools oracle in tests. In-place encode builds one suffix array of the shifted base and filters it per segment (same matches, much faster). Frozen on-wire bytes live in `motatool/tests/fixtures/` (`tests/golden.rs`).
+=======
+A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder is proven against the detools oracle in tests.
+>>>>>>> hotfix/v0.1.3
 
 ## `serve`
 
@@ -98,7 +114,7 @@ Flags: `--baud`, `--no-recursive`, `-v` (log requests), `--seed <file>`.
 
 ## Integration with EnvyOS scripts
 
-`build-mota.sh` calls:
+`envycore/scripts/build-mota.sh` resolves motatool via PATH (`resolve_motatool` in `envycore/scripts/version.sh`; override `MOTATOOL=`), then:
 
 ```bash
 motatool build --fw "$OUT/fw-<slug>-<ver>.hex" --fw-version … --name-stem "fw-<slug>-<ver>" --out-dir "$OUT"
@@ -106,13 +122,17 @@ motatool build --base "$BASE" --fw "$OUT/fw-<slug>-<ver>.hex" --patch-type in-pl
   --name-stem "fw-<slug>-<ver>" --base-version "$BASE_VER" --out-dir "$OUT"
 ```
 
+<<<<<<< HEAD
 Names: `fw-<slug>-<ver>-full-<mid8>.mota` and `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota`. `serve` indexes by content, not filename.
 
 Serve step is separate: `seeder.sh` → `motatool serve --dir … --serial … -v`
+=======
+Serve step: `motatool/scripts/seeder.sh` → `motatool serve --dir … --serial … -v`
+>>>>>>> hotfix/v0.1.3
 
 ## Target IDs
 
-`src/targets.rs` mirrors firmware `OtaTargets.h` (`target_id = sha256:4(env_name)`). Regenerate when OTA env set changes (`envycore/tools/mota/gen_targets.py`).
+Mirrors firmware `OtaTargets.h` in the motatool repo (`src/targets.rs`). Regenerate when OTA env set changes (`envycore/tools/mota/gen_targets.py`).
 
 ## Related skills
 

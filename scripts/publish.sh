@@ -7,12 +7,26 @@
 #   ./scripts/publish.sh --finalize [version] [--no-tag]
 #   ./scripts/publish.sh --upload [version]
 #
+<<<<<<< HEAD
 # Workflow:
 #   ./envyos publish --dry-run       # verify + list planned assets (no writes)
 #   ./envyos publish stage           # copy flat files to build/releases/<distro>/
 #   ./envyos publish finalize        # lock RELEASED_* + RELEASE_MANIFEST + git tag
 #   ./envyos publish upload vX.Y.Z   # GitHub Release from staged files
 #   ./envyos publish                 # stage + finalize + upload
+=======
+# Each distro release bundles firmware (motas) and bootloader (OTAFIX) at the versions in
+# ENVYOS_VERSIONS. motatool is pinned in RELEASE_MANIFEST; binaries come from MeshEnvy/motatool.
+# Run ./scripts/build.sh before publishing.
+#
+# Steps (default):
+#   1. Verify firmware + bootloader component trees exist
+#   2. Verify delta matrix for firmware
+#   3. Lock RELEASED_VERSIONS + .released markers + RELEASE_MANIFEST
+#   4. Zip each component → firmware-<ver>.zip, bootloader-<ver>.zip
+#   5. Git tag v<ver>, push tag, GitHub Release with all assets
+#   6. Bump ENVYOS_VERSIONS and envycore/envyos/VERSION to next patch
+>>>>>>> hotfix/v0.1.3
 
 set -euo pipefail
 
@@ -209,7 +223,12 @@ while IFS= read -r asset || [[ -n "$asset" ]]; do
 done < <(read_distro_release_asset_paths "$PUBLISH_VER")
 ((${#ASSETS[@]} > 0)) || exit 1
 
+<<<<<<< HEAD
 publish_github_release "$PUBLISH_VER" "${ASSETS[@]}"
+=======
+write_envyos_versions "$NEXT_VER"
+write_firmware_version_file "$NEXT_VER"
+>>>>>>> hotfix/v0.1.3
 
 echo ""
 echo "Done. Commit release changes. Bump distro when ready: ./envyos bump patch distro"
