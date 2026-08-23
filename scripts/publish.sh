@@ -8,14 +8,14 @@
 # Each distro release bundles firmware (motas) and bootloader (OTAFIX) at the versions in
 # ENVYOS_VERSIONS. motatool and optional peaky are pinned in RELEASE_MANIFEST; binaries
 # come from MeshEnvy/motatool and MeshEnvy/peaky-finders GitHub Releases.
-# Run ./scripts/build.sh before publishing.
+# Run ./envyos build before publishing.
 #
 # Steps (default):
 #   1. Verify firmware + bootloader component trees exist
 #   2. Verify delta matrix for firmware
 #   3. Lock RELEASED_VERSIONS + .released markers + RELEASE_MANIFEST
-#   4. Zip each component → firmware-<ver>.zip, bootloader-<ver>.zip
-#   5. Git tag v<ver>, push tag, GitHub Release with all assets
+#   4. Populate GitHub release assets under build/<ver>/release/
+#   5. Git tag v<ver>, push tag, GitHub Release with staged assets
 #   6. Bump ENVYOS_VERSIONS and envycore/envyos/VERSION to next patch
 
 set -euo pipefail
@@ -34,7 +34,7 @@ usage: $0 [version] [--no-tag] [--no-release]
 options:
   --release-only  Re-upload GitHub Release assets for an already-published distro
   --no-tag        Skip creating a local git tag
-  --no-release    Skip GitHub Release upload (zips are still created)
+  --no-release    Skip GitHub Release upload (stage dir is still built)
 
 examples:
   $0 v0.1.2                 # publish all components, bump dev to v0.1.3
@@ -98,7 +98,7 @@ if [[ "$RELEASE_ONLY" -eq 1 ]]; then
     ASSETS+=("$zip")
   done < <(collect_distro_release_assets "$PUBLISH_VER")
   for zip in "${ASSETS[@]}"; do
-    echo "zip:      $zip"
+    echo "asset:    $zip"
   done
   if [[ "$GITHUB_RELEASE" -eq 1 ]]; then
     publish_github_release "$PUBLISH_VER" "${ASSETS[@]}"
@@ -155,4 +155,4 @@ fi
 
 echo ""
 echo "Done. Commit release changes, then rebuild dev at $NEXT_VER:"
-echo "  ./scripts/build.sh"
+echo "  ./envyos build"

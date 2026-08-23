@@ -1,0 +1,5 @@
+# Released firmware versions — immutable artifact trees under build/<ver>/bench/firmware/.
+# Used for delta base lookup; build-mota.sh refuses to overwrite listed versions.
+v0.1.0
+v0.1.1
+v0.1.2

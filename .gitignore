@@ -1,1 +1,9 @@
 .DS_Store
+/build/
+/motatool-*.tar.gz
+/peaky-*.tar.gz
+/firmware-*.zip
+/bootloader-*.zip
+/motatool-*.zip
+/peaky-*.zip
+/mcmt-gateway-*.zip

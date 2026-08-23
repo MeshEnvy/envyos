@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+# EnvyOS distro CLI — build, bump, publish, info.
+set -euo pipefail
+
+_resolve_script_dir() {
+  local source="${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}"
+  local dir
+  while [[ -L "$source" ]]; do
+    dir="$(cd -P "$(dirname "$source")" && pwd)"
+    source="$(readlink "$source")"
+    [[ "$source" != /* ]] && source="$dir/$source"
+  done
+  cd -P "$(dirname "$source")" && pwd
+}
+
+SCRIPT_DIR="$(_resolve_script_dir)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPTS="$ROOT/scripts"
+# shellcheck source=scripts/version.sh
+source "$SCRIPTS/version.sh"
+
+usage() {
+  cat >&2 <<EOF
+usage: envyos <command> [args…]
+
+commands:
+  info                              Dev HEAD, last distro release, artifact status
+  build [target] [options…]         Build components; default runs all + publish preview
+  bump patch|minor|major <component>  Bump distro|firmware|bootloader|motatool
+  publish [options] [vX.Y.Z]        Full publish: stage + finalize + upload
+  publish release [vX.Y.Z]          Refresh build/<ver>/release from bench
+  publish finalize [vX.Y.Z]         Lock release + git tag (requires stage)
+  publish upload vX.Y.Z             GitHub Release from staged files
+  restore firmware [vX.Y.Z]…        Hydrate released firmware trees from GitHub
+  restore bootloader [vX.Y.Z]…      Hydrate released EnvyBoot trees from GitHub
+  restore [vX.Y.Z]…                 Restore firmware + bootloader (default)
+  gucp check [vX.Y.Z]               Verify GUCP registry for a release
+  gucp list                         List release sections and blocking rows
+  gucp audit [vX.Y.Z] [N]           Triage: candidates + last N envycore commits
+  changelog check [vX.Y.Z]          Verify Packages table + package changelogs
+  changelog delta [vX.Y.Z]          Print package version deltas for a release
+
+  build targets: (omit) | firmware | bootloader | motatool | peaky | all
+
+examples:
+  envyos build
+  envyos build --release-only
+  envyos build motatool --host-only
+  envyos build firmware --target wismesh-tag-repeater
+  envyos build firmware --release             # field slugs only
+  envyos build firmware --debug               # *-debug twins only
+  envyos bump patch firmware
+  envyos publish --dry-run
+  envyos publish release
+  envyos publish finalize
+  envyos publish upload v0.1.2
+  envyos gucp check v0.2.0
+  envyos gucp audit v0.2.0
+  envyos gucp list
+  envyos changelog check v0.2.0
+  envyos changelog delta
+EOF
+  exit 2
+}
+
+cmd_info() {
+  local id ver status last_distro
+  echo "EnvyOS dev HEAD (ENVYOS_VERSIONS)"
+  list_envyos_versions | sed 's/^/  /'
+  echo ""
+  echo "Submodules"
+  printf '  envycore    %s\n' "$(submodule_git_sha envycore)"
+  printf '  bootloader  %s\n' "$(submodule_git_sha bootloader)"
+  printf '  motatool    %s\n' "$(submodule_git_sha motatool)"
+  echo ""
+  last_distro="$(latest_released_distro || true)"
+  if [[ -n "$last_distro" ]]; then
+    echo "Last published distro: $last_distro"
+    for id in distro firmware bootloader motatool; do
+      ver="$(manifest_component_version "$id" "$last_distro" 2>/dev/null || echo '?')"
+      printf '  %-12s %s\n' "$id" "$ver"
+    done
+    published="$(read_release_manifest_key "$last_distro" published 2>/dev/null || echo '?')"
+    printf '  published    %s\n' "$published"
+    echo ""
+  else
+    echo "Last published distro: (none)"
+    echo ""
+  fi
+  echo "Artifacts"
+  for id in firmware bootloader motatool; do
+    ver="$(read_envyos_version_key "$id")"
+    status="$(component_artifact_status "$id" "$ver")"
+    if [[ "$id" == motatool ]]; then
+      platforms="$(list_staged_motatool_platforms "$ver" | paste -sd, -)"
+      printf '  %-12s %-8s  %s  (%s%s)\n' "$id" "$ver" "$(component_build_dir "$id" "$ver")" "$status" \
+        "${platforms:+, $platforms}"
+    else
+      printf '  %-12s %-8s  %s  (%s)\n' "$id" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
+    fi
+  done
+  distro_ver="$(read_distro_version)"
+  manifest_path="$(release_manifest_path "$distro_ver" 2>/dev/null || true)"
+  if [[ -n "$manifest_path" && -f "$manifest_path" ]]; then
+    :
+  else
+    printf '  distro       %-8s  next publish (manifest pending)\n' "$distro_ver"
+  fi
+}
+
+cmd_build() {
+  local component="${1:-all}"
+  shift || true
+  case "$component" in
+    firmware | f)
+      exec "$SCRIPTS/build-mota.sh" "$@"
+      ;;
+    bootloader | bl)
+      exec "$SCRIPTS/build-bl.sh" "$@"
+      ;;
+    motatool | mt)
+      exec "$SCRIPTS/build-motatool.sh" "$@"
+      ;;
+    peaky | pk)
+      exec "$SCRIPTS/build-peaky.sh" "$@"
+      ;;
+    release | stage)
+      populate_distro_release "$@"
+      ;;
+    all | "")
+      exec "$SCRIPTS/build-all.sh" "$@"
+      ;;
+    -h | --help | help)
+      exec "$SCRIPTS/build-all.sh" --help
+      ;;
+    --*)
+      exec "$SCRIPTS/build-all.sh" "$component" "$@"
+      ;;
+    *)
+      echo "error: unknown build target '$component' (want firmware, bootloader, motatool, peaky, or omit for all)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_bump() {
+  local level="${1:-}" id="${2:-}"
+  local old new
+  [[ -n "$level" && -n "$id" ]] || {
+    echo "usage: envyos bump patch|minor|major distro|firmware|bootloader|motatool" >&2
+    exit 2
+  }
+  case "$level" in
+    patch | minor | major) ;;
+    *)
+      echo "error: bump level must be patch, minor, or major (got '$level')" >&2
+      exit 1
+      ;;
+  esac
+  read -r old new < <(bump_component "$id" "$level")
+  echo "$id: $old → $new"
+}
+
+cmd_restore() {
+  local component="all"
+  if [[ $# -ge 1 ]]; then
+    case "$1" in
+      firmware | fw | bootloader | bl | all)
+        component="$1"
+        shift
+        ;;
+    esac
+  fi
+
+  case "$component" in
+    firmware | fw)
+      exec "$SCRIPTS/restore-firmware.sh" "$@"
+      ;;
+    bootloader | bl)
+      exec "$SCRIPTS/restore-bootloader.sh" "$@"
+      ;;
+    all)
+      "$SCRIPTS/restore-firmware.sh" "$@"
+      "$SCRIPTS/restore-bootloader.sh" "$@"
+      ;;
+    *)
+      echo "error: unknown restore target '$component' (want firmware, bootloader, or all)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_publish() {
+  case "${1:-}" in
+    release | stage)
+      shift
+      populate_distro_release "$@"
+      exit 0
+      ;;
+    finalize)
+      shift
+      exec "$SCRIPTS/publish.sh" --finalize "$@"
+      ;;
+    upload)
+      shift
+      exec "$SCRIPTS/publish.sh" --upload "$@"
+      ;;
+  esac
+  exec "$SCRIPTS/publish.sh" "$@"
+}
+
+[[ $# -ge 1 ]] || usage
+
+case "$1" in
+  info)
+    cmd_info
+    ;;
+  build)
+    shift
+    cmd_build "$@"
+    ;;
+  bump)
+    shift
+    cmd_bump "$@"
+    ;;
+  publish)
+    shift
+    cmd_publish "$@"
+    ;;
+  restore)
+    shift
+    cmd_restore "$@"
+    ;;
+  gucp)
+    shift
+    exec "$SCRIPTS/gucp.sh" "$@"
+    ;;
+  changelog)
+    shift
+    exec "$SCRIPTS/changelog.sh" "$@"
+    ;;
+  -h | --help | help)
+    usage
+    ;;
+  *)
+    echo "error: unknown command '$1'" >&2
+    usage
+    ;;
+esac

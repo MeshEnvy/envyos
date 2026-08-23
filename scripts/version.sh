@@ -14,17 +14,23 @@ MCMT_ROOT="${MCMT_ROOT:-$MESHENVY_ROOT/mcmt-gateway}"
 MOTATOOL_ROOT="${MOTATOOL_ROOT:-$MESHENVY_ROOT/motatool}"
 PEAKY_ROOT="${PEAKY_ROOT:-$MESHENVY_ROOT/peaky_finders}"
 
-BOOTLOADER_ROOT="$BOOTLOADER_SRC/build"
-MOTATOOL_DIST_ROOT="$MOTATOOL_ROOT/dist"
-PEAKY_DIST_ROOT="$PEAKY_ROOT/dist"
-MOTAS_ROOT="$ENVYCORE_ROOT/build/motas"
+BUILD_ROOT="$OTA_ROOT/build"
 PEAKY_GITHUB_REPO="${PEAKY_GITHUB_REPO:-MeshEnvy/peaky-finders}"
+RELEASED_FIRMWARE_FILE="$OTA_ROOT/RELEASED_FIRMWARE"
+RELEASED_BOOTLOADER_FILE="$OTA_ROOT/RELEASED_BOOTLOADER"
 
 export ENVYOS_ROOT="$OTA_ROOT"
 export RELEASED_VERSIONS_FILE
+export ENVYCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT PEAKY_ROOT
 
-# shellcheck source=scripts/version.sh
-source "$ENVYCORE_ROOT/scripts/version.sh"
+normalize_version() {
+  local v="${1#v}"
+  if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "error: invalid version '$1' (want vMAJOR.MINOR.PATCH)" >&2
+    return 1
+  fi
+  printf 'v%s' "$v"
+}
 
 read_envyos_version_key() {
   local key=$1
@@ -104,8 +110,12 @@ format_firmware_build_date() {
 
 # version.txt: line 1 = distro tag, line 2 = build date.
 write_mota_version_txt() {
-  local dir=$1 ver=$2 build_date=$3
-  printf '%s\n%s\n' "$ver" "$build_date" >"$dir/version.txt"
+  local dir=$1 ver=$2 build_date=$3 git_sha=${4:-}
+  if [[ -n "$git_sha" ]]; then
+    printf '%s\n%s\n%s\n' "$ver" "$build_date" "$git_sha" >"$dir/version.txt"
+  else
+    printf '%s\n%s\n' "$ver" "$build_date" >"$dir/version.txt"
+  fi
 }
 
 verify_firmware_version_sync() {
@@ -144,17 +154,6 @@ verify_peaky_version_sync() {
   }
 }
 
-stage_motatool_binary() {
-  local bin=$1
-  local ver out
-  ver="$(read_motatool_version)"
-  assert_component_tree_not_released motatool "$ver"
-  out="$MOTATOOL_DIST_ROOT/$ver"
-  mkdir -p "$out"
-  cp -f "$bin" "$out/motatool"
-  printf '%s\n' "$ver" >"$out/version.txt"
-}
-
 peaky_host_rust_target() {
   local os arch
   os="$(uname -s)"
@@ -172,9 +171,10 @@ peaky_host_rust_target() {
 }
 
 peaky_cache_has_binary() {
-  local ver=$1 dir sub
+  local ver=$1 dir sub distro
   ver="$(normalize_version "$ver")"
-  dir="$PEAKY_DIST_ROOT/$ver"
+  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  dir="$(peaky_bench_root "$distro")"
   [[ -d "$dir" ]] || return 1
   if [[ -x "$dir/peaky" ]]; then
     return 0
@@ -187,11 +187,12 @@ peaky_cache_has_binary() {
 }
 
 build_peaky_local() {
-  local ver=$1 target ver_plain staging bin
+  local ver=$1 target ver_plain staging bin distro
   ver="$(normalize_version "$ver")"
   ver_plain="${ver#v}"
+  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
   target="$(peaky_host_rust_target)" || return 1
-  staging="$PEAKY_DIST_ROOT/$ver/peaky-${ver_plain}-${target}"
+  staging="$(peaky_staged_binary_dir "$ver" "$target" "$distro")"
   mkdir -p "$staging"
   echo "peaky: cargo build --release -p peaky ($target)"
   (
@@ -207,15 +208,16 @@ build_peaky_local() {
   if command -v strip >/dev/null 2>&1; then
     strip "$staging/peaky" 2>/dev/null || true
   fi
-  printf '%s\n' "$ver" >"$PEAKY_DIST_ROOT/$ver/version.txt"
+  printf '%s\n' "$ver" >"$(peaky_bench_root "$distro")/version.txt"
   echo "peaky: staged $staging/peaky"
 }
 
 download_peaky_release_assets() {
   local ver=$1 missing_only=${2:-0}
-  local dir tag tgz sub
+  local dir tag tgz sub distro
   ver="$(normalize_version "$ver")"
-  dir="$PEAKY_DIST_ROOT/$ver"
+  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  dir="$(peaky_bench_root "$distro")"
   mkdir -p "$dir"
   tag="${ver#v}"
   tag="v$tag"
@@ -266,9 +268,9 @@ is_released_version() {
 
 assert_version_not_released() {
   local ver="$1"
-  if is_released_version "$ver"; then
-    echo "error: $ver is a released EnvyOS version — $MOTAS_ROOT/$ver/ is immutable" >&2
-    echo "       (listed in RELEASED_VERSIONS; this is the only shipped copy)" >&2
+  if is_released_firmware_version "$ver" || is_released_version "$ver"; then
+    echo "error: $ver is released — $(firmware_bench_root "$ver") is immutable" >&2
+    echo "       (listed in RELEASED_FIRMWARE or RELEASED_VERSIONS)" >&2
     exit 1
   fi
 }
@@ -311,34 +313,8 @@ version_lt() {
   (( ap < bp ))
 }
 
-# All known distro versions: RELEASED_VERSIONS + build/motas/v* dirs.
-list_known_mota_versions() {
-  local line ver d
-  local tmp=()
-  if [[ -f "$RELEASED_VERSIONS_FILE" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      line="${line%%#*}"
-      line="${line#"${line%%[![:space:]]*}"}"
-      line="${line%"${line##*[![:space:]]}"}"
-      [[ -n "$line" ]] || continue
-      ver="$(normalize_version "$line" 2>/dev/null)" || continue
-      tmp+=("$ver")
-    done <"$RELEASED_VERSIONS_FILE"
-  fi
-  if [[ -d "$MOTAS_ROOT" ]]; then
-    for d in "$MOTAS_ROOT"/v[0-9]*.[0-9]*.[0-9]*; do
-      [[ -d "$d" ]] || continue
-      ver="$(normalize_version "$(basename "$d")" 2>/dev/null)" || continue
-      tmp+=("$ver")
-    done
-  fi
-  if [[ ${#tmp[@]} -eq 0 ]]; then
-    return 0
-  fi
-  sort_versions "${tmp[@]}"
-}
+# list_known_mota_versions, resolve_base_image, verify_release_delta_matrix → build-lib.sh
 
-# Every base B where B < target (for delta matrix into target's mota tree).
 list_delta_base_versions() {
   local target ver
   target="$(normalize_version "$1")" || return 1
@@ -416,62 +392,6 @@ append_released_version() {
   fi
   printf '%s\n' "$ver" >>"$RELEASED_VERSIONS_FILE"
 }
-
-resolve_base_hex() {
-  local slug="$1"
-  local base_ver="$2"
-  local candidates=(
-    "$MOTAS_ROOT/$base_ver/$slug/firmware.hex"
-  )
-  if [[ "$slug" == "wismesh-tag-repeater" ]]; then
-    candidates+=(
-      "$MOTAS_ROOT/$base_ver/repeater/firmware.hex"
-      "$MOTAS_ROOT/$base_ver/firmware.hex"
-    )
-  fi
-  local p
-  for p in "${candidates[@]}"; do
-    if [[ -f "$p" ]]; then
-      printf '%s' "$p"
-      return 0
-    fi
-  done
-  return 1
-}
-
-# Fail publish when a released base has hex for slug but delta is missing.
-verify_release_delta_matrix() {
-  local ver="$1"
-  local targets_file="$2"
-  local line slug base_ver delta base_hex
-  local missing=0
-
-  [[ -f "$targets_file" ]] || {
-    echo "error: targets file not found: $targets_file" >&2
-    return 1
-  }
-
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    [[ -n "$line" ]] || continue
-    read -r slug _ <<<"$line"
-    [[ -n "$slug" ]] || continue
-
-    while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
-      [[ -n "$base_ver" ]] || continue
-      resolve_base_hex "$slug" "$base_ver" >/dev/null || continue
-      delta="$MOTAS_ROOT/$ver/$slug/delta_from_${base_ver}.mota"
-      if [[ ! -f "$delta" ]]; then
-        echo "error: missing $delta (base hex exists for $base_ver/$slug)" >&2
-        missing=1
-      fi
-    done < <(list_delta_base_versions "$ver")
-  done <"$targets_file"
-
-  [[ "$missing" -eq 0 ]]
-}
-
 
 read_mcmt_gateway_version() { read_envyos_version_key mcmt-gateway; }
 
@@ -551,39 +471,95 @@ component_in_distro_bundle() {
 
 ensure_motatool_release_cache() {
   local ver=$1
-  local dir="$MOTATOOL_DIST_ROOT/$ver"
-  if [[ -f "$dir/version.txt" ]]; then
+  ver="$(normalize_version "$ver")"
+  local dir distro
+  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  dir="$(motatool_bench_root "$distro")"
+
+  if motatool_all_platforms_present "$ver"; then
     return 0
   fi
-  command -v gh >/dev/null 2>&1 || {
-    echo "error: motatool cache missing at $dir — install gh or populate dist/" >&2
+
+  if is_component_tree_released motatool "$ver"; then
+    echo "error: motatool $ver is a released tree — $dir is immutable" >&2
+    return 1
+  fi
+
+  local host
+  host="$(host_motatool_platform_slug 2>/dev/null || true)"
+  if [[ -n "$host" ]] && ! motatool_platform_has_binary "$ver" "$host"; then
+    if [[ -d "$MOTATOOL_ROOT" ]] && command -v cargo >/dev/null 2>&1; then
+      "$OTA_ROOT/scripts/build-motatool.sh" --host-only || true
+    fi
+  fi
+
+  if command -v gh >/dev/null 2>&1; then
+    download_motatool_release_assets "$ver" 1 || true
+  fi
+
+  if motatool_all_platforms_present "$ver"; then
+    return 0
+  fi
+
+  if command -v gh >/dev/null 2>&1; then
+    download_motatool_release_assets "$ver" 0 || true
+  fi
+
+  motatool_all_platforms_present "$ver" || {
+    echo "error: motatool $ver missing platform binaries under $dir" >&2
+    echo "       need: $(list_motatool_release_platforms | paste -sd' ' -)" >&2
+    echo "       run: ./envyos build motatool" >&2
     return 1
   }
+}
+
+download_motatool_release_assets() {
+  local ver=$1 missing_only=${2:-0}
+  local dir tag tgz base triple platform tmp out distro
+  ver="$(normalize_version "$ver")"
+  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  dir="$(motatool_bench_root "$distro")"
   mkdir -p "$dir"
-  local tag="${ver#v}"
+  tag="${ver#v}"
   tag="v$tag"
-  echo "motatool: downloading $tag release assets into $dir"
+  echo "motatool: downloading $tag from MeshEnvy/motatool into $dir"
   gh release download "$tag" -R MeshEnvy/motatool -D "$dir" || {
     echo "error: gh release download failed for MeshEnvy/motatool $tag" >&2
     return 1
   }
-  local tgz
-  for tgz in "$dir"/*.tar.gz; do
+  for tgz in "$dir"/motatool-*.tar.gz; do
     [[ -f "$tgz" ]] || continue
-    tar -xzf "$tgz" -C "$dir"
-    rm -f "$tgz"
+    base="$(basename "$tgz")"
+    triple="$(motatool_triple_from_archive_basename "$base")" || continue
+    platform="$(motatool_platform_from_triple "$triple")" || continue
+    out="$(motatool_staged_binary_path "$platform")"
+    if ((missing_only == 1)) && [[ -x "$out" ]]; then
+      rm -f "$tgz"
+      continue
+    fi
+    tmp="$(mktemp -d)"
+    tar -xzf "$tgz" -C "$tmp"
+    [[ -x "$tmp/motatool" ]] || {
+      rm -rf "$tmp"
+      rm -f "$tgz"
+      continue
+    }
+    mkdir -p "$(dirname "$out")"
+    cp -f "$tmp/motatool" "$out"
+    chmod +x "$out"
+    rm -rf "$tmp" "$tgz"
+    record_motatool_platform_staged "$ver" "$platform"
   done
-  if [[ ! -f "$dir/version.txt" ]]; then
-    printf '%s\n' "$ver" >"$dir/version.txt"
-  fi
 }
 
 ensure_peaky_release_cache() {
   local ver=$1
   ver="$(normalize_version "$ver")"
-  local dir="$PEAKY_DIST_ROOT/$ver"
+  local dir distro
+  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  dir="$(peaky_bench_root "$distro")"
 
-  if peaky_cache_has_binary "$ver"; then
+  if peaky_all_platforms_present "$ver"; then
     return 0
   fi
 
@@ -597,31 +573,37 @@ ensure_peaky_release_cache() {
     return 1
   fi
 
-  if command -v cargo >/dev/null 2>&1; then
-    build_peaky_local "$ver" || true
+  local host_triple triple
+  host_triple="$(peaky_host_rust_target 2>/dev/null || true)"
+  if [[ -n "$host_triple" ]] && ! peaky_platform_has_binary "$ver" "$host_triple"; then
+    if command -v cargo >/dev/null 2>&1; then
+      build_peaky_local "$ver" || true
+    fi
   fi
 
-  if peaky_cache_has_binary "$ver"; then
-    if command -v gh >/dev/null 2>&1; then
-      download_peaky_release_assets "$ver" 1 || true
-    fi
+  if command -v gh >/dev/null 2>&1; then
+    download_peaky_release_assets "$ver" 1 || true
+  fi
+
+  if peaky_all_platforms_present "$ver"; then
     return 0
   fi
 
-  command -v gh >/dev/null 2>&1 || {
-    echo "error: peaky cache missing at $dir — cargo build failed and gh not installed" >&2
-    return 1
-  }
-  download_peaky_release_assets "$ver" 0
-  peaky_cache_has_binary "$ver" || {
-    echo "error: no peaky binary in $dir after download" >&2
+  if command -v gh >/dev/null 2>&1; then
+    download_peaky_release_assets "$ver" 0 || true
+  fi
+
+  peaky_all_platforms_present "$ver" || {
+    echo "error: peaky $ver missing platform binaries under $dir" >&2
+    echo "       need: $(list_peaky_release_triples | paste -sd' ' -)" >&2
     return 1
   }
 }
 
 write_released_marker() {
   local ver="$1"
-  local dir="$MOTAS_ROOT/$ver"
+  local dir
+  dir="$(firmware_bench_root "$ver")"
   local today
   today="$(date '+%Y-%m-%d')"
   cat >"$dir/.released" <<EOF
@@ -647,12 +629,11 @@ list_release_component_ids() {
 }
 
 component_build_root() {
-  case "$1" in
-    firmware) printf '%s' "$MOTAS_ROOT" ;;
-    bootloader) printf '%s' "$BOOTLOADER_ROOT" ;;
-    motatool) printf '%s' "$MOTATOOL_DIST_ROOT" ;;
-    mcmt-gateway) printf '%s' "$MCMT_ROOT/dist" ;;
-    peaky) printf '%s' "$PEAKY_DIST_ROOT" ;;
+  local id=$1 distro_ver=${2:-}
+  distro_ver="${distro_ver:-$(read_distro_version 2>/dev/null || echo v0.0.0)}"
+  case "$id" in
+    firmware | bootloader | motatool | peaky) distro_bench_root "$distro_ver" ;;
+    mcmt-gateway) printf '%s/dist' "$MCMT_ROOT" ;;
     *)
       echo "error: unknown release component: $1" >&2
       return 1
@@ -677,8 +658,19 @@ component_version_at_publish() {
 }
 
 component_build_dir() {
-  local id=$1 ver=$2
-  printf '%s/%s' "$(component_build_root "$id")" "$ver"
+  local id=$1 ver=$2 distro_ver=${3:-}
+  distro_ver="${distro_ver:-$(read_distro_version 2>/dev/null || printf '%s' "$ver")}"
+  case "$id" in
+    firmware) firmware_bench_root "$ver" ;;
+    bootloader) bootloader_bench_root "$ver" ;;
+    motatool) motatool_bench_root "$distro_ver" ;;
+    peaky) peaky_bench_root "$distro_ver" ;;
+    mcmt-gateway) printf '%s/%s' "$MCMT_ROOT/dist" "$ver" ;;
+    *)
+      echo "error: unknown release component: $id" >&2
+      return 1
+      ;;
+  esac
 }
 
 component_zip_basename() {
@@ -724,10 +716,10 @@ EOF
 write_release_manifest() {
   local distro_ver=$1 firmware_ver=$2 bootloader_ver=$3 motatool_ver=$4
   local dir today peaky_ver mcmt_ver
-  dir="$MOTAS_ROOT/$distro_ver"
+  dir="$(distro_tree_root "$distro_ver")"
   today="$(date '+%Y-%m-%d')"
   mkdir -p "$dir"
-  cat >"$dir/RELEASE_MANIFEST" <<EOF
+  cat >"$(release_manifest_path "$distro_ver")" <<EOF
 # EnvyOS distro release manifest (immutable snapshot at publish)
 distro=$distro_ver
 firmware=$firmware_ver
@@ -737,18 +729,21 @@ published=$today
 EOF
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
     mcmt_ver="$(read_mcmt_gateway_version)"
-    printf 'mcmt-gateway=%s\n' "$mcmt_ver" >>"$dir/RELEASE_MANIFEST"
+    printf 'mcmt-gateway=%s\n' "$mcmt_ver" >>"$(release_manifest_path "$distro_ver")"
   fi
   if component_in_distro_bundle peaky "$distro_ver"; then
     peaky_ver="$(read_peaky_version)"
-    printf 'peaky=%s\n' "$peaky_ver" >>"$dir/RELEASE_MANIFEST"
+    printf 'peaky=%s\n' "$peaky_ver" >>"$(release_manifest_path "$distro_ver")"
   fi
 }
 
 read_release_manifest_key() {
   local distro_ver=$1 key=$2
   local file line k val
-  file="$MOTAS_ROOT/$distro_ver/RELEASE_MANIFEST"
+  file="$(release_manifest_path "$distro_ver")"
+  if [[ ! -f "$file" ]]; then
+    file="$(firmware_bench_root "$distro_ver")/RELEASE_MANIFEST"
+  fi
   [[ -f "$file" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%%#*}"
@@ -778,14 +773,14 @@ manifest_component_version() {
     return 0
   fi
   ver="$(normalize_version "$distro_ver")"
-  if [[ -d "$(component_build_dir "$id" "$ver")" ]]; then
+  if [[ -d "$(component_build_dir "$id" "$ver" "$distro_ver")" ]]; then
     printf '%s' "$ver"
     return 0
   fi
   if [[ "$id" != firmware ]]; then
     while IFS= read -r legacy || [[ -n "$legacy" ]]; do
       [[ -n "$legacy" ]] || continue
-      if version_lt "$legacy" "$distro_ver" && [[ -d "$(component_build_dir "$id" "$legacy")" ]]; then
+      if version_lt "$legacy" "$distro_ver" && [[ -d "$(component_build_dir "$id" "$legacy" "$distro_ver")" ]]; then
         printf '%s' "$legacy"
         return 0
       fi
@@ -797,17 +792,18 @@ manifest_component_version() {
 ensure_release_manifest_for_backfill() {
   local distro_ver=$1
   local firmware_ver bootloader_ver motatool_ver published mcmt_ver peaky_ver
-  [[ -f "$MOTAS_ROOT/$distro_ver/RELEASE_MANIFEST" ]] && return 0
+  [[ -f "$(release_manifest_path "$distro_ver")" ]] && return 0
+  [[ -f "$(firmware_bench_root "$distro_ver")/RELEASE_MANIFEST" ]] && return 0
   firmware_ver="$(manifest_component_version firmware "$distro_ver")"
   bootloader_ver="$(manifest_component_version bootloader "$distro_ver")"
   motatool_ver="$(manifest_component_version motatool "$distro_ver")"
   published="$(date '+%Y-%m-%d')"
-  if [[ -f "$MOTAS_ROOT/$distro_ver/.released" ]]; then
-    published="$(sed -n 's/.*released \([0-9-]*\).*/\1/p' "$MOTAS_ROOT/$distro_ver/.released" | head -1)"
+  if [[ -f "$(distro_tree_root "$distro_ver")/.released" ]]; then
+    published="$(sed -n 's/.*released \([0-9-]*\).*/\1/p' "$(distro_tree_root "$distro_ver")/.released" | head -1)"
     [[ -n "$published" ]] || published="$(date '+%Y-%m-%d')"
   fi
-  mkdir -p "$MOTAS_ROOT/$distro_ver"
-  cat >"$MOTAS_ROOT/$distro_ver/RELEASE_MANIFEST" <<EOF
+  mkdir -p "$(distro_tree_root "$distro_ver")"
+  cat >"$(release_manifest_path "$distro_ver")" <<EOF
 # EnvyOS distro release manifest (backfilled at asset upload)
 distro=$distro_ver
 firmware=$firmware_ver
@@ -817,11 +813,11 @@ published=$published
 EOF
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
     mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
-    printf 'mcmt-gateway=%s\n' "$mcmt_ver" >>"$MOTAS_ROOT/$distro_ver/RELEASE_MANIFEST"
+    printf 'mcmt-gateway=%s\n' "$mcmt_ver" >>"$(release_manifest_path "$distro_ver")"
   fi
   if component_in_distro_bundle peaky "$distro_ver"; then
     peaky_ver="$(manifest_component_version peaky "$distro_ver")"
-    printf 'peaky=%s\n' "$peaky_ver" >>"$MOTAS_ROOT/$distro_ver/RELEASE_MANIFEST"
+    printf 'peaky=%s\n' "$peaky_ver" >>"$(release_manifest_path "$distro_ver")"
   fi
 }
 
@@ -852,9 +848,9 @@ verify_release_components() {
       verify_peaky_version_sync "$ver" || return 1
       ensure_peaky_release_cache "$ver" || return 1
     fi
-    dir="$(component_build_dir "$id" "$ver")"
+    dir="$(component_build_dir "$id" "$ver" "$distro_ver")"
     [[ -d "$dir" ]] || {
-      echo "error: missing $id artifacts at $dir — run ./scripts/build.sh first" >&2
+      echo "error: missing $id artifacts at $dir — run ./envyos build first" >&2
       return 1
     }
     if [[ -f "$dir/version.txt" ]]; then
@@ -922,19 +918,14 @@ lock_release_components() {
 
 collect_distro_release_assets() {
   local distro_ver=$1
-  local id ver zip assets=()
-  while IFS= read -r id || [[ -n "$id" ]]; do
-    ver="$(manifest_component_version "$id" "$distro_ver")" || continue
-    if [[ -d "$(component_build_dir "$id" "$ver")" ]]; then
-      zip="$(create_component_zip "$id" "$ver")"
-      assets+=("$zip")
-    else
-      echo "warning: skip $id $ver — $(component_build_dir "$id" "$ver") missing" >&2
-    fi
-  done < <(list_release_component_ids "$distro_ver")
-  if ((${#assets[@]} > 0)); then
-    printf '%s\n' "${assets[@]}"
-  fi
+  local release_dir f
+  distro_ver="$(normalize_version "$distro_ver")"
+  populate_distro_release "$distro_ver"
+  release_dir="$(distro_release_root "$distro_ver")"
+  while IFS= read -r f || [[ -n "$f" ]]; do
+    [[ -n "$f" ]] || continue
+    printf '%s\n' "$f"
+  done < <(find "$release_dir" -maxdepth 1 -type f ! -name MANIFEST.txt | sort)
 }
 
 release_notes_for_distro() {
@@ -967,9 +958,10 @@ EOF
 
 ### Assets
 
-- \`firmware-${firmware_ver}.zip\` — fleet firmware (\`.mota\`, hex, uf2; \`delta_from_<base>.mota\` for prior releases)
-- \`bootloader-${bootloader_ver}.zip\` — OTAFIX UF2 (+ recovery zips) per board in \`targets.txt\`
-- \`motatool-${motatool_ver}.zip\` — bench \`motatool\` binary (\`serve\`, pack, verify)
+- \`fw-<slug>-<ver>-full-<id>.mota.gz\` / \`fw-<slug>-<ver>-delta-from-<base>-<id>.mota.gz\` — fleet OTA
+- \`fw-<slug>-<ver>.uf2.gz\` — bench UF2 flash
+- \`bl-<board>-<ver>.uf2.gz\` / \`bl-<board>-recovery-<ver>.zip\` — EnvyBoot per board
+- \`motatool-<ver>-<platform>.tar.gz\` — bench motatool (pick your OS/arch)
 EOF
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
     mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
@@ -977,12 +969,12 @@ EOF
   fi
   if component_in_distro_bundle peaky "$distro_ver"; then
     peaky_ver="$(manifest_component_version peaky "$distro_ver")"
-    printf -- '- \`peaky-%s.zip\` — Peaky Finders \`peaky serve\` binaries (Linux + macOS)\n' "$peaky_ver"
+    printf -- '- \`peaky-%s-<platform>.tar.gz\` — Peaky Finders \`peaky serve\` (pick Linux or macOS archive)\n' "${peaky_ver#v}"
   fi
 
   cat <<EOF
 
-Extract zips under sibling repo \`dist/\` trees (\`envycore/build/motas/\`, \`bootloader/build/\`, \`motatool/dist/\`, \`peaky_finders/dist/\`) or a local \`build/\` layout.
+Restore released trees with \`./envyos restore\` (flat assets on v0.2.0+; legacy \`firmware-*.zip\` / \`bootloader-*.zip\` on v0.1.x).
 EOF
 }
 
@@ -1055,3 +1047,8 @@ ensure_git_tag_on_remote() {
   echo "git push: origin $ver"
   git -C "$OTA_ROOT" push origin "$ver"
 }
+
+# shellcheck source=scripts/targets-lib.sh
+source "$OTA_ROOT/scripts/targets-lib.sh"
+# shellcheck source=scripts/build-lib.sh
+source "$OTA_ROOT/scripts/build-lib.sh"
