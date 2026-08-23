@@ -155,6 +155,90 @@ stage_motatool_binary() {
   printf '%s\n' "$ver" >"$out/version.txt"
 }
 
+peaky_host_rust_target() {
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+  case "$os-$arch" in
+    Linux-x86_64) printf '%s' 'x86_64-unknown-linux-gnu' ;;
+    Linux-aarch64 | Linux-arm64) printf '%s' 'aarch64-unknown-linux-gnu' ;;
+    Darwin-arm64) printf '%s' 'aarch64-apple-darwin' ;;
+    Darwin-x86_64) printf '%s' 'x86_64-apple-darwin' ;;
+    *)
+      echo "error: unsupported host for peaky local build: $os $arch" >&2
+      return 1
+      ;;
+  esac
+}
+
+peaky_cache_has_binary() {
+  local ver=$1 dir sub
+  ver="$(normalize_version "$ver")"
+  dir="$PEAKY_DIST_ROOT/$ver"
+  [[ -d "$dir" ]] || return 1
+  if [[ -x "$dir/peaky" ]]; then
+    return 0
+  fi
+  for sub in "$dir"/peaky-*; do
+    [[ -d "$sub" ]] || continue
+    [[ -x "$sub/peaky" ]] && return 0
+  done
+  return 1
+}
+
+build_peaky_local() {
+  local ver=$1 target ver_plain staging bin
+  ver="$(normalize_version "$ver")"
+  ver_plain="${ver#v}"
+  target="$(peaky_host_rust_target)" || return 1
+  staging="$PEAKY_DIST_ROOT/$ver/peaky-${ver_plain}-${target}"
+  mkdir -p "$staging"
+  echo "peaky: cargo build --release -p peaky ($target)"
+  (
+    cd "$PEAKY_ROOT"
+    cargo build --locked --release -p peaky --target "$target"
+  )
+  bin="$PEAKY_ROOT/target/$target/release/peaky"
+  [[ -x "$bin" ]] || {
+    echo "error: peaky build did not produce $bin" >&2
+    return 1
+  }
+  cp -f "$bin" "$staging/peaky"
+  if command -v strip >/dev/null 2>&1; then
+    strip "$staging/peaky" 2>/dev/null || true
+  fi
+  printf '%s\n' "$ver" >"$PEAKY_DIST_ROOT/$ver/version.txt"
+  echo "peaky: staged $staging/peaky"
+}
+
+download_peaky_release_assets() {
+  local ver=$1 missing_only=${2:-0}
+  local dir tag tgz sub
+  ver="$(normalize_version "$ver")"
+  dir="$PEAKY_DIST_ROOT/$ver"
+  mkdir -p "$dir"
+  tag="${ver#v}"
+  tag="v$tag"
+  echo "peaky: downloading $tag from $PEAKY_GITHUB_REPO into $dir"
+  gh release download "$tag" -R "$PEAKY_GITHUB_REPO" -D "$dir" || {
+    echo "error: gh release download failed for $PEAKY_GITHUB_REPO $tag" >&2
+    return 1
+  }
+  for tgz in "$dir"/*.tar.gz; do
+    [[ -f "$tgz" ]] || continue
+    sub="${tgz%.tar.gz}"
+    sub="${sub##*/}"
+    if ((missing_only == 1)) && [[ -x "$dir/$sub/peaky" ]]; then
+      rm -f "$tgz"
+      continue
+    fi
+    mkdir -p "$dir/$sub"
+    tar -xzf "$tgz" -C "$dir/$sub"
+    rm -f "$tgz"
+  done
+  printf '%s\n' "$ver" >"$dir/version.txt"
+}
+
 # v0.1.1 → 0 1 1 (stdout: major minor patch)
 parse_version() {
   local v="${1#v}"
@@ -496,34 +580,43 @@ ensure_motatool_release_cache() {
 
 ensure_peaky_release_cache() {
   local ver=$1
+  ver="$(normalize_version "$ver")"
   local dir="$PEAKY_DIST_ROOT/$ver"
-  if [[ -f "$dir/version.txt" ]]; then
+
+  if peaky_cache_has_binary "$ver"; then
     return 0
   fi
-  command -v gh >/dev/null 2>&1 || {
-    echo "error: peaky cache missing at $dir — install gh or populate dist/" >&2
+
+  [[ -d "$PEAKY_ROOT" ]] || {
+    echo "error: peaky repo not found at $PEAKY_ROOT" >&2
     return 1
   }
-  mkdir -p "$dir"
-  local tag="${ver#v}"
-  tag="v$tag"
-  echo "peaky: downloading $tag release assets from $PEAKY_GITHUB_REPO into $dir"
-  gh release download "$tag" -R "$PEAKY_GITHUB_REPO" -D "$dir" || {
-    echo "error: gh release download failed for $PEAKY_GITHUB_REPO $tag" >&2
+
+  if is_component_tree_released peaky "$ver"; then
+    echo "error: peaky $ver is a released tree — $dir is immutable" >&2
     return 1
-  }
-  local tgz sub
-  for tgz in "$dir"/*.tar.gz; do
-    [[ -f "$tgz" ]] || continue
-    sub="${tgz%.tar.gz}"
-    sub="${sub##*/}"
-    mkdir -p "$dir/$sub"
-    tar -xzf "$tgz" -C "$dir/$sub"
-    rm -f "$tgz"
-  done
-  if [[ ! -f "$dir/version.txt" ]]; then
-    printf '%s\n' "$ver" >"$dir/version.txt"
   fi
+
+  if command -v cargo >/dev/null 2>&1; then
+    build_peaky_local "$ver" || true
+  fi
+
+  if peaky_cache_has_binary "$ver"; then
+    if command -v gh >/dev/null 2>&1; then
+      download_peaky_release_assets "$ver" 1 || true
+    fi
+    return 0
+  fi
+
+  command -v gh >/dev/null 2>&1 || {
+    echo "error: peaky cache missing at $dir — cargo build failed and gh not installed" >&2
+    return 1
+  }
+  download_peaky_release_assets "$ver" 0
+  peaky_cache_has_binary "$ver" || {
+    echo "error: no peaky binary in $dir after download" >&2
+    return 1
+  }
 }
 
 write_released_marker() {
