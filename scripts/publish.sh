@@ -6,7 +6,8 @@
 #   ./scripts/publish.sh --release-only [version]
 #
 # Each distro release bundles firmware (motas) and bootloader (OTAFIX) at the versions in
-# ENVYOS_VERSIONS. motatool is pinned in RELEASE_MANIFEST; binaries come from MeshEnvy/motatool.
+# ENVYOS_VERSIONS. motatool and optional peaky are pinned in RELEASE_MANIFEST; binaries
+# come from MeshEnvy/motatool and MeshEnvy/peaky-finders GitHub Releases.
 # Run ./scripts/build.sh before publishing.
 #
 # Steps (default):
