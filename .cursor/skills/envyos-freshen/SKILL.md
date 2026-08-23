@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 ## Fleet policy (canonical)
 
-An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `build/motas/<distro>/`) is earned **only** by this three-layer bundle:
+An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `envycore/build/motas/<distro>/`) is earned **only** by this three-layer bundle:
 
 ```text
 companion-v*          (latest official MeshCore release tag)
@@ -39,9 +39,9 @@ Record the exact SHAs in `envycore/FRESHEN.lock` after each release freshen.
 | `/freshen` | Release bundle (default) | **Yes** — after tests pass |
 | `/freshen dev` | Integration with `meshcore/dev` tip | **No** |
 
-Run **both** `envycore` and `bootloader` unless scoped. All three OTA-stack forks (`envycore/`, `motatool/`, `bootloader/`) integrate on **`envyos/main`** (see `envyos-meshcore` skill).
+Run **both** `envycore` and `bootloader` unless scoped. OTA-stack forks (`envycore/`, [motatool](https://github.com/MeshEnvy/motatool), `bootloader/`) integrate on **`envyos/main`** (see `envyos-meshcore` skill).
 
-`envyos/main` may contain extra dev work between releases — fine for development. **Only** a completed release freshen + `ENVYOS_VERSIONS` bump + `./scripts/build-mota.sh` ships to fleet.
+`envyos/main` may contain extra dev work between releases — fine for development. **Only** a completed release freshen + `ENVYOS_VERSIONS` bump + `envycore/scripts/build-mota.sh` ships to fleet.
 
 **Feature branches:** branch from `envyos/main`, never from `meshcore/dev`.
 
@@ -111,10 +111,10 @@ git push origin envyos/main
 Update `envycore/FRESHEN.lock`, then **ota repo**:
 
 1. Bump **`ENVYOS_VERSIONS`** (all keys together unless intentional; patch `distro` unless milestone)
-2. Sync `envycore/envyos/VERSION` + `motatool/Cargo.toml` to match
-3. `./scripts/build.sh` (or `build-bl.sh` + `build-mota.sh` separately)
+2. Sync `envycore/envyos/VERSION` to match; bump `motatool=` in `ENVYOS_VERSIONS` when a new motatool release ships
+3. `./scripts/build.sh` (or `build-bl.sh` + `envycore/scripts/build-mota.sh` separately)
 4. Git tag **`v<distro>`** on ota repo
-5. Bump `envycore` / `bootloader` / `motatool` submodule pointers if needed
+5. Bump `envycore` / `bootloader` submodule pointers if needed
 
 ```yaml
 mode: release
@@ -171,7 +171,7 @@ Keep vk496 detools stack on in-place apply conflicts; `ota_layout.h` ↔ `OtaFla
 ```bash
 cd envycore && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repeater
 ./scripts/build-bl.sh wismesh_tag
-./scripts/build-mota.sh   # only after release freshen passes
+cd envycore && ./scripts/build-mota.sh   # only after release freshen passes
 ```
 
 ---
@@ -194,7 +194,7 @@ cd envycore && pio test -e native -f test_ota && pio run -e RAK_WisMesh_Tag_repe
 
 ## Do not
 
-- Rebuild or delete **`build/motas/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_VERSIONS`); that directory is the only shipped copy
+- Rebuild or delete **`envycore/build/motas/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_VERSIONS`); that directory is the only shipped copy
 - Tag `v0.1.x` or ship `build/motas/` without the full release bundle (companion + vk496 + overlay)
 - Treat companion tag alone as fleet-ready (no OTA)
 - Deploy **`meshcore/dev`** or `/freshen dev` output to fleet

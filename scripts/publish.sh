@@ -5,16 +5,17 @@
 #   ./scripts/publish.sh [version] [--no-tag] [--no-release]
 #   ./scripts/publish.sh --release-only [version]
 #
-# Each distro release bundles firmware (motas), bootloader (OTAFIX), and motatool at the
-# versions in ENVYOS_VERSIONS. Run ./scripts/build.sh before publishing.
+# Each distro release bundles firmware (motas) and bootloader (OTAFIX) at the versions in
+# ENVYOS_VERSIONS. motatool is pinned in RELEASE_MANIFEST; binaries come from MeshEnvy/motatool.
+# Run ./scripts/build.sh before publishing.
 #
 # Steps (default):
-#   1. Verify all component trees exist (motas, bootloader, motatool)
+#   1. Verify firmware + bootloader component trees exist
 #   2. Verify delta matrix for firmware
 #   3. Lock RELEASED_VERSIONS + .released markers + RELEASE_MANIFEST
-#   4. Zip each component → firmware-<ver>.zip, bootloader-<ver>.zip, motatool-<ver>.zip
+#   4. Zip each component → firmware-<ver>.zip, bootloader-<ver>.zip
 #   5. Git tag v<ver>, push tag, GitHub Release with all assets
-#   6. Bump ENVYOS_VERSIONS and submodule version files to next patch
+#   6. Bump ENVYOS_VERSIONS and envycore/envyos/VERSION to next patch
 
 set -euo pipefail
 
@@ -131,7 +132,6 @@ done
 
 write_envyos_versions "$NEXT_VER"
 write_firmware_version_file "$NEXT_VER"
-write_motatool_cargo_version "$NEXT_VER"
 
 echo ""
 echo "ENVYOS_VERSIONS → $NEXT_VER"

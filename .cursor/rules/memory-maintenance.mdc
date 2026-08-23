@@ -21,11 +21,11 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Area | Examples |
 |------|----------|
 | Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync |
-| Versioning | `ENVYOS_VERSIONS`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
-| Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags |
+| Versioning | `ENVYOS_VERSIONS`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `envycore/scripts/build-mota.sh` |
+| Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags, `envycore/scripts/build-mota.sh` |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
-| Build outputs | `build/`, `scripts/build.sh`, `scripts/build-mota.sh`, `scripts/build-bl.sh` |
-| motatool | CLI subcommands, `serve` flags, `.mota` pack/delta format |
+| Build outputs | `envycore/build/motas/`, `scripts/build.sh`, `scripts/build-bl.sh` |
+| motatool | External repo [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool); PATH install; `scripts/seeder.sh` |
 | Bootloader | `bootloader/` submodule vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |

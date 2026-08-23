@@ -1,0 +1,7 @@
+# Git component pins — updated at publish; dev branch tracks integration heads
+firmware_repo=MeshEnvy/meshcore-firmware
+firmware_sha=f4758e3f972adcd6d5f0dca67a99369f698aedd4
+bootloader_repo=MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX
+bootloader_sha=bddd09331f3c6465e89343b1d1a4b2302dabb864
+mcmt_gateway_repo=MeshEnvy/mcmt-gateway
+mcmt_gateway_sha=
