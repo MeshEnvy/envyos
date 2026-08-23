@@ -268,31 +268,11 @@ motatool_bin() {
   local mt_ver path
   mt_ver="$(read_motatool_version)"
   verify_motatool_version_sync "$mt_ver"
-
-  if path="$(resolve_motatool_bin "$mt_ver" 2>/dev/null)"; then
+  if path="$(resolve_motatool_bin "$mt_ver")"; then
     echo "$path"
     return
   fi
-
-  local rel="$MOTATOOL_ROOT/target/release/motatool"
-  if [[ -x "$rel" ]]; then
-    stage_motatool_binary "$rel" "$(host_motatool_platform_slug)"
-    resolve_motatool_bin "$mt_ver"
-    return
-  fi
-  if [[ -d "$MOTATOOL_ROOT" ]]; then
-    local cargo_bin cargo_dir platform
-    cargo_bin="$(find_cargo)"
-    cargo_dir="$(dirname "$cargo_bin")"
-    platform="$(host_motatool_platform_slug)"
-    echo "building motatool (release) for $platform with $cargo_bin …" >&2
-    (cd "$MOTATOOL_ROOT" && PATH="$cargo_dir:$PATH" "$cargo_bin" build --release)
-    [[ -x "$rel" ]] || { echo "error: motatool build did not produce $rel" >&2; exit 1; }
-    stage_motatool_binary "$rel" "$platform"
-    resolve_motatool_bin "$mt_ver"
-    return
-  fi
-  echo "error: motatool not found (init submodule: git submodule update --init motatool)" >&2
+  echo "error: motatool not staged for $(host_motatool_platform_slug) — run ./envyos build motatool (or full ./envyos build)" >&2
   exit 1
 }
 
@@ -302,6 +282,7 @@ build_target_firmware() {
   local out
   out="$(firmware_slug_dir "$VER" "$slug")"
   local build_dir="$MC/.pio/build/$env_name"
+  local identity_gen="$MC/tools/mota/gen_firmware_identity.py"
   local mota_tid identity_cpp
 
   echo "==> $VER  target=$slug  env=$env_name"
@@ -310,23 +291,31 @@ build_target_firmware() {
   rm -rf "$out"
   mkdir -p "$out"
 
-  mota_tid="$(mota_target_id_for_env "$env_name")"
-  identity_cpp="$MC/src/helpers/FirmwareIdentity.generated.cpp"
-  python3 "$MC/tools/mota/gen_firmware_identity.py" \
-    --out "$identity_cpp" \
-    --version "$FW_VER_LABEL" \
-    --build-date "$BUILD_STAMP" \
-    --target-id "$mota_tid" \
-    --pio-env "$env_name"
-
-  (
-    cd "$MC"
-    export ENVYOS_FIRMWARE_VERSION="$FW_VER_LABEL"
-    export ENVYOS_FIRMWARE_BUILD_DATE="$BUILD_STAMP"
-    export ENVYOS_MOTA_TARGET_ID="$mota_tid"
-    pio run -e "$env_name"
-    pio run -e "$env_name" -t create_uf2
-  )
+  if [[ -f "$identity_gen" ]]; then
+    mota_tid="$(mota_target_id_for_env "$env_name")"
+    identity_cpp="$MC/src/helpers/FirmwareIdentity.generated.cpp"
+    python3 "$identity_gen" \
+      --out "$identity_cpp" \
+      --version "$FW_VER_LABEL" \
+      --build-date "$BUILD_STAMP" \
+      --target-id "$mota_tid" \
+      --pio-env "$env_name"
+    (
+      cd "$MC"
+      export ENVYOS_FIRMWARE_VERSION="$FW_VER_LABEL"
+      export ENVYOS_FIRMWARE_BUILD_DATE="$BUILD_STAMP"
+      export ENVYOS_MOTA_TARGET_ID="$mota_tid"
+      pio run -e "$env_name"
+      pio run -e "$env_name" -t create_uf2
+    )
+  else
+    (
+      cd "$MC"
+      export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
+      pio run -e "$env_name"
+      pio run -e "$env_name" -t create_uf2
+    )
+  fi
 
   local hex="$build_dir/firmware.hex"
   local uf2="$build_dir/firmware.uf2"

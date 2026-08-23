@@ -12,7 +12,7 @@ usage() {
   cat >&2 <<EOF
 usage: envyos build [options] [firmware-version] [build-mota options…]
 
-  (default)         Bootloader + firmware/.mota + peaky (if pinned) + release/
+  (default)         Bootloader + motatool (all platforms) + firmware/.mota + peaky (if pinned) + release/
   --bootloader-only Bootloader only
   --firmware-only   Firmware/.mota only (aliases: --mota-only, --no-bootloader)
   --motatool-only   motatool release binaries (all platforms)
@@ -30,6 +30,7 @@ EOF
 }
 
 BUILD_BL=1
+BUILD_MOTATOOL=1
 BUILD_FIRMWARE=1
 BUILD_PEAKY=1
 BUILD_RELEASE=1
@@ -38,6 +39,7 @@ MOTA_ARGS=()
 while (($# > 0)); do
   case "$1" in
     --bootloader-only)
+      BUILD_MOTATOOL=0
       BUILD_FIRMWARE=0
       BUILD_PEAKY=0
       BUILD_RELEASE=0
@@ -45,6 +47,7 @@ while (($# > 0)); do
       ;;
     --firmware-only | --mota-only | --no-bootloader)
       BUILD_BL=0
+      BUILD_MOTATOOL=0
       shift
       ;;
     --motatool-only)
@@ -95,7 +98,7 @@ while (($# > 0)); do
   esac
 done
 
-if ((BUILD_BL == 0 && BUILD_FIRMWARE == 0 && BUILD_PEAKY == 0 && BUILD_RELEASE == 0)); then
+if ((BUILD_BL == 0 && BUILD_MOTATOOL == 0 && BUILD_FIRMWARE == 0 && BUILD_PEAKY == 0 && BUILD_RELEASE == 0)); then
   echo "error: nothing to build" >&2
   exit 1
 fi
@@ -104,7 +107,7 @@ distro_ver="$(read_distro_version)"
 bench_root="$(distro_bench_root "$distro_ver")"
 release_root="$(distro_release_root "$distro_ver")"
 
-if ((BUILD_BL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1)); then
+if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1)); then
   echo "==> EnvyOS build"
   list_envyos_versions | sed 's/^/    /'
   export ENVYOS_SKIP_RELEASE=1
@@ -115,6 +118,13 @@ if ((BUILD_BL == 1)); then
   bl_ver="$(read_bootloader_version)"
   echo "==> bootloader ($bl_ver)"
   "$SCRIPTS/build-bl.sh"
+fi
+
+if ((BUILD_MOTATOOL == 1)); then
+  echo ""
+  mt_ver="$(read_motatool_version)"
+  echo "==> motatool ($mt_ver, all platforms)"
+  "$SCRIPTS/build-motatool.sh"
 fi
 
 if ((BUILD_FIRMWARE == 1)); then
@@ -141,11 +151,14 @@ if ((BUILD_RELEASE == 1)); then
   populate_distro_release "$distro_ver"
 fi
 
-if ((BUILD_BL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1)); then
+if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1)); then
   echo ""
   echo "==> EnvyOS build complete"
   if ((BUILD_BL == 1)); then
     echo "    bench/bootloader: $(bootloader_bench_root "$(read_bootloader_version)")/"
+  fi
+  if ((BUILD_MOTATOOL == 1)); then
+    echo "    bench/motatool:   $(motatool_bench_root "$distro_ver")/"
   fi
   if ((BUILD_FIRMWARE == 1)); then
     echo "    bench/firmware:   $(firmware_bench_root "$(read_firmware_version)")/"

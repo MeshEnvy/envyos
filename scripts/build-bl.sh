@@ -17,12 +17,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OTAFIX="$BOOTLOADER_SRC"
 TARGETS_FILE="$ROOT/scripts/targets.txt"
 IMAGE="vk-otafix-build"
 
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
+
+OTAFIX="$BOOTLOADER_SRC"
 
 usage() {
   cat >&2 <<EOF
@@ -94,10 +95,19 @@ BOARDS=()
 if ((${#EXPLICIT_BOARDS[@]} > 0)); then
   BOARDS=("${EXPLICIT_BOARDS[@]}")
 else
+  boards_out=""
+  if ! boards_out="$(otafix_boards_from_targets_file "$TARGETS_FILE")"; then
+    exit 1
+  fi
   while IFS= read -r board; do
     [[ -n "$board" ]] && BOARDS+=("$board")
-  done < <(otafix_boards_from_targets_file "$TARGETS_FILE")
+  done <<<"$boards_out"
 fi
+
+((${#BOARDS[@]} > 0)) || {
+  echo "error: no otafix boards resolved from $TARGETS_FILE" >&2
+  exit 1
+}
 
 ensure_otafix_ready() {
   (
@@ -140,11 +150,13 @@ build_board() {
   if [[ -z "$zip" ]]; then
     zip="$(ls -1t "$build_dir"/*_bootloader-*.recovery.zip 2>/dev/null | head -1 || true)"
   fi
-  [[ -n "$zip" && -f "$zip" ]] && cp -f "$zip" "$OUT/"
+  if [[ -n "$zip" && -f "$zip" ]]; then
+    cp -f "$zip" "$OUT/"
+    echo "    recovery: $OUT/$(basename "$zip")"
+  fi
 
   echo "    UF2: $uf2"
   echo "    copy: $OUT/$(basename "$uf2")"
-  [[ -n "${zip:-}" && -f "${zip:-}" ]] && echo "    recovery: $OUT/$(basename "$zip")"
 }
 
 if ((${#EXPLICIT_BOARDS[@]} > 0)); then

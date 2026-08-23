@@ -149,8 +149,8 @@ build_motatool_linux_docker() {
 
   echo "==> motatool $mt_ver (linux: ${platforms[*]}, docker)"
   docker run --rm \
-    -v "$ROOT:/src" \
-    -w /src/motatool \
+    -v "$MOTATOOL_ROOT:/src" \
+    -w /src \
     "$MOTATOOL_DOCKER_IMAGE" \
     sh -c "$cmd"
 
@@ -215,6 +215,12 @@ if ((${#DARWIN_PLATFORMS[@]} > 0)) && [[ "$(uname -s)" != Darwin ]]; then
   echo "note: skipping darwin targets on non-macOS host (${DARWIN_PLATFORMS[*]})" >&2
   DARWIN_PLATFORMS=()
 fi
+
+distro_ver="$(read_distro_version)"
+mt_bench="$(motatool_bench_root "$distro_ver")"
+echo "==> motatool bench: clean $mt_bench"
+rm -rf "$mt_bench"
+mkdir -p "$mt_bench"
 
 if ((${#LINUX_PLATFORMS[@]} > 0)); then
   if ((NO_DOCKER == 1 || HOST_ONLY == 1)); then
