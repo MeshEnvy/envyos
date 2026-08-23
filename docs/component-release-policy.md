@@ -1,6 +1,15 @@
 # EnvyOS component release policy
 
-Canonical contract for every EnvyOS distro component repo (envycore, bootloader, motatool, mcmt-gateway).
+Canonical contract for every EnvyOS distro component repo (envycore, bootloader, motatool, mcmt-gateway, peaky-finders).
+
+## Optional bundle components
+
+| Component | Manifest key | When bundled |
+|-----------|--------------|--------------|
+| mcmt-gateway | `mcmt-gateway=` | Distro ≥ v0.2.0 |
+| peaky | `peaky=` | When pinned in `ENVYOS_VERSIONS` (bench-gated) |
+
+Peaky and mcmt keep **independent semver** (like motatool). EnvyOS `publish.sh` mirrors their GitHub Release binaries into the distro zip; tags still land on each component repo.
 
 ## Two layers
 
@@ -31,5 +40,6 @@ A component is bundled in a distro release only when it is **bench-gated**. Trac
 | envycore | `docs/change-management.md` | `.cursor/skills/envycore-release/` |
 | bootloader | `docs/change-management.md` | `.cursor/skills/bootloader-release/` |
 | mcmt-gateway | `docs/change-management.md` | `.cursor/skills/mcmt-release/` |
+| peaky-finders | [peaky_finders/docs/change-management.md](https://github.com/MeshEnvy/peaky-finders/blob/main/docs/change-management.md) | `peaky_finders/.cursor/skills/peaky-release/` |
 
 Branch model on forks: **`envyos/main`** = release line, **`envyos/dev`** = integration (envyos17 uses **`main`** / **`dev`**).

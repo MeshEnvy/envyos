@@ -8,20 +8,11 @@ description: >-
 
 # motatool
 
-<<<<<<< HEAD
-Rust CLI at **`motatool/`** (MeshEnvy fork of `vk496/motatool`; canonical **`envyos/main`** on `MeshEnvy/motatool`, **0.1.1**). Byte-compatible with MeshCore's on-wire `.mota` format. vk496 PRs are optional.
-
-Build: `./envyos build motatool` (linux targets via **`docker/motatool-build/`**; darwin native on macOS)  
-Staged as **`build/motatool/<ver>/motatool-<platform>`** (e.g. `motatool-darwin-aarch64`).  
-Release matrix: darwin-aarch64, darwin-x86_64, linux-aarch64, linux-x86_64 (no Windows).  
-Bench scripts resolve the **host** platform binary automatically.
-=======
 Rust CLI — [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) (`envyos/main`). Byte-compatible with MeshCore's on-wire `.mota` format.
 
 **Bench:** install motatool from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases) or `cargo build --release` in the motatool repo. **`motatool` on PATH** for packaging; override with **`MOTATOOL=/path/to/motatool`**.
 
 **Releases:** tag `v*` on MeshEnvy/motatool → CI publishes Linux/macOS binaries. Cut workflow lives in the motatool repo (`.cursor/skills/motatool-release/SKILL.md` there).
->>>>>>> hotfix/v0.1.3
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
 detools is **test-oracle only** in the motatool repo (`make dev-setup` for delta unit tests).
@@ -32,7 +23,7 @@ Spec: `envycore/docs/ota_protocol.md` · Source: https://github.com/MeshEnvy/mot
 
 ```bash
 # Full image from firmware (reads EndF trailer for target_id, version, hw_id)
-motatool build --fw firmware.hex --out-dir ./build/firmware/v0.1.0/wismesh-tag-repeater
+motatool build --fw firmware.hex --out-dir ./build/motas/v0.1.0/wismesh-tag-repeater
 motatool build --fw firmware.bin --sign signer.key --out-dir ./out
 
 # Delta patches (--base MUST be device's running image with EndF)
@@ -40,11 +31,11 @@ motatool build --base old.hex --fw new.hex --out-dir ./out                    # 
 motatool build --base old.hex --fw new.hex --patch-type in-place --out delta.mota  # in-place (nRF52)
 
 # Validate
-motatool verify ./build/firmware/**/*.mota
+motatool verify ./build/motas/**/*.mota
 motatool verify signed.mota --pub signer.key.pub
 
 # Inspect manifest
-motatool inspect ./build/firmware/**/fw_*_full_*.mota
+motatool inspect ./build/motas/**/fw_*_full_*.mota
 
 # Ed25519 keypair
 motatool keygen --out signer.key
@@ -60,7 +51,7 @@ Or via bench wrapper: **`motatool/scripts/seeder.sh <serial> [dir]`** (motatool 
 
 - Input: `.hex` (Intel HEX parsed to flat image) or `.bin`, or `https://` URL
 - Identity from **EndF trailer** (override with `--target-env`, `--target-id`, `--fw-version`, `--hw-id`)
-- Output naming: `{stem}-full-{mid8}.mota` / `{stem}-delta-from-{basever}-{base8}.mota` (`--name-stem`, `--base-version`)
+- Output naming: `fw_<target_id>_<version>_full_<mid>.mota`
 - Produces merkle tree (1024-byte blocks default), manifest, optional Ed25519 signature
 
 ## `build --base` — delta patches
@@ -74,11 +65,7 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 **Requirements:**
 
-<<<<<<< HEAD
-- `--base` = **exact** running firmware image (with EndF) — typically `build/firmware/v0.1.0/<slug>/firmware.hex` from prior `build-mota.sh`
-=======
 - `--base` = **exact** running firmware image (with EndF) — typically `envycore/build/motas/v0.1.0/<slug>/firmware.hex` from prior `envycore/scripts/build-mota.sh`
->>>>>>> hotfix/v0.1.3
 - `--fw` = new build's hex
 - Manifest `base_hash` = base image's `EndF.body_hash` (motatool computes this)
 
@@ -88,11 +75,7 @@ Optional in-place tuning: `--inplace-memory` (override; default derives from tar
 
 ### Correctness model
 
-<<<<<<< HEAD
-A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder (`src/encode.rs`) is proven against the detools oracle in tests. In-place encode builds one suffix array of the shifted base and filters it per segment (same matches, much faster). Frozen on-wire bytes live in `motatool/tests/fixtures/` (`tests/golden.rs`).
-=======
 A delta is valid when the **on-device detools C decoder** reconstructs the target byte-for-byte — not when patch bytes match detools Python output. motatool's encoder is proven against the detools oracle in tests.
->>>>>>> hotfix/v0.1.3
 
 ## `serve`
 
@@ -117,18 +100,11 @@ Flags: `--baud`, `--no-recursive`, `-v` (log requests), `--seed <file>`.
 `envycore/scripts/build-mota.sh` resolves motatool via PATH (`resolve_motatool` in `envycore/scripts/version.sh`; override `MOTATOOL=`), then:
 
 ```bash
-motatool build --fw "$OUT/fw-<slug>-<ver>.hex" --fw-version … --name-stem "fw-<slug>-<ver>" --out-dir "$OUT"
-motatool build --base "$BASE" --fw "$OUT/fw-<slug>-<ver>.hex" --patch-type in-place \
-  --name-stem "fw-<slug>-<ver>" --base-version "$BASE_VER" --out-dir "$OUT"
+motatool build --fw "$OUT/firmware.hex" --out-dir "$OUT"
+motatool build --base "$BASE_HEX" --fw "$OUT/firmware.hex" --patch-type in-place --out "$DELTA_OUT"
 ```
 
-<<<<<<< HEAD
-Names: `fw-<slug>-<ver>-full-<mid8>.mota` and `fw-<slug>-<ver>-delta-from-<base>-<base8>.mota`. `serve` indexes by content, not filename.
-
-Serve step is separate: `seeder.sh` → `motatool serve --dir … --serial … -v`
-=======
 Serve step: `motatool/scripts/seeder.sh` → `motatool serve --dir … --serial … -v`
->>>>>>> hotfix/v0.1.3
 
 ## Target IDs
 

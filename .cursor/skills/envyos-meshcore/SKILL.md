@@ -18,11 +18,7 @@ Firmware lives in `envycore/` submodule; `bootloader/` at repo root. **motatool*
 | Submodule / component | MeshEnvy fork (`origin`) | vk496 remote | vk496 PR base |
 |-----------|--------------------------|--------------|---------------|
 | `envycore/` | `MeshEnvy/meshcore-firmware` | `vk496/MeshCore` | `feature/ota-lora` |
-<<<<<<< HEAD
-| `motatool/` | `MeshEnvy/motatool` (`meshenvy` remote in submodule) | `vk496/motatool` (origin only) | **none required** — MeshEnvy-canonical as of **0.1.1** |
-=======
 | motatool (external) | `MeshEnvy/motatool` | `vk496/motatool` | `main` |
->>>>>>> hotfix/v0.1.3
 | `bootloader/` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` |
 
 All three MeshEnvy forks use **`envyos/main`** as the GitHub default branch and distro integration head.
@@ -113,7 +109,7 @@ For each feature:
 1. **Choose the vk496 PR base** — branch from the remote that owns the target:
    - Core mesh / repeater behavior → `meshcore/dev` (PR to meshcore-dev)
    - OTA firmware → `vk496/feature/ota-lora`
-   - motatool → **`envyos/main` only** (vk496 PR optional; not required)
+   - motatool → `vk496/main`
    - otafix → `vk496/feature/ota-delta-apply`
 2. **Implement on a focused branch** — e.g. `feature/ota-stage-ceiling`
 3. **Push to MeshEnvy `origin`** (or `meshenvy` for motatool) — `git push -u origin feature/<name>`
@@ -133,10 +129,9 @@ meshcore/dev ──► feature/foo ──► PR → meshcore-dev/MeshCore
 |---------|----------------------|---------|---------|-------------------|
 | Next-hop retry | `feature/next-hop-retry` | `dev` | `meshcore-dev/MeshCore` [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | yes (hop retry only on PR branch) |
 | Log tail serial | `feature/log-tail-serial` | `dev` | `meshcore-dev/MeshCore` [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | yes |
-| Defer remote admin CLI | `feature/defer-remote-cli` | `dev` | `meshcore-dev/MeshCore` [#3196](https://github.com/meshcore-dev/MeshCore/pull/3196) (draft) | yes |
 | OTA ls pagination | `fix/ota-ls-start-at-n` | `feature/ota-lora` | `vk496/MeshCore` | yes |
 | OTA staging ceiling | `feature/ota-stage-ceiling` | `feature/ota-lora` | `vk496/MeshCore` | yes |
-| motatool (any) | n/a | n/a | no required upstream PR (optional `vk496/motatool`) | **`envyos/main` only** |
+| motatool delta layout | `meshenvy/feature/ota-stage-ceiling` | `main` | `vk496/motatool` | yes |
 | otafix scan ceiling | `feature/ota-stage-ceiling` | `feature/ota-delta-apply` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | yes |
 | EnvyOS-only glue | n/a | n/a | no upstream PR | `envyos/main` only |
 
@@ -173,15 +168,9 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
 - **Canonical file:** `ENVYOS_VERSIONS` at ota repo root (`distro`, `firmware`, `bootloader`, `motatool`)
-<<<<<<< HEAD
-- **Build:** `./envyos build firmware` → `build/firmware/<firmware>/`; `./scripts/build-mota.sh v0.1.1` overrides for one-off builds
-- **Firmware stamp:** `-DFIRMWARE_VERSION` from `ENVYOS_VERSIONS` `firmware=` (not `distro=`) via `PLATFORMIO_BUILD_FLAGS` in `build-mota.sh`
-- **Explicit delta base:** `./scripts/build-mota.sh v0.1.2 --base v0.1.0` (default builds all prior bases)
-=======
 - **Build:** `envycore/scripts/build-mota.sh` reads `distro` → `envycore/build/motas/v0.1.0/`; version override for one-off builds and auto-deltas from prior patch if present
 - **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `envycore/scripts/build-mota.sh`
 - **Explicit delta base:** `envycore/scripts/build-mota.sh v0.1.2 --base v0.1.0` (default builds all prior bases)
->>>>>>> hotfix/v0.1.3
 
 Bump `ENVYOS_VERSIONS` at repo root for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
 
@@ -197,8 +186,6 @@ When shipping EnvyOS work:
 - [ ] **Open PR:** feature-specific follow-ups pushed to **`feature/<name>`** as well as `envyos/main`
 - [ ] Bench builds use **`envyos/main`** checkout in `envycore/`, not a PR branch
 - [ ] Version references use EnvyOS `v0.1.x`, not upstream `v1.17.x`
-- [ ] EnvyOS-owned change noted in `CHANGELOG.md` `## [Unreleased]` (MeshCore-only rebase: one companion-tag line)
-- [ ] Upstreamable work registered in GUCP (`docs/good-upstream-contributor-policy.md`); before finalize → `### Upstream PRs` + `./envyos gucp check` (see `envyos-good-upstream-contributor` skill)
 - [ ] Monorepo submodule pins bumped when cutting a release (not required for every feature merge)
 
 ## Do not

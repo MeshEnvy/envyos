@@ -20,22 +20,16 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 
 | Area | Examples |
 |------|----------|
-<<<<<<< HEAD
-| Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync, **`docs/good-upstream-contributor-policy.md`** |
-| Versioning | `ENVYOS_VERSIONS`, `CHANGELOG.md` + package changelogs, `docs/change-management.md`, `docs/good-upstream-contributor-policy.md`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `build-mota.sh` |
-| Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags |
-=======
 | Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync |
 | Versioning | `ENVYOS_VERSIONS`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `envycore/scripts/build-mota.sh` |
 | Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags, `envycore/scripts/build-mota.sh` |
->>>>>>> hotfix/v0.1.3
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
 | Build outputs | `envycore/build/motas/`, `scripts/build.sh`, `scripts/build-bl.sh` |
 | motatool | External repo [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool); PATH install; `scripts/seeder.sh` |
 | Bootloader | `bootloader/` submodule vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
-| Agent skills | `.cursor/skills/envyos-{good-upstream-contributor,ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |
+| Agent skills | `.cursor/skills/envyos-{ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |
 | Greenfield breaks | Removed APIs, renamed paths, invalidated `.mota` or hex bases |
 
 ## Style

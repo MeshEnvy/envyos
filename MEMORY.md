@@ -9,6 +9,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `envycore/` | Firmware — `scripts/build-mota.sh`, `build/motas/` |
 | `bootloader/` | EnvyBoot OTAFIX — `scripts/build-bl.sh`, `build/` |
 | `motatool/` | Bench CLI — CI releases; local cache `dist/<ver>/` |
+| `peaky_finders/` | RF planner — CI releases; mirrored into distro when `peaky=` pinned |
 | `mcmt-gateway/` | MT↔MC bridge (distro bundle from v0.2.0) |
 | `envyos/envyos17/` | This repo — orchestration only |
 
@@ -16,7 +17,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 | Path | Role |
 |------|------|
-| `ENVYOS_VERSIONS` | Component semver — `distro`, `firmware`, `bootloader`, `motatool`, `mcmt-gateway` (dev) |
+| `ENVYOS_VERSIONS` | Component semver — `distro`, `firmware`, `bootloader`, `motatool`; optional `peaky=`, `mcmt-gateway=` |
 | `COMPONENTS.lock` | Git SHAs for git-pinned siblings (updated at publish) |
 | `scripts/` | `build.sh` (delegates to siblings), `publish.sh`, `version.sh`, `verify-components.sh` |
 | `apps/app/` | Flutter MeshCore client submodule |
@@ -96,8 +97,8 @@ Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gat
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
 - Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
-- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`. Local trees: **`$MESHENVY_ROOT/envycore/build/motas/`**, **`bootloader/build/`**, **`motatool/dist/`**.
-- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + bench verify: lock components, zip, GitHub Release, bump **`ENVYOS_VERSIONS`**. mcmt-gateway bundles from distro v0.2.0.
+- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`, optional `peaky-*.zip`. Local caches: **`envycore/build/motas/`**, **`bootloader/build/`**, **`motatool/dist/`**, **`peaky_finders/dist/`**.
+- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + bench verify: lock components, zip, GitHub Release, bump **`ENVYOS_VERSIONS`**. mcmt-gateway from distro v0.2.0; peaky when `peaky=` is set.
 
 ## Versioning
 
@@ -106,6 +107,7 @@ Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gat
   - `firmware` → must match `envycore/envyos/VERSION`; built by **`envycore/scripts/build-mota.sh`**
   - `bootloader` → **`$MESHENVY_ROOT/bootloader/build/<bootloader>/`**
   - `motatool` → mirrored into distro release; cache **`motatool/dist/<ver>/`**
+  - `peaky` → mirrored when `peaky=` pinned; cache **`peaky_finders/dist/<ver>/`** via `gh release download`
 - **Firmware build:** `$MESHENVY_ROOT/envycore/scripts/build-mota.sh` (or `./scripts/build.sh` from envyos bench). Requires **`motatool` on PATH** (or `motatool/dist/` fallback).
 
 ## OTA targets (`envycore/scripts/targets.txt`)

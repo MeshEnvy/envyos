@@ -1,7 +1,8 @@
 # EnvyOS component versions (MAJOR.MINOR.PATCH).
-# dev integration line
-distro=0.2.0-dev
-firmware=0.2.0-dev
+# dev integration line — branch dev / envyos/dev, not a version suffix
+distro=0.2.0
+firmware=0.2.0
 bootloader=0.2.0
 motatool=0.1.2
 mcmt-gateway=0.1.0
+peaky=0.5.0

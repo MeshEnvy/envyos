@@ -2,7 +2,7 @@
 name: envyos-freshen
 description: >-
   Fleet policy: companion tag + vk496 OTA + EnvyOS overlay earns an EnvyOS
-  version (ENVYOS_VERSIONS / v0.1.x / build/firmware/). /freshen builds that bundle; /freshen dev
+  version (ENVYOS_VERSIONS / v0.1.x / build/motas/). /freshen builds that bundle; /freshen dev
   is integration-only. Also refreshes bootloader submodule.
 disable-model-invocation: true
 ---
@@ -11,11 +11,7 @@ disable-model-invocation: true
 
 ## Fleet policy (canonical)
 
-<<<<<<< HEAD
-An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `build/firmware/<distro>/`) is earned **only** by this three-layer bundle:
-=======
 An **EnvyOS version** (`ENVYOS_VERSIONS` at ota repo root → `v<distro>` git tag → `envycore/build/motas/<distro>/`) is earned **only** by this three-layer bundle:
->>>>>>> hotfix/v0.1.3
 
 ```text
 companion-v*          (latest official MeshCore release tag)
@@ -115,18 +111,10 @@ git push origin envyos/main
 Update `envycore/FRESHEN.lock`, then **ota repo**:
 
 1. Bump **`ENVYOS_VERSIONS`** (all keys together unless intentional; patch `distro` unless milestone)
-<<<<<<< HEAD
-2. Sync `envycore/envyos/VERSION` + `motatool/Cargo.toml` to match
-3. `CHANGELOG.md` — EnvyOS overlay/fixes under Unreleased. MeshCore companion bump is one line + [upstream release](https://github.com/meshcore-dev/MeshCore/releases) link. Do not copy MeshCore notes. EnvyBoot detail → `bootloader/CHANGELOG.md` (one-line pointer in root changelog if user-visible).
-4. `./scripts/build.sh` (or `build-bl.sh` + `build-mota.sh` separately)
-5. Git tag **`v<distro>`** on ota repo
-6. Bump `envycore` / `bootloader` / `motatool` submodule pointers if needed
-=======
 2. Sync `envycore/envyos/VERSION` to match; bump `motatool=` in `ENVYOS_VERSIONS` when a new motatool release ships
 3. `./scripts/build.sh` (or `build-bl.sh` + `envycore/scripts/build-mota.sh` separately)
 4. Git tag **`v<distro>`** on ota repo
 5. Bump `envycore` / `bootloader` submodule pointers if needed
->>>>>>> hotfix/v0.1.3
 
 ```yaml
 mode: release
@@ -176,8 +164,6 @@ git push origin envyos/main
 
 Keep vk496 detools stack on in-place apply conflicts; `ota_layout.h` ↔ `OtaFlashLayout_nrf52.h`.
 
-Update `bootloader/FRESHEN.lock`, then **`bootloader/CHANGELOG.md`**: upstream pin one-liner (Adafruit base, [oltaco tag](https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX/releases), vk496 ref @ sha) plus EnvyBoot overlay only. Do not copy oltaco/vk496 release notes.
-
 ---
 
 ## Validation (required before ENVYOS_VERSIONS bump)
@@ -208,13 +194,8 @@ cd envycore && ./scripts/build-mota.sh   # only after release freshen passes
 
 ## Do not
 
-<<<<<<< HEAD
-- Rebuild or delete **`build/firmware/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_DISTROS`); that directory is the only shipped copy
-- Tag `v0.1.x` or ship `build/firmware/` without the full release bundle (companion + vk496 + overlay)
-=======
 - Rebuild or delete **`envycore/build/motas/v0.1.0/`** — **v0.1.0 is released** (listed in `RELEASED_VERSIONS`); that directory is the only shipped copy
 - Tag `v0.1.x` or ship `build/motas/` without the full release bundle (companion + vk496 + overlay)
->>>>>>> hotfix/v0.1.3
 - Treat companion tag alone as fleet-ready (no OTA)
 - Deploy **`meshcore/dev`** or `/freshen dev` output to fleet
 - Assume `envyos/main` equals the last release bundle — check `FRESHEN.lock`

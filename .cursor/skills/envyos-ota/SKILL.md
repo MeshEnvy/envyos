@@ -31,7 +31,7 @@ Every OTA-capable build has a **56-byte `EndF` trailer** on the flashed image (`
 |-------|------|
 | `body_hash` (8 B) | Hash of image body — **delta `base_hash` must match this on the device** |
 | `target_id` (4 B) | `sha256:4(platformio_env_name)` — routing / `[yours]` in `ota ls` |
-| `fw_version` | From `-DFIRMWARE_VERSION` (`ENVYOS_VERSIONS` `firmware=`, not `distro=`) |
+| `fw_version` | From `-DFIRMWARE_VERSION` (EnvyOS: `v0.1.x`) |
 
 motatool reads identity from the hex/bin **EndF**; do not rely on filenames.
 
@@ -57,13 +57,9 @@ ota get 1 flash     # download entry #1 to local flash (alias: pull)
 ota install         # verify + apply + reboot
 ota cancel          # abort fetch
 ota folder on       # enable host seeder link (needs motatool serve on USB)
-ota announce        # send discovery beacon (served folder/cache/captured motas only; self-serve disabled v0.2.0)
-ota cache           # cache seeder status (SD or NOR; aliases: ota seed, ota sd)
 ota self            # print EndF / base_hash
 ota help
 ```
-
-**Cache role** (`OTA_SEEDER_CACHE` + `OTA_SEEDER_STORAGE_SD` or `_QSPI`): captures **deltas only** to `/motas/` on external FS; onboard staging stays for self-update. Default admits all targets; filter with `ota cache allow add|rm|list|clear|reset` (env name or `%08X` hex; persisted). `clear` = admit none; `reset`/`defaults` = admit all.
 
 Remote admin over mesh uses the same commands via companion/repeater admin (password-gated for `ota stats` on remote nodes).
 
@@ -95,11 +91,7 @@ Running app **never** patches itself. `ota install`:
 
 - Delta manifest `base_hash` == Tag B running firmware `EndF.body_hash`
 - `[yours]` row: `target_id` for `RAK_WisMesh_Tag_repeater`
-<<<<<<< HEAD
-- Base hex saved from **exact** prior build (`build/firmware/v0.1.0/<slug>/firmware.hex`) — rebuilds can change `body_hash` even if source “looks” the same
-=======
 - Base hex saved from **exact** prior build (`envycore/build/motas/v0.1.0/<slug>/firmware.hex`) — rebuilds can change `body_hash` even if source “looks” the same
->>>>>>> hotfix/v0.1.3
 - OTAFIX present: `ota status` shows bootloader apply OK for in-place codec
 
 ## Key source files
@@ -115,7 +107,7 @@ Running app **never** patches itself. `ota install`:
 
 ## Related skills
 
-- **Wire backward compatibility** (field fleet since v0.1.0) → `ota-greenfield`
+- **Greenfield policy** (no legacy/migrations) → `ota-greenfield`
 - `./scripts/*` workflow → `envyos-scripts`
 - `.mota` build/serve/verify → `motatool`
 - Git/PR workflow → `envyos-meshcore`
