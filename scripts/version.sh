@@ -137,7 +137,7 @@ verify_peaky_version_sync() {
   local cargo="$PEAKY_ROOT/Cargo.toml"
   [[ -f "$cargo" ]] || return 0
   local actual
-  actual="$(awk '/^\[workspace.package\]/{p=1;next} /^\[/{p=0} p && /^version/{gsub(/.*"|".*/,"");print;exit}' "$cargo")"
+  actual="$(awk '/^\[workspace.package\]/{f=1;next} /^\[/{if(f) exit} f && /^version = /{gsub(/^version = "|"$/,""); print; exit}' "$cargo")"
   [[ "$actual" == "$expected" ]] || {
     echo "error: peaky_finders/Cargo.toml version ($actual) != ENVYOS_VERSIONS peaky ($expected)" >&2
     return 1
