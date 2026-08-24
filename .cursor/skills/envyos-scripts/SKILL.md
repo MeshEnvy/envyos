@@ -49,7 +49,7 @@ Helpers: **`scripts/version.sh`** (sources `envycore/scripts/version.sh` for fir
 
 1. Verify firmware delta matrix + bootloader tree
 2. Append to `RELEASED_VERSIONS`, write `.released` + `RELEASE_MANIFEST` (includes motatool pin)
-3. Zip firmware + bootloader → GitHub Release assets
+3. Zip firmware + bootloader → GitHub Release assets (includes \`envyos-<ver>-full.tgz\` complete bench bundle)
 4. Git tag `v<distro>`, bump `ENVYOS_VERSIONS` + `envycore/envyos/VERSION`
 
 ```bash

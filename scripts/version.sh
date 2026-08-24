@@ -958,7 +958,8 @@ EOF
 
 ### Assets
 
-- \`fw-<slug>-<ver>-full-<id>.mota.gz\` / \`fw-<slug>-<ver>-delta-from-<base>-<id>.mota.gz\` — fleet OTA
+- \`envyos-<ver>-full.tgz\` — **complete offline bundle** (all firmware variants, bootloader, motatool platforms, optional peaky/mcmt; uncompressed bench tree + manifests)
+- \`fw-<slug>-<ver>-full-<id>.mota.gz\` / \`fw-<slug>-<ver>-delta-from-<base>-<id>.mota.gz\` — fleet OTA (pick one per node)
 - \`fw-<slug>-<ver>.uf2.gz\` — bench UF2 flash
 - \`bl-<board>-<ver>.uf2.gz\` / \`bl-<board>-recovery-<ver>.zip\` — EnvyBoot per board
 - \`motatool-<ver>-<platform>.tar.gz\` — bench motatool (pick your OS/arch)

@@ -874,6 +874,74 @@ verify_release_delta_matrix() {
   [[ "$missing" -eq 0 ]]
 }
 
+# Archive entire distro bench (all firmware slugs, bootloader, motatool platforms, optional peaky/mcmt).
+create_distro_full_tgz() {
+  local distro_ver=${1:-}
+  local root_name bench_dir release_dir tgz_path staging manifest id ver src pkg_name
+  local -a included=()
+
+  if [[ -z "$distro_ver" ]]; then
+    distro_ver="$(read_distro_version)"
+  else
+    distro_ver="$(normalize_version "$distro_ver")"
+  fi
+
+  root_name="envyos-${distro_ver#v}-full"
+  bench_dir="$(distro_bench_root "$distro_ver")"
+  release_dir="$(distro_release_root "$distro_ver")"
+  tgz_path="$release_dir/${root_name}.tgz"
+
+  [[ -d "$bench_dir" ]] || {
+    echo "error: missing bench tree at $bench_dir — run ./envyos build first" >&2
+    return 1
+  }
+
+  staging="$(mktemp -d "${TMPDIR:-/tmp}/envyos-full.XXXXXX")"
+  mkdir -p "$staging/$root_name/bench"
+
+  while IFS= read -r id || [[ -n "$id" ]]; do
+    [[ -n "$id" ]] || continue
+    ver="$(component_version_at_publish "$id" "$distro_ver")" || continue
+    src="$(component_build_dir "$id" "$ver" "$distro_ver")"
+    [[ -d "$src" ]] || continue
+    pkg_name="${id}-$(normalize_version "$ver" | tr -d v)"
+    cp -a "$src" "$staging/$root_name/bench/$pkg_name"
+    included+=("$pkg_name")
+  done < <(list_release_component_ids "$distro_ver")
+
+  ((${#included[@]} > 0)) || {
+    echo "error: no release components found for $distro_ver" >&2
+    rm -rf "$staging"
+    return 1
+  }
+
+  manifest="$(release_manifest_path "$distro_ver")"
+  [[ -f "$manifest" ]] && cp "$manifest" "$staging/$root_name/RELEASE_MANIFEST"
+  [[ -f "$ENVYOS_VERSIONS_FILE" ]] && cp "$ENVYOS_VERSIONS_FILE" "$staging/$root_name/ENVYOS_VERSIONS"
+  [[ -f "$OTA_ROOT/COMPONENTS.lock" ]] && cp "$OTA_ROOT/COMPONENTS.lock" "$staging/$root_name/COMPONENTS.lock"
+
+  {
+    echo "# EnvyOS full bundle — $distro_ver"
+    echo "# Generated $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    echo ""
+    list_envyos_versions
+    echo ""
+    echo "# bench packages"
+    for pkg_name in "${included[@]}"; do
+      printf '%s\n' "$pkg_name"
+    done
+  } >"$staging/$root_name/BUNDLE.txt"
+
+  rm -f "$tgz_path"
+  tar -czf "$tgz_path" \
+    --exclude='.DS_Store' \
+    -C "$staging" "$root_name"
+  rm -rf "$staging"
+
+  echo "bundle:   $tgz_path ($(du -h "$tgz_path" | awk '{print $1}'))"
+  printf '%s\n' "$tgz_path"
+}
+
 # --- release tree from bench (GitHub upload preview) ---
 
 populate_distro_release() {
@@ -940,6 +1008,10 @@ populate_distro_release() {
       staged+=("$dst")
     fi
   fi
+
+  full_tgz=""
+  full_tgz="$(create_distro_full_tgz "$distro_ver")"
+  staged+=("$full_tgz")
 
   while IFS= read -r dst || [[ -n "$dst" ]]; do
     [[ -n "$dst" ]] || continue
