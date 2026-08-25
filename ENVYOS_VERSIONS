@@ -1,5 +1,7 @@
 # EnvyOS component versions (MAJOR.MINOR.PATCH).
-# Pre-release: build from main HEAD; git tags land on publish only.
+# Bench builds use build/<git-branch>/ — not this file's distro= key.
+# Set component pins: ./envyos bump patch|minor|major firmware|bootloader|motatool
+# Publish chooses git tag v<distro> and writes distro= + firmware= here.
 # v0.1.3 hotfix: firmware-only (defer-remote-cli lockup fix); bootloader unchanged.
 distro=0.1.3
 firmware=0.1.3

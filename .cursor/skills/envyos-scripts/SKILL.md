@@ -13,7 +13,7 @@ description: >-
 | Component | Repo | Build / serve |
 |-----------|------|----------------|
 | Firmware + `.mota` | `envycore/` submodule | `envycore/scripts/build-mota.sh` → `envycore/build/motas/` |
-| Bootloader | `envyos17/bootloader/` | `scripts/build-bl.sh` → `build/bootloader/` |
+| Bootloader | `bootloader/` sibling | `scripts/build-bl.sh` → `build/<branch>/bench/bootloader-<ver>/` |
 | motatool | [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) | install release or `cargo build`; **`motatool` on PATH** |
 | USB seeder | motatool repo | `motatool/scripts/seeder.sh` |
 | Distro manifest / publish | envyos17 | `ENVYOS_VERSIONS`, `scripts/version.sh`, `scripts/publish.sh` |
@@ -32,25 +32,24 @@ Initialize submodules: `git submodule update --init envycore bootloader`
 
 ## Versioning
 
-All component versions live in **`ENVYOS_VERSIONS`** at envyos17 root:
+Component pins live in **`ENVYOS_VERSIONS`**. **Bench output** uses `build/<git-branch>/bench/` (see `docs/distro-semver.md`). **Published** trees live at `build/vX.Y.Z/`.
 
 | Key | Role |
 |-----|------|
-| `distro` | Git release tag `v<distro>` → `envycore/build/motas/<distro>/` |
+| `distro` | Draft/published git tag — set at `./envyos publish` |
 | `firmware` | `-DFIRMWARE_VERSION` stamp (sync `envycore/envyos/VERSION`) |
-| `bootloader` | `build/bootloader/<bootloader>/` |
-| `motatool` | semver pin only — install from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases) |
+| `bootloader` | `build/<branch>/bench/bootloader-<ver>/` |
+| `motatool` | `build/<branch>/bench/motatool-<ver>/` |
+| `firmware` | `build/<branch>/bench/firmware-<ver>/<slug>/` |
 
-Helpers: **`scripts/version.sh`** (sources `envycore/scripts/version.sh` for firmware paths) — `read_distro_version`, `read_firmware_version`, `read_bootloader_version`, `read_motatool_version`, `list_envyos_versions`, `is_released_version`
+Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_envyos_versions`, `propose_next_distro_version`, `is_released_version`
 
-**Released versions** (`RELEASED_VERSIONS`): shipped distro tags with immutable `envycore/build/motas/<ver>/` trees.
+**Publish** — `./envyos publish [vX.Y.Z]` (run **`./envyos build`** first):
 
-**Publish a distro release** — `./scripts/publish.sh [version]` (run **`./scripts/build.sh`** first):
-
-1. Verify firmware delta matrix + bootloader tree
-2. Append to `RELEASED_VERSIONS`, write `.released` + `RELEASE_MANIFEST` (includes motatool pin)
-3. Zip firmware + bootloader → GitHub Release assets (includes \`envyos-<ver>-full.tgz\` complete bench bundle)
-4. Git tag `v<distro>`, bump `ENVYOS_VERSIONS` + `envycore/envyos/VERSION`
+1. Suggest tag: `./envyos semver suggest` (CHANGELOG + bundle policy)
+2. Promote `build/<branch>/bench/` → `build/<ver>/`
+3. Verify delta matrix, lock `RELEASED_VERSIONS`, zip, GitHub Release (+ `envyos-<ver>-full.tgz`)
+4. Git tag `v<ver>`; writes `distro=` + `firmware=` in `ENVYOS_VERSIONS`
 
 ```bash
 source scripts/version.sh && list_envyos_versions

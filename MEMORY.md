@@ -98,16 +98,17 @@ Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gat
 
 - Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
 - **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`, optional `peaky-*.zip`. Local caches: **`envycore/build/motas/`**, **`bootloader/build/`**, **`motatool/dist/`**, **`peaky_finders/dist/`**.
-- **`./scripts/publish.sh [version]`** — after `./scripts/build.sh` + bench verify: lock components, zip, GitHub Release, bump **`ENVYOS_VERSIONS`**. mcmt-gateway from distro v0.2.0; peaky when `peaky=` is set.
+- **`./scripts/publish.sh [version]`** — after `./envyos build`: promote `build/<branch>/bench/` → `build/vX.Y.Z/`, lock, GitHub Release. Suggests tag from CHANGELOG when version omitted (`docs/distro-semver.md`). Sets `distro=` + `firmware=` in `ENVYOS_VERSIONS` at publish.
 
 ## Versioning
 
-- **`ENVYOS_VERSIONS`** at repo root — bump together on `/freshen`:
-  - `distro` → git tags `v0.1.x`; firmware artifacts under **`envycore/build/motas/<distro>/`**
-  - `firmware` → must match `envycore/envyos/VERSION`; built by **`envycore/scripts/build-mota.sh`**
-  - `bootloader` → **`$MESHENVY_ROOT/bootloader/build/<bootloader>/`**
-  - `motatool` → mirrored into distro release; cache **`motatool/dist/<ver>/`**
-  - `peaky` → local `cargo build` when pinned; cache **`peaky_finders/dist/<ver>/`**; optional `gh` fetch for other platforms
+- **`ENVYOS_VERSIONS`** — component pins (`firmware`, `bootloader`, `motatool`, optional `peaky`, `mcmt-gateway`). **`distro=`** is the draft/published git tag, written at publish.
+- **Dev bench path:** `build/<git-branch>/bench/{firmware,bootloader,motatool}-<ver>/` (not `build/<distro>/`).
+- **Published path:** `build/vX.Y.Z/` (immutable after lock).
+- `firmware` → must match `envycore/envyos/VERSION`; built by **`envycore/scripts/build-mota.sh`**
+- `bootloader` → **`build/<branch>/bench/bootloader-<ver>/`**
+- `motatool` → **`build/<branch>/bench/motatool-<ver>/`**; mirrored into distro release
+- `peaky` → local `cargo build` when pinned
 - **Firmware build:** `$MESHENVY_ROOT/envycore/scripts/build-mota.sh` (or `./scripts/build.sh` from envyos bench). Requires **`motatool` on PATH** (or `motatool/dist/` fallback).
 
 ## OTA targets (`envycore/scripts/targets.txt`)

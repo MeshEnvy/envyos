@@ -97,6 +97,7 @@ usage: $0 [version] [--target <slug>]… [--release|--debug] [--base <version>] 
   --mota-jobs     Max concurrent motatool jobs — full + delta (default: \$ENVYOS_MOTA_JOBS or CPU count)
   --delta-jobs    Alias for --mota-jobs
   --hex-only      Build hex/uf2 only — skip .mota packaging (stock MeshCore without EndF/OTA)
+  --clean         Wipe bench output trees and force full rebuild (default: incremental)
   --targets-file  Target map (default: scripts/targets.txt)
   --list-targets  Print configured targets and exit
 
@@ -238,7 +239,7 @@ run_one_delta_job() {
   local slug base_ver base_hex fw_hex out
 
   IFS='|' read -r slug base_ver base_hex <<<"$job"
-  out="$(firmware_slug_dir "$VER" "$slug")"
+  out="$(firmware_slug_dir "$DISTRO_VER" "$VER" "$slug")"
   fw_hex="$(resolve_firmware_image_in_dir "$out" "$slug" "$VER")" || {
     echo "error: no firmware image for $slug $VER" >&2
     return 1
@@ -280,16 +281,26 @@ build_target_firmware() {
   local slug="$1"
   local env_name="$2"
   local out
-  out="$(firmware_slug_dir "$VER" "$slug")"
+  out="$(firmware_slug_dir "$DISTRO_VER" "$VER" "$slug")"
   local build_dir="$MC/.pio/build/$env_name"
   local identity_gen="$MC/tools/mota/gen_firmware_identity.py"
-  local mota_tid identity_cpp
+  local mota_tid identity_cpp dest_hex dest_uf2 dest_zip hex uf2 zip hex_sha cached_sha
 
   echo "==> $VER  target=$slug  env=$env_name"
 
   assert_version_not_released "$VER"
-  rm -rf "$out"
+  if ((CLEAN == 1)); then
+    rm -rf "$out"
+  fi
   mkdir -p "$out"
+
+  dest_hex="$out/$(firmware_artifact_name "$slug" "$VER" hex)"
+  dest_uf2="$out/$(firmware_artifact_name "$slug" "$VER" uf2)"
+  dest_zip="$out/$(firmware_artifact_name "$slug" "$VER" zip)"
+  cached_sha=""
+  if [[ -f "$out/.hex-sha256" ]]; then
+    cached_sha="$(tr -d '[:space:]' <"$out/.hex-sha256")"
+  fi
 
   if [[ -f "$identity_gen" ]]; then
     mota_tid="$(mota_target_id_for_env "$env_name")"
@@ -317,25 +328,26 @@ build_target_firmware() {
     )
   fi
 
-  local hex="$build_dir/firmware.hex"
-  local uf2="$build_dir/firmware.uf2"
-  local zip="$build_dir/firmware.zip"
-  local dest_hex dest_uf2 dest_zip
+  hex="$build_dir/firmware.hex"
+  uf2="$build_dir/firmware.uf2"
+  zip="$build_dir/firmware.zip"
 
   [[ -f "$hex" ]] || { echo "error: missing $hex" >&2; exit 1; }
 
-  dest_hex="$out/$(firmware_artifact_name "$slug" "$VER" hex)"
-  dest_uf2="$out/$(firmware_artifact_name "$slug" "$VER" uf2)"
-  dest_zip="$out/$(firmware_artifact_name "$slug" "$VER" zip)"
   cp -f "$hex" "$dest_hex"
   [[ -f "$uf2" ]] && cp -f "$uf2" "$dest_uf2"
   [[ -f "$zip" ]] && cp -f "$zip" "$dest_zip"
   write_mota_version_txt "$out" "$VER" "$BUILD_STAMP" "$GIT_SHA"
 
+  hex_sha="$(shasum -a 256 "$dest_hex" | awk '{print $1}')"
+  printf '%s\n' "$hex_sha" >"$out/.hex-sha256"
+
   echo "    saved $dest_hex"
 
   if [[ "$HEX_ONLY" -eq 1 ]]; then
     echo "    (--hex-only: skipping .mota packaging)"
+  elif [[ "$CLEAN" -eq 0 && -n "$cached_sha" && "$cached_sha" == "$hex_sha" ]]; then
+    echo "    skip motatool ($slug): firmware hex unchanged (use --clean to repack)"
   else
     echo "    queue motatool jobs for $slug"
     queue_mota_jobs_for_slug "$MT" "$slug" "$out"
@@ -346,6 +358,7 @@ build_target_firmware() {
 
 LIST_ONLY=0
 HEX_ONLY=0
+CLEAN=0
 TARGET_SET=all
 VER=""
 VER_EXPLICIT=0
@@ -356,6 +369,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --hex-only)
       HEX_ONLY=1
+      shift
+      ;;
+    --clean)
+      CLEAN=1
       shift
       ;;
     --debug)
@@ -463,15 +480,38 @@ else
   done
 fi
 
-OUT="$(firmware_bench_root "$VER")"
+if [[ "$VER_EXPLICIT" -eq 1 ]]; then
+  DISTRO_VER="$VER"
+  OUT="$(firmware_bench_root "$DISTRO_VER" "$VER")"
+  assert_version_not_released "$VER"
+else
+  DISTRO_VER="$(read_bench_tree_key)"
+  OUT="$(firmware_bench_root "$DISTRO_VER" "$FW_VER")"
+  assert_version_not_released "$FW_VER"
+fi
+migrate_firmware_package_tree "$DISTRO_VER" "$FW_VER" || true
+export DISTRO_VER
 OUT_ROOT="$OUT"
-assert_version_not_released "$VER"
-if [[ ${#SELECTED[@]} -eq 0 && "$TARGET_SET" != debug ]]; then
-  rm -rf "$OUT"
+if ((CLEAN == 1)); then
+  if [[ ${#SELECTED[@]} -eq 0 && "$TARGET_SET" != debug ]]; then
+    rm -rf "$OUT"
+  fi
 fi
 mkdir -p "$OUT"
-BUILD_STAMP="$(format_firmware_build_date)"
 GIT_SHA="$(git_short_sha "$MC")"
+BUILD_STAMP=""
+if ((CLEAN == 0)) && [[ -f "$OUT/version.txt" ]]; then
+  if [[ "$(normalize_version "$(head -1 "$OUT/version.txt" | tr -d '[:space:]')")" == "$VER" ]]; then
+    cached_tree_sha="$(sed -n '3p' "$OUT/version.txt" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -z "$cached_tree_sha" || "$cached_tree_sha" == "$GIT_SHA" ]]; then
+      BUILD_STAMP="$(sed -n '2p' "$OUT/version.txt" | tr -d '[:space:]')"
+    fi
+  fi
+fi
+BUILD_STAMP="${BUILD_STAMP:-$(format_firmware_build_date)}"
+if ((CLEAN == 0)) && [[ -f "$OUT/version.txt" ]] && [[ "$(sed -n '2p' "$OUT/version.txt" | tr -d '[:space:]')" == "$BUILD_STAMP" ]]; then
+  echo "incremental: reusing build stamp $BUILD_STAMP (PlatformIO cache in $MC/.pio/build/)"
+fi
 FW_VER_LABEL="${FW_VER}-${GIT_SHA}"
 write_mota_version_txt "$OUT" "$VER" "$BUILD_STAMP" "$GIT_SHA"
 

@@ -1,22 +1,12 @@
 #!/usr/bin/env bash
-# Publish a deployed EnvyOS distro release: lock all components, zip, GitHub Release, bump dev.
+# Publish a deployed EnvyOS distro release: promote branch bench → version tree, lock, GitHub Release.
 #
 # Usage:
-#   ./scripts/publish.sh [version] [--no-tag] [--no-release]
+#   ./scripts/publish.sh [version] [--yes] [--dry-run] [--no-tag] [--no-release]
 #   ./scripts/publish.sh --release-only [version]
 #
-# Each distro release bundles firmware (motas) and bootloader (OTAFIX) at the versions in
-# ENVYOS_VERSIONS. motatool and optional peaky are pinned in RELEASE_MANIFEST; binaries
-# come from MeshEnvy/motatool and MeshEnvy/peaky-finders GitHub Releases.
-# Run ./envyos build before publishing.
-#
-# Steps (default):
-#   1. Verify firmware + bootloader component trees exist
-#   2. Verify delta matrix for firmware
-#   3. Lock RELEASED_VERSIONS + .released markers + RELEASE_MANIFEST
-#   4. Populate GitHub release assets under build/<ver>/release/
-#   5. Git tag v<ver>, push tag, GitHub Release with staged assets
-#   6. Bump ENVYOS_VERSIONS and envycore/envyos/VERSION to next patch
+# Dev builds live under build/<branch>/bench/. Publish copies to build/<vX.Y.Z>/, locks, and uploads.
+# Without [version], suggests the next tag from CHANGELOG + bundle policy (see docs/distro-semver.md).
 
 set -euo pipefail
 
@@ -26,21 +16,23 @@ source "$ROOT/scripts/version.sh"
 
 usage() {
   cat >&2 <<EOF
-usage: $0 [version] [--no-tag] [--no-release]
+usage: $0 [version] [--yes] [--dry-run] [--no-tag] [--no-release]
        $0 --release-only [version]
 
-  Publish a shipped EnvyOS distro release and advance all component versions by one patch.
+  Publish a shipped EnvyOS distro release (promotes branch bench; locks artifacts).
 
 options:
+  --yes           Accept changelog-suggested version without prompting
+  --dry-run       Print recommendation and exit (no promote/lock/upload)
   --release-only  Re-upload GitHub Release assets for an already-published distro
   --no-tag        Skip creating a local git tag
   --no-release    Skip GitHub Release upload (stage dir is still built)
 
 examples:
-  $0 v0.1.2                 # publish all components, bump dev to v0.1.3
-  $0                          # publish ENVYOS_VERSIONS distro
+  $0                          # suggest tag, prompt, promote, publish
+  $0 v0.1.3 --yes             # publish explicit tag
+  $0 --dry-run                # show suggested bump only
   $0 --release-only v0.1.0    # backfill GitHub release assets
-  $0 v0.1.2 --no-release      # lock + zip locally without GitHub upload
 EOF
   exit 2
 }
@@ -48,10 +40,21 @@ EOF
 GIT_TAG=1
 GITHUB_RELEASE=1
 RELEASE_ONLY=0
+AUTO_YES=0
+DRY_RUN=0
 PUBLISH_VER=""
+BUILD_SLOT=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --yes)
+      AUTO_YES=1
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
     --no-tag)
       GIT_TAG=0
       shift
@@ -78,12 +81,50 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$PUBLISH_VER" ]]; then
+BUILD_SLOT="$(read_build_slot)"
+
+resolve_publish_version() {
+  local proposed input
+  if [[ -n "$PUBLISH_VER" ]]; then
+    return 0
+  fi
   if [[ "$RELEASE_ONLY" -eq 1 ]]; then
     echo "error: --release-only requires a version" >&2
     usage
   fi
-  PUBLISH_VER="$(read_distro_version)" || usage
+  echo "Build slot: $BUILD_SLOT"
+  print_distro_publish_recommendation >/dev/null
+  last="$(latest_released_distro_from_registry 2>/dev/null || true)"
+  level="$(suggest_distro_bump_level)"
+  proposed="$(propose_next_distro_version)"
+  echo "Last published:    ${last:-(none)}"
+  echo "Changelog suggests: $level"
+  echo "Proposed tag:      $proposed"
+  if ((DRY_RUN == 1)); then
+    exit 0
+  fi
+  if ((AUTO_YES == 1)) || [[ ! -t 0 ]]; then
+    PUBLISH_VER="$proposed"
+    echo "Using: $PUBLISH_VER"
+    return 0
+  fi
+  read -r -p "Publish version [$proposed]: " input
+  PUBLISH_VER="$(normalize_version "${input:-$proposed}")" || usage
+}
+
+if [[ -z "$PUBLISH_VER" ]]; then
+  resolve_publish_version
+elif ((DRY_RUN == 1)); then
+  echo "Build slot: $BUILD_SLOT"
+  echo "Requested tag: $PUBLISH_VER"
+  level="$(suggest_distro_bump_level)"
+  echo "Changelog suggests: $level"
+  exit 0
+fi
+
+if ((DRY_RUN == 1)); then
+  echo "publish:  $PUBLISH_VER (dry-run)"
+  exit 0
 fi
 
 if [[ "$RELEASE_ONLY" -eq 1 ]]; then
@@ -111,11 +152,12 @@ if is_released_version "$PUBLISH_VER"; then
   exit 1
 fi
 
-NEXT_VER="$(next_patch_version "$PUBLISH_VER")"
-
-echo "publish:  $PUBLISH_VER"
-echo "next dev: $NEXT_VER"
+echo "publish:  $PUBLISH_VER  (from slot $BUILD_SLOT)"
+set_distro_versions_for_publish "$PUBLISH_VER"
 list_envyos_versions | sed 's/^/  manifest /'
+
+promote_bench_to_release_tree "$BUILD_SLOT" "$PUBLISH_VER"
+populate_distro_release "$PUBLISH_VER"
 
 verify_release_components "$PUBLISH_VER"
 
@@ -130,13 +172,6 @@ done < <(collect_distro_release_assets "$PUBLISH_VER")
 for zip in "${ASSETS[@]}"; do
   echo "zip:      $zip"
 done
-
-write_envyos_versions "$NEXT_VER"
-write_firmware_version_file "$NEXT_VER"
-
-echo ""
-echo "ENVYOS_VERSIONS → $NEXT_VER"
-list_envyos_versions | sed 's/^/  /'
 
 if [[ "$GIT_TAG" -eq 1 ]]; then
   if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -154,5 +189,5 @@ if [[ "$GITHUB_RELEASE" -eq 1 ]]; then
 fi
 
 echo ""
-echo "Done. Commit release changes, then rebuild dev at $NEXT_VER:"
-echo "  ./envyos build"
+echo "Done. Commit release changes (ENVYOS_VERSIONS, RELEASED_VERSIONS, COMPONENTS.lock, CHANGELOG)."
+echo "Next dev cycle: keep building on branch slot build/$BUILD_SLOT/ — bump component keys in ENVYOS_VERSIONS as needed."

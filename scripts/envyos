@@ -27,7 +27,8 @@ commands:
   info                              Dev HEAD, last distro release, artifact status
   build [target] [options…]         Build components; default runs all + publish preview
   bump patch|minor|major <component>  Bump distro|firmware|bootloader|motatool
-  publish [options] [vX.Y.Z]        Full publish: stage + finalize + upload
+  semver suggest                    Proposed distro tag from CHANGELOG + bundle policy
+  publish [options] [vX.Y.Z]        Promote branch bench → version tree, lock, upload
   publish release [vX.Y.Z]          Refresh build/<ver>/release from bench
   publish finalize [vX.Y.Z]         Lock release + git tag (requires stage)
   publish upload vX.Y.Z             GitHub Release from staged files
@@ -51,6 +52,7 @@ examples:
   envyos build firmware --debug               # *-debug twins only
   envyos bump patch firmware
   envyos publish --dry-run
+  envyos semver suggest
   envyos publish release
   envyos publish finalize
   envyos publish upload v0.1.2
@@ -64,16 +66,22 @@ EOF
 }
 
 cmd_info() {
-  local id ver status last_distro
-  echo "EnvyOS dev HEAD (ENVYOS_VERSIONS)"
+  local id ver status last_distro slot proposed
+  slot="$(read_build_slot)"
+  echo "Build slot: $slot  →  build/$slot/"
+  echo ""
+  echo "Component versions (ENVYOS_VERSIONS)"
   list_envyos_versions | sed 's/^/  /'
+  proposed="$(propose_next_distro_version 2>/dev/null || echo '?')"
+  level="$(suggest_distro_bump_level 2>/dev/null || echo '?')"
+  echo "  (publish suggests: $level → $proposed)"
   echo ""
   echo "Submodules"
   printf '  envycore    %s\n' "$(submodule_git_sha envycore)"
   printf '  bootloader  %s\n' "$(submodule_git_sha bootloader)"
   printf '  motatool    %s\n' "$(submodule_git_sha motatool)"
   echo ""
-  last_distro="$(latest_released_distro || true)"
+  last_distro="$(latest_released_distro_from_registry 2>/dev/null || latest_released_distro || true)"
   if [[ -n "$last_distro" ]]; then
     echo "Last published distro: $last_distro"
     for id in distro firmware bootloader motatool; do
@@ -99,13 +107,22 @@ cmd_info() {
       printf '  %-12s %-8s  %s  (%s)\n' "$id" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
     fi
   done
-  distro_ver="$(read_distro_version)"
-  manifest_path="$(release_manifest_path "$distro_ver" 2>/dev/null || true)"
-  if [[ -n "$manifest_path" && -f "$manifest_path" ]]; then
-    :
-  else
-    printf '  distro       %-8s  next publish (manifest pending)\n' "$distro_ver"
+  distro_ver="$(read_distro_version 2>/dev/null || true)"
+  if [[ -n "$distro_ver" ]]; then
+    printf '  draft distro   %-8s  (set at publish; bench uses branch slot)\n' "$distro_ver"
   fi
+}
+
+cmd_semver() {
+  case "${1:-suggest}" in
+    suggest)
+      print_distro_publish_recommendation
+      ;;
+    *)
+      echo "usage: envyos semver suggest" >&2
+      exit 2
+      ;;
+  esac
 }
 
 cmd_build() {
@@ -238,6 +255,10 @@ case "$1" in
   changelog)
     shift
     exec "$SCRIPTS/changelog.sh" "$@"
+    ;;
+  semver)
+    shift
+    cmd_semver "$@"
     ;;
   -h | --help | help)
     usage

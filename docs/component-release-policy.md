@@ -24,7 +24,7 @@ GitHub Release bodies come from `CHANGELOG.md`, not commit subjects.
 
 ## Distro coupling
 
-[MeshEnvy/envyos](https://github.com/MeshEnvy/envyos) owns the **tested version matrix** (`ENVYOS_VERSIONS`) and **one-stop release assets**. Component repos own source and build machinery; `publish.sh` zips artifacts from sibling paths and uploads to the EnvyOS GitHub Release.
+[MeshEnvy/envyos](https://github.com/MeshEnvy/envyos) owns the **tested version matrix** (`ENVYOS_VERSIONS`) and **one-stop release assets**. Dev builds use **`build/<branch>/bench/`**; publish promotes to **`build/vX.Y.Z/`**. See [`distro-semver.md`](distro-semver.md).
 
 After cutting a component release, bump `ENVYOS_VERSIONS` and `COMPONENTS.lock` in envyos when that version ships in a bundle.
 

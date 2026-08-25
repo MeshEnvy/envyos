@@ -10,7 +10,7 @@
 #
 # UF2: bootloader/_build/build-<board>/<board>_bootloader-<ver>.uf2
 # Recovery: bootloader/_build/build-<board>/<board>_bootloader-*.recovery.zip
-# Output: build/<ver>/bench/bootloader/
+# Output: build/<distro>/bench/bootloader-<ver>/
 #
 # Requires: Docker. Submodules under bootloader/ are initialized if needed.
 
@@ -31,6 +31,7 @@ usage: $0 [version] [--targets-file <path>] [--list-boards]
        $0 [version] BOARD [BOARD…]
 
   version         Optional override; default is ENVYOS_VERSIONS bootloader (e.g. v0.1.0)
+  --clean         Wipe bench bootloader tree before build (default: incremental)
   (no BOARD args) Build otafix bootloaders for base boards in targets.txt
   BOARD…          Build explicit otafix board name(s) instead
   --list-boards   Print inferred otafix boards from targets file and exit
@@ -40,10 +41,15 @@ EOF
 }
 
 LIST_BOARDS=0
+CLEAN=0
 POSITIONAL=()
 
 while (($# > 0)); do
   case "$1" in
+    --clean)
+      CLEAN=1
+      shift
+      ;;
     --targets-file)
       [[ $# -ge 2 ]] || usage
       TARGETS_FILE=$2
@@ -88,18 +94,24 @@ if [[ -z "$VER" ]]; then
   VER="$(read_bootloader_version_file)" || usage
 fi
 
-OUT="$(bootloader_bench_root "$VER")"
+DISTRO_VER="$(read_bench_tree_key)"
+OUT="$(bootloader_bench_root "$DISTRO_VER" "$VER")"
+migrate_bootloader_package_tree "$DISTRO_VER" "$VER" || true
 assert_component_tree_not_released bootloader "$VER"
 
 BOARDS=()
+board=""
 if ((${#EXPLICIT_BOARDS[@]} > 0)); then
-  BOARDS=("${EXPLICIT_BOARDS[@]}")
-else
+  for board in "${EXPLICIT_BOARDS[@]}"; do
+    [[ -n "$board" ]] && BOARDS+=("$board")
+  done
+fi
+if ((${#BOARDS[@]} == 0)); then
   boards_out=""
   if ! boards_out="$(otafix_boards_from_targets_file "$TARGETS_FILE")"; then
     exit 1
   fi
-  while IFS= read -r board; do
+  while IFS= read -r board || [[ -n "$board" ]]; do
     [[ -n "$board" ]] && BOARDS+=("$board")
   done <<<"$boards_out"
 fi
@@ -135,37 +147,41 @@ build_board() {
   )
 
   local build_dir="$OTAFIX/_build/build-$board"
-  local uf2
+  local uf2 uf2_name zip zip_name
+
   uf2="$(ls -1t "$build_dir"/"${board}"_bootloader-"${git_version}".uf2 2>/dev/null | head -1 || true)"
   if [[ -z "$uf2" ]]; then
-    uf2="$(ls -1t "$build_dir"/*_bootloader-*.uf2 2>/dev/null | head -1 || true)"
+    uf2="$(ls -1t "$build_dir"/update-"${board}"_bootloader-*_nosd.uf2 2>/dev/null | head -1 || true)"
   fi
-  [[ -n "$uf2" && -f "$uf2" ]] || { echo "error: no *_bootloader-*.uf2 in $build_dir" >&2; exit 1; }
+  [[ -n "$uf2" && -f "$uf2" ]] || { echo "error: no bootloader UF2 in $build_dir" >&2; exit 1; }
 
+  uf2_name="$(bootloader_bench_uf2_name "$board" "$VER")"
   mkdir -p "$OUT"
-  cp -f "$uf2" "$OUT/"
-  # recovery zip (break-glass BL+SD) if present
-  local zip
+  cp -f "$uf2" "$OUT/$uf2_name"
+
   zip="$(ls -1t "$build_dir"/"${board}"_bootloader-"${git_version}".recovery.zip 2>/dev/null | head -1 || true)"
   if [[ -z "$zip" ]]; then
-    zip="$(ls -1t "$build_dir"/*_bootloader-*.recovery.zip 2>/dev/null | head -1 || true)"
+    zip="$(ls -1t "$build_dir"/"${board}"_bootloader-*_s140_*.zip 2>/dev/null | head -1 || true)"
   fi
   if [[ -n "$zip" && -f "$zip" ]]; then
-    cp -f "$zip" "$OUT/"
-    echo "    recovery: $OUT/$(basename "$zip")"
+    zip_name="$(bootloader_bench_recovery_name "$board" "$VER")"
+    cp -f "$zip" "$OUT/$zip_name"
+    echo "    recovery: $OUT/$zip_name"
   fi
 
   echo "    UF2: $uf2"
-  echo "    copy: $OUT/$(basename "$uf2")"
+  echo "    copy: $OUT/$uf2_name"
 }
 
-if ((${#EXPLICIT_BOARDS[@]} > 0)); then
+if ((${#EXPLICIT_BOARDS[@]} > 0 && ${#BOARDS[@]} > 0)); then
   echo "==> otafix boards: ${BOARDS[*]} (explicit)"
 else
   echo "==> otafix boards: ${BOARDS[*]} (from $TARGETS_FILE)"
 fi
 
-rm -rf "$OUT"
+if ((CLEAN == 1)); then
+  rm -rf "$OUT"
+fi
 mkdir -p "$OUT"
 printf '%s\n' "$VER" >"$OUT/version.txt"
 

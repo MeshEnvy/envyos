@@ -1,4 +1,4 @@
-# Git component pins — v0.1.3 release
+# Git component pins — updated at publish; dev branch tracks integration heads
 firmware_repo=MeshEnvy/meshcore-firmware
 firmware_sha=7e4ff35ba4c61cde3afc27a9fff7361e9c68082a
 bootloader_repo=MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX

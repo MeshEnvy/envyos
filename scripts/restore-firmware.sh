@@ -132,7 +132,7 @@ restore_slug_from_flat_assets() {
   local ver="$1"
   local slug="$2"
   local out
-  out="$(firmware_slug_dir "$ver" "$slug")"
+  out="$(firmware_slug_dir "$ver" "$ver" "$slug")"
   local tmp asset_uf2 asset
   local -a dl_patterns=()
 
@@ -204,7 +204,7 @@ restore_from_legacy_zip() {
 
   gh release download "$ver" -p "$zip_name" -D "$tmp"
   unzip -q "$tmp/$zip_name" -d "$tmp/extract"
-  dest_root="$(firmware_bench_root "$ver")"
+  dest_root="$(firmware_bench_root "$ver" "$ver")"
   distro_root="$(distro_tree_root "$ver")"
   mkdir -p "$dest_root" "$distro_root"
 
@@ -266,9 +266,9 @@ restore_firmware_version() {
   migrate_legacy_firmware_tree "$ver" || true
 
   if [[ "$FORCE" -eq 1 ]]; then
-    rm -rf "$(firmware_bench_root "$ver")"
+    rm -rf "$(firmware_bench_root "$ver" "$ver")"
   elif firmware_version_tree_present "$ver"; then
-    echo "==> $ver already present (delete $(firmware_bench_root "$ver") to re-download, or use --force)"
+    echo "==> $ver already present (delete $(firmware_bench_root "$ver" "$ver") to re-download, or use --force)"
     return 0
   fi
 
@@ -284,7 +284,7 @@ list_restore_versions() {
   if ((${#SELECTED[@]} > 0)); then
     local v
     for v in "${SELECTED[@]}"; do
-      normalize_version "$v"
+      printf '%s\n' "$(normalize_version "$v")"
     done
     return 0
   fi

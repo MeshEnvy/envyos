@@ -17,7 +17,8 @@ usage: envyos build [options] [firmware-version] [build-mota options…]
   --firmware-only   Firmware/.mota only (aliases: --mota-only, --no-bootloader)
   --motatool-only   motatool release binaries (all platforms)
   --peaky-only      Peaky host binary only
-  --release-only    Refresh build/<distro>/release/ from bench (no builds)
+  --release-only    Refresh build/<branch>/release/ from bench (no builds)
+  --clean           Wipe bench output trees and force full rebuild
   --no-release      Skip release/ after build
   --no-peaky        Skip peaky even when peaky= is pinned
   --list-versions   Print ENVYOS_VERSIONS and exit
@@ -34,10 +35,15 @@ BUILD_MOTATOOL=1
 BUILD_FIRMWARE=1
 BUILD_PEAKY=1
 BUILD_RELEASE=1
+BUILD_CLEAN=0
 MOTA_ARGS=()
 
 while (($# > 0)); do
   case "$1" in
+    --clean)
+      BUILD_CLEAN=1
+      shift
+      ;;
     --bootloader-only)
       BUILD_MOTATOOL=0
       BUILD_FIRMWARE=0
@@ -103,12 +109,13 @@ if ((BUILD_BL == 0 && BUILD_MOTATOOL == 0 && BUILD_FIRMWARE == 0 && BUILD_PEAKY 
   exit 1
 fi
 
-distro_ver="$(read_distro_version)"
+distro_ver="$(read_bench_tree_key)"
+maybe_migrate_version_bench_to_slot "$distro_ver"
 bench_root="$(distro_bench_root "$distro_ver")"
 release_root="$(distro_release_root "$distro_ver")"
 
 if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1)); then
-  echo "==> EnvyOS build"
+  echo "==> EnvyOS build (slot: $distro_ver$( ((BUILD_CLEAN == 1)) && printf ', clean'))"
   list_envyos_versions | sed 's/^/    /'
   export ENVYOS_SKIP_RELEASE=1
 fi
@@ -117,21 +124,35 @@ if ((BUILD_BL == 1)); then
   echo ""
   bl_ver="$(read_bootloader_version)"
   echo "==> bootloader ($bl_ver)"
-  "$SCRIPTS/build-bl.sh"
+  if ((BUILD_CLEAN == 1)); then
+    "$SCRIPTS/build-bl.sh" --clean
+  else
+    "$SCRIPTS/build-bl.sh"
+  fi
 fi
 
 if ((BUILD_MOTATOOL == 1)); then
   echo ""
   mt_ver="$(read_motatool_version)"
   echo "==> motatool ($mt_ver, all platforms)"
-  "$SCRIPTS/build-motatool.sh"
+  if ((BUILD_CLEAN == 1)); then
+    "$SCRIPTS/build-motatool.sh" --clean
+  else
+    "$SCRIPTS/build-motatool.sh"
+  fi
 fi
 
 if ((BUILD_FIRMWARE == 1)); then
   echo ""
   fw_ver="$(read_firmware_version)"
   echo "==> firmware + .mota ($fw_ver)"
-  if ((${#MOTA_ARGS[@]} > 0)); then
+  if ((BUILD_CLEAN == 1)); then
+    if ((${#MOTA_ARGS[@]} > 0)); then
+      "$SCRIPTS/build-mota.sh" --clean "${MOTA_ARGS[@]}"
+    else
+      "$SCRIPTS/build-mota.sh" --clean
+    fi
+  elif ((${#MOTA_ARGS[@]} > 0)); then
     "$SCRIPTS/build-mota.sh" "${MOTA_ARGS[@]}"
   else
     "$SCRIPTS/build-mota.sh"
@@ -155,16 +176,16 @@ if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY 
   echo ""
   echo "==> EnvyOS build complete"
   if ((BUILD_BL == 1)); then
-    echo "    bench/bootloader: $(bootloader_bench_root "$(read_bootloader_version)")/"
+    echo "    bench/bootloader: $(bootloader_bench_root "$distro_ver" "$(read_bootloader_version)")/"
   fi
   if ((BUILD_MOTATOOL == 1)); then
-    echo "    bench/motatool:   $(motatool_bench_root "$distro_ver")/"
+    echo "    bench/motatool:   $(motatool_bench_root "$distro_ver" "$(read_motatool_version)")/"
   fi
   if ((BUILD_FIRMWARE == 1)); then
-    echo "    bench/firmware:   $(firmware_bench_root "$(read_firmware_version)")/"
+    echo "    bench/firmware:   $(firmware_bench_root "$distro_ver" "$(read_firmware_version)")/"
   fi
   if ((BUILD_PEAKY == 1)) && ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
-    echo "    bench/peaky:      $(peaky_bench_root "$distro_ver")/"
+    echo "    bench/peaky:      $(peaky_bench_root "$distro_ver" "$ver")/"
   fi
   if ((BUILD_RELEASE == 1)); then
     echo "    release:          $release_root/"

@@ -18,6 +18,7 @@ usage: $0 [--host-only] [--no-docker] [--target <platform>]…
 
   (default)     All release platforms (linux via Docker; darwin native on macOS)
   --host-only   Current host platform only (native; fast bench path)
+  --clean       Wipe staged bench binaries before build (default: incremental)
   --no-docker   Native cargo for linux targets too (needs host cross toolchain)
   --target      One platform (repeatable; overrides default)
 
@@ -100,8 +101,17 @@ stage_built_platform() {
   echo "    staged: $out"
 }
 
+motatool_platform_up_to_date() {
+  local platform=$1 out rel
+  platform="$(normalize_motatool_platform_slug "$platform")" || return 1
+  out="$(motatool_staged_binary_path "$platform")"
+  rel="$(motatool_cargo_release_path "$platform")"
+  [[ -x "$out" && -x "$rel" ]] || return 1
+  [[ ! "$rel" -nt "$out" ]]
+}
+
 build_motatool_platform_native() {
-  local platform=$1 mt_ver cargo_bin cargo_dir triple host
+  local platform=$1 mt_ver cargo_bin cargo_dir triple host out
   platform="$(normalize_motatool_platform_slug "$platform")" || return 1
   if [[ "$(motatool_platform_os "$platform")" == darwin && "$(uname -s)" != Darwin ]]; then
     echo "error: $platform requires a macOS host (Apple linker + SDK)" >&2
@@ -109,6 +119,11 @@ build_motatool_platform_native() {
   fi
   mt_ver="$(read_motatool_version)"
   verify_motatool_version_sync "$mt_ver"
+  out="$(motatool_staged_binary_path "$platform")"
+  if ((CLEAN == 0)) && motatool_platform_up_to_date "$platform"; then
+    echo "==> skip motatool $mt_ver ($platform, staged)"
+    return 0
+  fi
   require_motatool_source
   cargo_bin="$(find_cargo)"
   cargo_dir="$(dirname "$cargo_bin")"
@@ -126,16 +141,26 @@ build_motatool_platform_native() {
 
 build_motatool_linux_docker() {
   local -a platforms=("$@")
-  local mt_ver triple cmd platform rel
+  local mt_ver triple cmd platform rel todo=()
   ((${#platforms[@]} > 0)) || return 0
 
   mt_ver="$(read_motatool_version)"
   verify_motatool_version_sync "$mt_ver"
+  for platform in "${platforms[@]}"; do
+    platform="$(normalize_motatool_platform_slug "$platform")" || return 1
+    if ((CLEAN == 0)) && motatool_platform_up_to_date "$platform"; then
+      echo "==> skip motatool $mt_ver ($platform, staged)"
+      continue
+    fi
+    todo+=("$platform")
+  done
+  ((${#todo[@]} == 0)) && return 0
+
   require_motatool_source
   ensure_motatool_docker_image
 
   cmd=""
-  for platform in "${platforms[@]}"; do
+  for platform in "${todo[@]}"; do
     platform="$(normalize_motatool_platform_slug "$platform")" || return 1
     [[ "$(motatool_platform_os "$platform")" == linux ]] || {
       echo "error: internal: docker build called for non-linux platform $platform" >&2
@@ -148,23 +173,28 @@ build_motatool_linux_docker() {
     cmd+="cargo build --release --target $triple"
   done
 
-  echo "==> motatool $mt_ver (linux: ${platforms[*]}, docker)"
+  echo "==> motatool $mt_ver (linux: ${todo[*]}, docker)"
   docker run --rm \
     -v "$MOTATOOL_ROOT:/src" \
     -w /src \
     "$MOTATOOL_DOCKER_IMAGE" \
     sh -c "$cmd"
 
-  for platform in "${platforms[@]}"; do
+  for platform in "${todo[@]}"; do
     stage_built_platform "$platform"
   done
 }
 
 HOST_ONLY=0
 NO_DOCKER=0
+CLEAN=0
 PLATFORMS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --clean)
+      CLEAN=1
+      shift
+      ;;
     --host-only)
       HOST_ONLY=1
       shift
@@ -217,10 +247,14 @@ if ((${#DARWIN_PLATFORMS[@]} > 0)) && [[ "$(uname -s)" != Darwin ]]; then
   DARWIN_PLATFORMS=()
 fi
 
-distro_ver="$(read_distro_version)"
-mt_bench="$(motatool_bench_root "$distro_ver")"
-echo "==> motatool bench: clean $mt_bench"
-rm -rf "$mt_bench"
+distro_ver="$(read_bench_tree_key)"
+mt_ver="$(read_motatool_version)"
+migrate_motatool_package_tree "$distro_ver" "$mt_ver" || true
+mt_bench="$(motatool_bench_root "$distro_ver" "$mt_ver")"
+if ((CLEAN == 1)); then
+  echo "==> motatool bench: clean $mt_bench"
+  rm -rf "$mt_bench"
+fi
 mkdir -p "$mt_bench"
 
 if ((${#LINUX_PLATFORMS[@]} > 0)); then

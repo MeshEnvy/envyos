@@ -173,8 +173,8 @@ peaky_host_rust_target() {
 peaky_cache_has_binary() {
   local ver=$1 dir sub distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
-  dir="$(peaky_bench_root "$distro")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(peaky_bench_root "$distro" "$ver")"
   [[ -d "$dir" ]] || return 1
   if [[ -x "$dir/peaky" ]]; then
     return 0
@@ -190,7 +190,7 @@ build_peaky_local() {
   local ver=$1 target ver_plain staging bin distro
   ver="$(normalize_version "$ver")"
   ver_plain="${ver#v}"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   target="$(peaky_host_rust_target)" || return 1
   staging="$(peaky_staged_binary_dir "$ver" "$target" "$distro")"
   mkdir -p "$staging"
@@ -208,7 +208,7 @@ build_peaky_local() {
   if command -v strip >/dev/null 2>&1; then
     strip "$staging/peaky" 2>/dev/null || true
   fi
-  printf '%s\n' "$ver" >"$(peaky_bench_root "$distro")/version.txt"
+  printf '%s\n' "$ver" >"$(peaky_bench_root "$distro" "$ver")/version.txt"
   echo "peaky: staged $staging/peaky"
 }
 
@@ -216,8 +216,8 @@ download_peaky_release_assets() {
   local ver=$1 missing_only=${2:-0}
   local dir tag tgz sub distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
-  dir="$(peaky_bench_root "$distro")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(peaky_bench_root "$distro" "$ver")"
   mkdir -p "$dir"
   tag="${ver#v}"
   tag="v$tag"
@@ -269,7 +269,7 @@ is_released_version() {
 assert_version_not_released() {
   local ver="$1"
   if is_released_firmware_version "$ver" || is_released_version "$ver"; then
-    echo "error: $ver is released — $(firmware_bench_root "$ver") is immutable" >&2
+    echo "error: $ver is released — $(firmware_bench_root "$ver" "$ver") is immutable" >&2
     echo "       (listed in RELEASED_FIRMWARE or RELEASED_VERSIONS)" >&2
     exit 1
   fi
@@ -355,8 +355,9 @@ write_envyos_versions() {
   mcmt="$(read_optional_envyos_version_key mcmt-gateway 2>/dev/null || true)"
   peaky="$(read_optional_envyos_version_key peaky 2>/dev/null || true)"
   cat >"$ENVYOS_VERSIONS_FILE" <<EOF
-# EnvyOS component versions (MAJOR.MINOR.PATCH). Bump together on /freshen.
-# Git release tag: v<distro>
+# EnvyOS component versions (MAJOR.MINOR.PATCH).
+# Set explicitly: ./envyos bump patch|minor|major distro|firmware|bootloader|motatool
+# Git release tag: v<distro> (publish locks; does not auto-bump)
 distro=$ver
 firmware=$ver
 bootloader=$bootloader
@@ -458,6 +459,8 @@ component_in_distro_bundle() {
   local id=$1 distro_ver=$2
   case "$id" in
     mcmt-gateway)
+      read_optional_envyos_version_key mcmt-gateway >/dev/null 2>&1 && return 0
+      is_version_tree_key "$distro_ver" || return 1
       local major minor patch
       read -r major minor patch <<<"$(parse_version "$distro_ver")"
       (( major > 0 || minor >= 2 ))
@@ -473,8 +476,8 @@ ensure_motatool_release_cache() {
   local ver=$1
   ver="$(normalize_version "$ver")"
   local dir distro
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
-  dir="$(motatool_bench_root "$distro")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(motatool_bench_root "$distro" "$ver")"
 
   if motatool_all_platforms_present "$ver"; then
     return 0
@@ -517,8 +520,8 @@ download_motatool_release_assets() {
   local ver=$1 missing_only=${2:-0}
   local dir tag tgz base triple platform tmp out distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
-  dir="$(motatool_bench_root "$distro")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(motatool_bench_root "$distro" "$ver")"
   mkdir -p "$dir"
   tag="${ver#v}"
   tag="v$tag"
@@ -556,8 +559,8 @@ ensure_peaky_release_cache() {
   local ver=$1
   ver="$(normalize_version "$ver")"
   local dir distro
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
-  dir="$(peaky_bench_root "$distro")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(peaky_bench_root "$distro" "$ver")"
 
   if peaky_all_platforms_present "$ver"; then
     return 0
@@ -603,7 +606,7 @@ ensure_peaky_release_cache() {
 write_released_marker() {
   local ver="$1"
   local dir
-  dir="$(firmware_bench_root "$ver")"
+  dir="$(firmware_bench_root "$ver" "$ver")"
   local today
   today="$(date '+%Y-%m-%d')"
   cat >"$dir/.released" <<EOF
@@ -630,7 +633,7 @@ list_release_component_ids() {
 
 component_build_root() {
   local id=$1 distro_ver=${2:-}
-  distro_ver="${distro_ver:-$(read_distro_version 2>/dev/null || echo v0.0.0)}"
+  distro_ver="${distro_ver:-$(read_bench_tree_key 2>/dev/null || echo dev)}"
   case "$id" in
     firmware | bootloader | motatool | peaky) distro_bench_root "$distro_ver" ;;
     mcmt-gateway) printf '%s/dist' "$MCMT_ROOT" ;;
@@ -641,11 +644,11 @@ component_build_root() {
   esac
 }
 
-# Component version at publish time (before ENVYOS_VERSIONS bump).
+# Component version pinned in ENVYOS_VERSIONS (or equals distro tag after publish).
 component_version_at_publish() {
   local id=$1 distro_ver=$2
   case "$id" in
-    firmware) printf '%s' "$distro_ver" ;;
+    firmware) read_firmware_version ;;
     bootloader) read_bootloader_version ;;
     motatool) read_motatool_version ;;
     mcmt-gateway) read_mcmt_gateway_version ;;
@@ -659,12 +662,12 @@ component_version_at_publish() {
 
 component_build_dir() {
   local id=$1 ver=$2 distro_ver=${3:-}
-  distro_ver="${distro_ver:-$(read_distro_version 2>/dev/null || printf '%s' "$ver")}"
+  distro_ver="${distro_ver:-$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")}"
   case "$id" in
-    firmware) firmware_bench_root "$ver" ;;
-    bootloader) bootloader_bench_root "$ver" ;;
-    motatool) motatool_bench_root "$distro_ver" ;;
-    peaky) peaky_bench_root "$distro_ver" ;;
+    firmware) firmware_bench_root "$distro_ver" "$ver" ;;
+    bootloader) bootloader_bench_root "$distro_ver" "$ver" ;;
+    motatool) motatool_bench_root "$distro_ver" "$ver" ;;
+    peaky) peaky_bench_root "$distro_ver" "$ver" ;;
     mcmt-gateway) printf '%s/%s' "$MCMT_ROOT/dist" "$ver" ;;
     *)
       echo "error: unknown release component: $id" >&2
@@ -742,7 +745,7 @@ read_release_manifest_key() {
   local file line k val
   file="$(release_manifest_path "$distro_ver")"
   if [[ ! -f "$file" ]]; then
-    file="$(firmware_bench_root "$distro_ver")/RELEASE_MANIFEST"
+    file="$(firmware_bench_root "$distro_ver" "$distro_ver")/RELEASE_MANIFEST"
   fi
   [[ -f "$file" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -772,10 +775,20 @@ manifest_component_version() {
     printf '%s' "$from_manifest"
     return 0
   fi
-  ver="$(normalize_version "$distro_ver")"
-  if [[ -d "$(component_build_dir "$id" "$ver" "$distro_ver")" ]]; then
+  ver=""
+  if is_version_tree_key "$distro_ver"; then
+    ver="$(normalize_version "$distro_ver")"
+  fi
+  if [[ -n "$ver" && -d "$(component_build_dir "$id" "$ver" "$distro_ver")" ]]; then
     printf '%s' "$ver"
     return 0
+  fi
+  if [[ "$id" == firmware ]]; then
+    ver="$(read_firmware_version 2>/dev/null || true)"
+    if [[ -n "$ver" && -d "$(component_build_dir "$id" "$ver" "$distro_ver")" ]]; then
+      printf '%s' "$ver"
+      return 0
+    fi
   fi
   if [[ "$id" != firmware ]]; then
     while IFS= read -r legacy || [[ -n "$legacy" ]]; do
@@ -793,7 +806,8 @@ ensure_release_manifest_for_backfill() {
   local distro_ver=$1
   local firmware_ver bootloader_ver motatool_ver published mcmt_ver peaky_ver
   [[ -f "$(release_manifest_path "$distro_ver")" ]] && return 0
-  [[ -f "$(firmware_bench_root "$distro_ver")/RELEASE_MANIFEST" ]] && return 0
+  [[ -f "$(firmware_bench_root "$distro_ver" "$distro_ver")/RELEASE_MANIFEST" ]] && return 0
+  [[ -f "$(distro_bench_root "$distro_ver")/firmware/RELEASE_MANIFEST" ]] && return 0
   firmware_ver="$(manifest_component_version firmware "$distro_ver")"
   bootloader_ver="$(manifest_component_version bootloader "$distro_ver")"
   motatool_ver="$(manifest_component_version motatool "$distro_ver")"
@@ -862,11 +876,6 @@ verify_release_components() {
       }
     fi
   done < <(list_release_component_ids "$distro_ver")
-
-  if [[ "$firmware_ver" != "$(read_distro_version)" ]]; then
-    echo "error: publish version $distro_ver != ENVYOS_VERSIONS distro ($(read_distro_version))" >&2
-    return 1
-  fi
 
   verify_components_lock || true
   verify_release_delta_matrix "$distro_ver" "$ENVYCORE_ROOT/scripts/targets.txt"
@@ -1053,3 +1062,5 @@ ensure_git_tag_on_remote() {
 source "$OTA_ROOT/scripts/targets-lib.sh"
 # shellcheck source=scripts/build-lib.sh
 source "$OTA_ROOT/scripts/build-lib.sh"
+# shellcheck source=scripts/distro-semver.sh
+source "$OTA_ROOT/scripts/distro-semver.sh"

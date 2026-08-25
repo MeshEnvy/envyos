@@ -2,7 +2,7 @@
 # Shared build/publish helpers for envyos17 (sourced by version.sh).
 set -euo pipefail
 
-# --- paths: build/<distro>/bench + build/<distro>/release ---
+# --- paths: build/<branch-slot>/bench during dev; build/<vX.Y.Z>/ at publish ---
 
 init_build_paths() {
   BUILD_ROOT="${BUILD_ROOT:-$OTA_ROOT/build}"
@@ -14,8 +14,55 @@ init_build_paths() {
 
 init_build_paths
 
+sanitize_build_slot() {
+  local raw=$1
+  raw="${raw//\//-}"
+  raw="$(printf '%s' "$raw" | tr -cs 'A-Za-z0-9._-' '-')"
+  raw="${raw#-}"
+  raw="${raw%-}"
+  [[ -n "$raw" ]] || raw="unknown"
+  printf '%s' "$raw"
+}
+
+read_git_branch_name() {
+  local branch
+  branch="$(git -C "$OTA_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)" || {
+    printf 'unknown'
+    return 0
+  }
+  if [[ "$branch" == "HEAD" ]]; then
+    branch="$(git -C "$OTA_ROOT" describe --tags --exact-match 2>/dev/null || git -C "$OTA_ROOT" rev-parse --short HEAD 2>/dev/null || echo detached)"
+  fi
+  printf '%s' "$branch"
+}
+
+read_build_slot() {
+  if [[ -n "${ENVYOS_BUILD_SLOT:-}" ]]; then
+    sanitize_build_slot "$ENVYOS_BUILD_SLOT"
+    return 0
+  fi
+  sanitize_build_slot "$(read_git_branch_name)"
+}
+
+is_version_tree_key() {
+  normalize_version "$1" >/dev/null 2>&1
+}
+
+normalize_tree_key() {
+  local key=$1
+  if normalize_version "$key" >/dev/null 2>&1; then
+    normalize_version "$key"
+  else
+    sanitize_build_slot "$key"
+  fi
+}
+
+read_bench_tree_key() {
+  read_build_slot
+}
+
 distro_tree_root() {
-  printf '%s/%s' "$BUILD_ROOT" "$(normalize_version "$1")"
+  printf '%s/%s' "$BUILD_ROOT" "$(normalize_tree_key "$1")"
 }
 
 distro_bench_root() {
@@ -30,25 +77,158 @@ release_manifest_path() {
   printf '%s/RELEASE_MANIFEST' "$(distro_tree_root "$1")"
 }
 
+package_bench_root() {
+  local tree_key=$1 package=$2 component_ver=$3
+  tree_key="$(normalize_tree_key "$tree_key")"
+  component_ver="$(normalize_version "$component_ver")"
+  printf '%s/%s-%s' "$(distro_bench_root "$tree_key")" "$package" "$component_ver"
+}
+
 firmware_bench_root() {
-  printf '%s/firmware' "$(distro_bench_root "$1")"
+  local tree_key=${1:-$(read_bench_tree_key)}
+  local fw_ver=${2:-$(read_firmware_version 2>/dev/null || echo v0.0.0)}
+  package_bench_root "$tree_key" firmware "$fw_ver"
 }
 
 firmware_slug_dir() {
-  local ver=$1 slug=$2
-  printf '%s/%s' "$(firmware_bench_root "$ver")" "$slug"
+  local distro_ver=$1 fw_ver=$2 slug=$3
+  if [[ $# -eq 2 ]]; then
+    slug="$fw_ver"
+    fw_ver="$distro_ver"
+  fi
+  printf '%s/%s' "$(firmware_bench_root "$distro_ver" "$fw_ver")" "$slug"
 }
 
 bootloader_bench_root() {
-  printf '%s/bootloader' "$(distro_bench_root "$1")"
+  local tree_key=${1:-$(read_bench_tree_key)}
+  local bl_ver=${2:-$(read_bootloader_version 2>/dev/null || echo v0.0.0)}
+  package_bench_root "$tree_key" bootloader "$bl_ver"
 }
 
 motatool_bench_root() {
-  printf '%s/motatool' "$(distro_bench_root "${1:-$(read_distro_version)}")"
+  local tree_key=${1:-$(read_bench_tree_key)}
+  local mt_ver=${2:-$(read_motatool_version 2>/dev/null || echo v0.0.0)}
+  package_bench_root "$tree_key" motatool "$mt_ver"
 }
 
 peaky_bench_root() {
-  printf '%s/peaky' "$(distro_bench_root "${1:-$(read_distro_version)}")"
+  local tree_key=${1:-$(read_bench_tree_key)}
+  local pk_ver=${2:-$(read_peaky_version 2>/dev/null || echo v0.0.0)}
+  package_bench_root "$tree_key" peaky "$pk_ver"
+}
+
+migrate_bootloader_package_tree() {
+  local tree_key=$1 bl_ver=$2
+  local dest src
+  tree_key="$(normalize_tree_key "$tree_key")"
+  bl_ver="$(normalize_version "$bl_ver")"
+  dest="$(bootloader_bench_root "$tree_key" "$bl_ver")"
+  [[ -d "$dest" ]] && return 0
+  for src in \
+    "$(distro_bench_root "$tree_key")/bootloader" \
+    "$(bootloader_bench_root "$bl_ver" "$bl_ver")" \
+    "$(distro_bench_root "$bl_ver")/bootloader"; do
+    [[ -d "$src" ]] || continue
+    [[ "$src" == "$dest" ]] && continue
+    echo "==> migrate bootloader package tree: $src → $dest"
+    mkdir -p "$(dirname "$dest")"
+    cp -a "$src/." "$dest/"
+    return 0
+  done
+  migrate_legacy_bootloader_tree "$bl_ver" || true
+}
+
+migrate_firmware_package_tree() {
+  local tree_key=$1 fw_ver=$2
+  local dest src
+  tree_key="$(normalize_tree_key "$tree_key")"
+  fw_ver="$(normalize_version "$fw_ver")"
+  dest="$(firmware_bench_root "$tree_key" "$fw_ver")"
+  [[ -d "$dest" ]] && return 0
+  for src in \
+    "$(distro_bench_root "$tree_key")/firmware" \
+    "$(firmware_bench_root "$fw_ver" "$fw_ver")"; do
+    [[ -d "$src" ]] || continue
+    [[ "$src" == "$dest" ]] && continue
+    echo "==> migrate firmware package tree: $src → $dest"
+    mkdir -p "$(dirname "$dest")"
+    cp -a "$src/." "$dest/"
+    return 0
+  done
+  migrate_legacy_firmware_tree "$fw_ver" || true
+}
+
+migrate_motatool_package_tree() {
+  local tree_key=$1 mt_ver=$2
+  local dest src
+  tree_key="$(normalize_tree_key "$tree_key")"
+  mt_ver="$(normalize_version "$mt_ver")"
+  dest="$(motatool_bench_root "$tree_key" "$mt_ver")"
+  [[ -d "$dest" ]] && return 0
+  for src in \
+    "$(distro_bench_root "$tree_key")/motatool" \
+    "$(motatool_bench_root "$tree_key" "$mt_ver")"; do
+    [[ -d "$src" ]] || continue
+    [[ "$src" == "$dest" ]] && continue
+    echo "==> migrate motatool package tree: $src → $dest"
+    mkdir -p "$(dirname "$dest")"
+    cp -a "$src/." "$dest/"
+    return 0
+  done
+  return 1
+}
+
+maybe_migrate_version_bench_to_slot() {
+  local slot=$1 draft src dest
+  slot="$(normalize_tree_key "$slot")"
+  is_version_tree_key "$slot" && return 0
+  draft="$(read_distro_version 2>/dev/null || return 0)"
+  is_version_tree_key "$draft" || return 0
+  src="$(distro_bench_root "$draft")"
+  dest="$(distro_bench_root "$slot")"
+  [[ -d "$src" ]] || return 0
+  [[ -d "$dest" ]] && return 0
+  echo "==> migrate bench tree: $src → $dest"
+  mkdir -p "$(dirname "$dest")"
+  cp -a "$src" "$dest"
+}
+
+promote_bench_to_release_tree() {
+  local from_slot=$1 to_ver=$2 force=${3:-0}
+  from_slot="$(normalize_tree_key "$from_slot")"
+  to_ver="$(normalize_version "$to_ver")"
+  local src dest rel_src rel_dest
+
+  [[ "$from_slot" == "$to_ver" ]] && return 0
+
+  src="$(distro_bench_root "$from_slot")"
+  dest="$(distro_bench_root "$to_ver")"
+
+  [[ -d "$src" ]] || {
+    echo "error: no bench tree at $src — run ./envyos build first" >&2
+    return 1
+  }
+
+  if [[ -d "$dest" ]]; then
+    if ((force == 1)); then
+      rm -rf "$dest"
+    else
+      echo "error: release bench tree already exists at $dest" >&2
+      return 1
+    fi
+  fi
+
+  echo "==> promote bench: $src → $dest"
+  mkdir -p "$(dirname "$dest")"
+  cp -a "$src" "$dest"
+
+  rel_src="$(distro_release_root "$from_slot")"
+  rel_dest="$(distro_release_root "$to_ver")"
+  if [[ -d "$rel_src" ]]; then
+    rm -rf "$rel_dest"
+    mkdir -p "$(dirname "$rel_dest")"
+    cp -a "$rel_src" "$rel_dest"
+  fi
 }
 
 maybe_populate_distro_release() {
@@ -105,27 +285,57 @@ list_released_firmware_versions() {
   read_registry_versions "$RELEASED_FIRMWARE_FILE"
 }
 
+is_released_bootloader_version() {
+  local ver want
+  ver="$(normalize_version "$1")" || return 1
+  while IFS= read -r want || [[ -n "$want" ]]; do
+    [[ "$want" == "$ver" ]] && return 0
+  done < <(read_registry_versions "$RELEASED_BOOTLOADER_FILE")
+  return 1
+}
+
+list_released_bootloader_versions() {
+  read_registry_versions "$RELEASED_BOOTLOADER_FILE"
+}
+
+list_released_distros() {
+  read_registry_versions "$RELEASED_VERSIONS_FILE"
+}
+
 legacy_firmware_bench_paths() {
   local ver=$1
+  local distro
+  distro="$(normalize_version "$ver")"
   printf '%s\n' \
     "$BUILD_ROOT/firmware/$ver" \
-    "$ENVYCORE_ROOT/build/motas/$ver"
+    "$ENVYCORE_ROOT/build/motas/$ver" \
+    "$(distro_bench_root "$distro")/firmware" \
+    "$(package_bench_root "$distro" firmware "$ver")"
 }
 
 legacy_bootloader_bench_paths() {
   local ver=$1
-  printf '%s\n' "$BUILD_ROOT/bootloader/$ver"
+  local distro
+  distro="$(normalize_version "$ver")"
+  printf '%s\n' \
+    "$BUILD_ROOT/bootloader/$ver" \
+    "$(distro_bench_root "$distro")/bootloader" \
+    "$(package_bench_root "$distro" bootloader "$ver")"
 }
 
 migrate_legacy_firmware_tree() {
-  local ver=$1 src dest distro_root item base
-  dest="$(firmware_bench_root "$ver")"
+  local ver=$1 src dest distro_root item base distro fw_ver
+  ver="$(normalize_version "$ver")"
+  distro="$ver"
+  fw_ver="$ver"
+  dest="$(firmware_bench_root "$distro" "$fw_ver")"
   [[ -d "$dest" ]] && return 0
   while IFS= read -r src || [[ -n "$src" ]]; do
     [[ -d "$src" ]] || continue
+    [[ "$src" == "$dest" ]] && continue
     echo "==> migrate legacy firmware tree: $src → $dest"
     mkdir -p "$(dirname "$dest")"
-    distro_root="$(distro_tree_root "$ver")"
+    distro_root="$(distro_tree_root "$distro")"
     mkdir -p "$distro_root" "$dest"
     shopt -s nullglob dotglob
     for item in "$src"/*; do
@@ -152,11 +362,15 @@ migrate_legacy_firmware_tree() {
 }
 
 migrate_legacy_bootloader_tree() {
-  local ver=$1 src dest
-  dest="$(bootloader_bench_root "$ver")"
+  local ver=$1 src dest distro bl_ver
+  ver="$(normalize_version "$ver")"
+  distro="$ver"
+  bl_ver="$ver"
+  dest="$(bootloader_bench_root "$distro" "$bl_ver")"
   [[ -d "$dest" ]] && return 0
   while IFS= read -r src || [[ -n "$src" ]]; do
     [[ -d "$src" ]] || continue
+    [[ "$src" == "$dest" ]] && continue
     echo "==> migrate legacy bootloader tree: $src → $dest"
     mkdir -p "$(dirname "$dest")"
     cp -a "$src/." "$dest/"
@@ -166,10 +380,12 @@ migrate_legacy_bootloader_tree() {
 }
 
 firmware_version_tree_present() {
-  local ver=$1 path
+  local ver=$1 path distro fw_ver
   ver="$(normalize_version "$ver")"
+  distro="$ver"
+  fw_ver="$ver"
   migrate_legacy_firmware_tree "$ver" || true
-  [[ -d "$(firmware_bench_root "$ver")" ]]
+  [[ -d "$(firmware_bench_root "$distro" "$fw_ver")" ]]
 }
 
 list_known_mota_versions() {
@@ -185,6 +401,13 @@ list_known_mota_versions() {
     done < <(read_registry_versions "$RELEASED_VERSIONS_FILE")
   fi
   if [[ -d "$BUILD_ROOT" ]]; then
+    for d in "$BUILD_ROOT"/v[0-9]*.[0-9]*.[0-9]*/bench/firmware-v*; do
+      [[ -d "$d" ]] || continue
+      ver="$(basename "$d")"
+      ver="${ver#firmware-}"
+      ver="$(normalize_version "$ver" 2>/dev/null)" || continue
+      tmp+=("$ver")
+    done
     for d in "$BUILD_ROOT"/v[0-9]*.[0-9]*.[0-9]*/bench/firmware; do
       [[ -d "$d" ]] || continue
       ver="$(basename "$(dirname "$(dirname "$d")")")"
@@ -248,6 +471,27 @@ bootloader_flat_slug() {
     sensecap_solar_p1) printf '%s' sensecap-solar-p1 ;;
     *) tr '_' '-' <<<"$board" ;;
   esac
+}
+
+# Bench tree names under build/<distro>/bench/bootloader-<ver>/ (also used by publish → bl-*).
+bootloader_bench_board_name() {
+  local board=$1
+  case "$board" in
+    wiscore_rak4631_board) printf '%s' rak4631 ;;
+    *) printf '%s' "$board" ;;
+  esac
+}
+
+bootloader_bench_uf2_name() {
+  local board=$1 bl_ver=$2
+  bl_ver="$(normalize_version "$bl_ver")"
+  printf '%s_bootloader-%s.uf2' "$(bootloader_bench_board_name "$board")" "${bl_ver#v}"
+}
+
+bootloader_bench_recovery_name() {
+  local board=$1 bl_ver=$2
+  bl_ver="$(normalize_version "$bl_ver")"
+  printf '%s_bootloader-%s.recovery.zip' "$(bootloader_bench_board_name "$board")" "${bl_ver#v}"
 }
 
 bootloader_flat_uf2_name() {
@@ -344,7 +588,7 @@ resolve_base_image() {
   local dir candidates p legacy_slug legacy_dir
   base_ver="$(normalize_version "$base_ver")"
   migrate_legacy_firmware_tree "$base_ver" || true
-  dir="$(firmware_slug_dir "$base_ver" "$slug")"
+  dir="$(firmware_slug_dir "$base_ver" "$base_ver" "$slug")"
   candidates=(
     "$(firmware_artifact_name "$slug" "$base_ver" hex)"
     "$(firmware_artifact_name "$slug" "$base_ver" bin)"
@@ -368,9 +612,9 @@ resolve_base_image() {
   if [[ "$slug" == wismesh-tag-repeater ]]; then
     for legacy_slug in repeater .; do
       if [[ "$legacy_slug" == . ]]; then
-        p="$(firmware_bench_root "$base_ver")/firmware.hex"
+        p="$(firmware_bench_root "$base_ver" "$base_ver")/firmware.hex"
       else
-        p="$(firmware_slug_dir "$base_ver" "$legacy_slug")/firmware.hex"
+        p="$(firmware_slug_dir "$base_ver" "$base_ver" "$legacy_slug")/firmware.hex"
       fi
       if [[ -f "$p" ]]; then
         printf '%s' "$p"
@@ -406,7 +650,12 @@ ensure_firmware_bases_for_build() {
     return 0
   fi
   echo "==> restoring released firmware bases for delta matrix"
-  "$OTA_ROOT/scripts/restore-firmware.sh" $(list_delta_base_versions "$target_ver")
+  local bases=()
+  while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
+    [[ -n "$base_ver" ]] || continue
+    bases+=("$base_ver")
+  done < <(list_delta_base_versions "$target_ver")
+  "$OTA_ROOT/scripts/restore-firmware.sh" "${bases[@]}"
 }
 
 mota_target_id_for_env() {
@@ -502,22 +751,22 @@ motatool_cargo_release_path() {
 }
 
 motatool_staged_binary_path() {
-  local platform=$1 distro=${2:-$(read_distro_version)}
+  local platform=$1 distro=${2:-$(read_bench_tree_key)} mt_ver=${3:-$(read_motatool_version)}
   platform="$(normalize_motatool_platform_slug "$platform")"
-  printf '%s/motatool-%s' "$(motatool_bench_root "$distro")" "$platform"
+  printf '%s/motatool-%s' "$(motatool_bench_root "$distro" "$mt_ver")" "$platform"
 }
 
 resolve_motatool_bin() {
   local ver=$1 platform path distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   platform="$(host_motatool_platform_slug)"
   path="$(motatool_staged_binary_path "$platform" "$distro")"
   if [[ -x "$path" ]]; then
     printf '%s' "$path"
     return 0
   fi
-  path="$(motatool_bench_root "$distro")/motatool"
+  path="$(motatool_bench_root "$distro" "$ver")/motatool"
   if [[ -x "$path" ]]; then
     printf '%s' "$path"
     return 0
@@ -528,8 +777,8 @@ resolve_motatool_bin() {
 list_staged_motatool_platforms() {
   local ver=$1 dir distro f base
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
-  dir="$(motatool_bench_root "$distro")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(motatool_bench_root "$distro" "$ver")"
   [[ -d "$dir" ]] || return 0
   if [[ -f "$dir/platforms.txt" ]]; then
     cat "$dir/platforms.txt"
@@ -546,7 +795,7 @@ stage_motatool_binary_for_platform() {
   local bin=$1 platform=$2 ver out dir distro
   platform="$(normalize_motatool_platform_slug "$platform")"
   ver="$(read_motatool_version)"
-  distro="$(read_distro_version)"
+  distro="$(read_bench_tree_key)"
   assert_component_tree_not_released motatool "$ver"
   out="$(motatool_staged_binary_path "$platform" "$distro")"
   dir="$(dirname "$out")"
@@ -616,7 +865,7 @@ motatool_release_archive_basename() {
 }
 
 motatool_release_archive_path() {
-  local ver=$1 platform=$2 distro=${3:-$(read_distro_version)}
+  local ver=$1 platform=$2 distro=${3:-$(read_bench_tree_key)}
   printf '%s/%s' "$(distro_release_root "$distro")" "$(motatool_release_archive_basename "$ver" "$platform")"
 }
 
@@ -624,7 +873,7 @@ create_motatool_platform_archive() {
   local ver=$1 platform=$2 dest_dir=${3:-}
   local bin archive staging distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   platform="$(normalize_motatool_platform_slug "$platform")"
   dest_dir="${dest_dir:-$(distro_release_root "$distro")}"
   bin="$(motatool_staged_binary_path "$platform" "$distro")"
@@ -660,7 +909,7 @@ collect_motatool_release_assets() {
   local ver=$1 dest_dir=${2:-}
   local distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   dest_dir="${dest_dir:-$(distro_release_root "$distro")}"
   stage_motatool_release_archives "$dest_dir" "$ver"
 }
@@ -668,9 +917,9 @@ collect_motatool_release_assets() {
 record_motatool_platform_staged() {
   local ver=$1 platform=$2 dir distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   platform="$(normalize_motatool_platform_slug "$platform")"
-  dir="$(motatool_bench_root "$distro")"
+  dir="$(motatool_bench_root "$distro" "$ver")"
   mkdir -p "$dir"
   if [[ -f "$dir/platforms.txt" ]]; then
     grep -qxF "$platform" "$dir/platforms.txt" 2>/dev/null || echo "$platform" >>"$dir/platforms.txt"
@@ -687,9 +936,9 @@ list_peaky_release_triples() {
 }
 
 peaky_staged_binary_dir() {
-  local ver=$1 triple=$2 distro=${3:-$(read_distro_version)}
+  local ver=$1 triple=$2 distro=${3:-$(read_bench_tree_key)}
   ver="$(normalize_version "$ver")"
-  printf '%s/peaky-%s-%s' "$(peaky_bench_root "$distro")" "${ver#v}" "$triple"
+  printf '%s/peaky-%s-%s' "$(peaky_bench_root "$distro" "$ver")" "${ver#v}" "$triple"
 }
 
 peaky_platform_has_binary() {
@@ -713,7 +962,7 @@ peaky_release_archive_basename() {
 }
 
 peaky_release_archive_path() {
-  local ver=$1 triple=$2 distro=${3:-$(read_distro_version)}
+  local ver=$1 triple=$2 distro=${3:-$(read_bench_tree_key)}
   printf '%s/%s' "$(distro_release_root "$distro")" "$(peaky_release_archive_basename "$ver" "$triple")"
 }
 
@@ -721,7 +970,7 @@ create_peaky_platform_archive() {
   local ver=$1 triple=$2 dest_dir=${3:-}
   local dir archive staging distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   dest_dir="${dest_dir:-$(distro_release_root "$distro")}"
   dir="$(peaky_staged_binary_dir "$ver" "$triple" "$distro")"
   [[ -x "$dir/peaky" ]] || return 1
@@ -756,7 +1005,7 @@ collect_peaky_release_assets() {
   local ver=$1 dest_dir=${2:-}
   local distro
   ver="$(normalize_version "$ver")"
-  distro="$(read_distro_version 2>/dev/null || printf '%s' "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   dest_dir="${dest_dir:-$(distro_release_root "$distro")}"
   stage_peaky_release_archives "$dest_dir" "$ver"
 }
@@ -863,7 +1112,7 @@ verify_release_delta_matrix() {
       delta_name=""
       while IFS= read -r delta_name || [[ -n "$delta_name" ]]; do
         [[ -n "$delta_name" ]] && break
-      done < <(find_firmware_delta_motas "$(firmware_slug_dir "$ver" "$slug")" "$slug" "$ver")
+      done < <(find_firmware_delta_motas "$(firmware_slug_dir "$ver" "$ver" "$slug")" "$slug" "$ver")
       if [[ -z "$delta_name" ]]; then
         echo "error: missing delta for $slug $base_ver → $ver (base image exists)" >&2
         missing=1
@@ -881,9 +1130,9 @@ create_distro_full_tgz() {
   local -a included=()
 
   if [[ -z "$distro_ver" ]]; then
-    distro_ver="$(read_distro_version)"
+    distro_ver="$(read_bench_tree_key)"
   else
-    distro_ver="$(normalize_version "$distro_ver")"
+    distro_ver="$(normalize_tree_key "$distro_ver")"
   fi
 
   root_name="envyos-${distro_ver#v}-full"
@@ -899,18 +1148,32 @@ create_distro_full_tgz() {
   staging="$(mktemp -d "${TMPDIR:-/tmp}/envyos-full.XXXXXX")"
   mkdir -p "$staging/$root_name/bench"
 
-  while IFS= read -r id || [[ -n "$id" ]]; do
-    [[ -n "$id" ]] || continue
-    ver="$(component_version_at_publish "$id" "$distro_ver")" || continue
-    src="$(component_build_dir "$id" "$ver" "$distro_ver")"
+  shopt -s nullglob
+  for src in "$bench_dir"/*; do
     [[ -d "$src" ]] || continue
-    pkg_name="${id}-$(normalize_version "$ver" | tr -d v)"
+    pkg_name="$(basename "$src")"
+    [[ "$pkg_name" == .* ]] && continue
     cp -a "$src" "$staging/$root_name/bench/$pkg_name"
     included+=("$pkg_name")
-  done < <(list_release_component_ids "$distro_ver")
+  done
+  shopt -u nullglob
+
+  if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
+    ver="$(read_mcmt_gateway_version 2>/dev/null || true)"
+    if [[ -n "$ver" ]]; then
+      src="$(component_build_dir mcmt-gateway "$ver" "$distro_ver")"
+      if [[ -d "$src" ]]; then
+        pkg_name="mcmt-gateway-${ver#v}"
+        [[ -d "$staging/$root_name/bench/$pkg_name" ]] || {
+          cp -a "$src" "$staging/$root_name/bench/$pkg_name"
+          included+=("$pkg_name")
+        }
+      fi
+    fi
+  fi
 
   ((${#included[@]} > 0)) || {
-    echo "error: no release components found for $distro_ver" >&2
+    echo "error: no bench packages under $bench_dir — run ./envyos build first" >&2
     rm -rf "$staging"
     return 1
   }
@@ -950,9 +1213,9 @@ populate_distro_release() {
   local -a staged=()
 
   if [[ -z "$distro_ver" ]]; then
-    distro_ver="$(read_distro_version)"
+    distro_ver="$(read_bench_tree_key)"
   else
-    distro_ver="$(normalize_version "$distro_ver")"
+    distro_ver="$(normalize_tree_key "$distro_ver")"
   fi
   fw_ver="$(read_firmware_version)"
   bl_ver="$(read_bootloader_version)"
@@ -966,7 +1229,7 @@ populate_distro_release() {
 
   while IFS= read -r slug || [[ -n "$slug" ]]; do
     [[ -n "$slug" ]] || continue
-    src="$(firmware_slug_dir "$fw_ver" "$slug")"
+    src="$(firmware_slug_dir "$distro_ver" "$fw_ver" "$slug")"
     [[ -d "$src" ]] || continue
     for f in "$src"/*.mota "$src"/*.uf2; do
       [[ -f "$f" ]] || continue
@@ -975,9 +1238,9 @@ populate_distro_release() {
     done
   done < <(list_release_target_slugs_from_file "$TARGETS_FILE")
 
-  if [[ -d "$(bootloader_bench_root "$bl_ver")" ]]; then
+  if [[ -d "$(bootloader_bench_root "$distro_ver" "$bl_ver")" ]]; then
     local bl_bench
-    bl_bench="$(bootloader_bench_root "$bl_ver")"
+    bl_bench="$(bootloader_bench_root "$distro_ver" "$bl_ver")"
     for uf2 in "$bl_bench"/*_bootloader-*.uf2; do
       [[ -f "$uf2" ]] || continue
       board="${uf2##*/}"

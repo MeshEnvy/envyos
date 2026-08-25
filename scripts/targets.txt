@@ -1,7 +1,7 @@
 # EnvyOS OTA build targets — read by scripts/build-mota.sh
 #
 # Format:  slug  platformio_env  [description…]
-#   slug          output dir name under build/<ver>/bench/firmware/<slug>/
+#   slug          output dir under build/<distro>/bench/firmware-<ver>/
 #   platformio_env  PlatformIO environment in envycore/
 #
 # Add a line here to ship a new board/role; rebuild motatool targets if the env set changes.

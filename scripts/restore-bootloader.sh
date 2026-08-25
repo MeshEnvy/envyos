@@ -2,12 +2,13 @@
 # Restore released EnvyBoot trees under build/<ver>/bench/bootloader/ from GitHub Releases.
 #
 # Usage:
-#   ./scripts/restore-bootloader.sh                  # all RELEASED_BOOTLOADER versions
-#   ./scripts/restore-bootloader.sh v0.1.0
-#   ./scripts/restore-bootloader.sh --force v0.1.0
+#   ./scripts/restore-bootloader.sh                  # every RELEASED_FIRMWARE distro tag
+#   ./scripts/restore-bootloader.sh v0.1.2
+#   ./scripts/restore-bootloader.sh --force v0.1.2
 #
-# Legacy releases: bootloader-vX.Y.Z.zip (per-distro upload on early releases).
-# Flat releases: bl-<board>-vX.Y.Z.uf2.gz + bl-<board>-recovery-vX.Y.Z.zip on distro tags.
+# Legacy releases (v0.1.0, v0.1.1): bootloader-vX.Y.Z.zip on the distro tag.
+# Transitional flat (v0.1.2): bl-<board>-vX.Y.Z.uf2 + recovery zip on the distro tag.
+#   Asset filenames use the pinned bootloader version (often v0.1.0), not the distro tag.
 
 set -euo pipefail
 
@@ -22,8 +23,8 @@ usage() {
   cat >&2 <<EOF
 usage: $0 [--force] [vX.Y.Z]…
 
-  (default)     Restore every version listed in RELEASED_BOOTLOADER
-  vX.Y.Z        Restore one or more explicit bootloader versions
+  (default)     Restore bootloaders for every distro in RELEASED_FIRMWARE
+  vX.Y.Z        Restore one or more explicit distro tags
   --force       Re-download and replace existing trees
 
 Requires: gh (GitHub CLI), unzip
@@ -49,13 +50,14 @@ release_has_asset() {
 }
 
 bootloader_tree_present() {
-  local ver="$1"
+  local distro_ver="$1"
+  local bl_ver="${2:-$(manifest_component_version bootloader "$distro_ver" 2>/dev/null || read_bootloader_version)}"
   local dir
-  migrate_legacy_bootloader_tree "$ver" || true
-  dir="$(bootloader_bench_root "$ver")"
+  migrate_bootloader_package_tree "$distro_ver" "$bl_ver" || true
+  dir="$(bootloader_bench_root "$distro_ver" "$bl_ver")"
   [[ -d "$dir" ]] || return 1
   local n
-  n="$(find "$dir" -maxdepth 1 -name '*_bootloader-*.uf2' 2>/dev/null | wc -l | tr -d ' ')"
+  n="$(find "$dir" -maxdepth 1 -name '*_bootloader-*.uf2' -o -name 'update-*_bootloader-*.uf2' 2>/dev/null | wc -l | tr -d ' ')"
   [[ "$n" -gt 0 ]]
 }
 
@@ -97,31 +99,70 @@ flat_asset_to_build_name() {
   return 1
 }
 
-list_distro_tags_for_bootloader_restore() {
-  local ver tmp=()
-  while IFS= read -r ver || [[ -n "$ver" ]]; do
-    [[ -n "$ver" ]] || continue
-    tmp+=("$ver")
-  done < <(list_released_distros)
-  # v0.1.2 shipped on GitHub with flat bl assets before RELEASED_DISTROS was updated.
-  tmp+=(v0.1.2)
-  sort_versions "${tmp[@]}"
+# Bootloader version embedded in flat bl-* release asset names (may differ from distro tag).
+infer_bootloader_version_from_release_assets() {
+  local tag="$1"
+  local asset ver_no_v
+  tag="$(normalize_version "$tag")" || return 1
+  while IFS= read -r asset || [[ -n "$asset" ]]; do
+    [[ -n "$asset" ]] || continue
+    case "$asset" in
+      bl-*-recovery-v*.zip)
+        ver_no_v="${asset#bl-}"
+        ver_no_v="${ver_no_v##*-recovery-v}"
+        ver_no_v="${ver_no_v%.zip}"
+        normalize_version "v$ver_no_v"
+        return 0
+        ;;
+      bl-*-v*.uf2 | bl-*-v*.uf2.gz)
+        ver_no_v="${asset#bl-}"
+        ver_no_v="${ver_no_v##*-v}"
+        ver_no_v="${ver_no_v%.uf2.gz}"
+        ver_no_v="${ver_no_v%.uf2}"
+        normalize_version "v$ver_no_v"
+        return 0
+        ;;
+    esac
+  done < <(gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null)
+  return 1
+}
+
+resolve_bootloader_version_for_distro() {
+  local distro_ver="$1"
+  local inferred manifest_bl
+  distro_ver="$(normalize_version "$distro_ver")" || return 1
+  if inferred="$(infer_bootloader_version_from_release_assets "$distro_ver" 2>/dev/null)"; then
+    printf '%s' "$inferred"
+    return 0
+  fi
+  manifest_bl="$(manifest_component_version bootloader "$distro_ver" 2>/dev/null || true)"
+  if [[ -n "$manifest_bl" ]]; then
+    normalize_version "$manifest_bl"
+    return 0
+  fi
+  printf '%s' "$distro_ver"
+}
+
+release_has_flat_bootloader_assets() {
+  local tag="$1"
+  infer_bootloader_version_from_release_assets "$tag" >/dev/null 2>&1
 }
 
 restore_from_legacy_zip() {
-  local bl_ver="$1"
-  local tag="$2"
+  local distro_ver="$1"
+  local bl_ver="$2"
+  local tag="$3"
   local zip_name="bootloader-${bl_ver}.zip"
   local tmp dest_root
 
-  echo "==> restore $bl_ver from $tag/$zip_name"
+  echo "==> restore $bl_ver (distro $distro_ver) from $tag/$zip_name"
   tmp="$(mktemp -d)"
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" RETURN
 
   gh release download "$tag" -p "$zip_name" -D "$tmp"
   unzip -q "$tmp/$zip_name" -d "$tmp/extract"
-  dest_root="$(bootloader_bench_root "$bl_ver")"
+  dest_root="$(bootloader_bench_root "$distro_ver" "$bl_ver")"
   mkdir -p "$dest_root"
 
   if [[ -d "$tmp/extract/$bl_ver" ]]; then
@@ -141,10 +182,11 @@ restore_from_legacy_zip() {
 }
 
 restore_from_flat_release() {
-  local bl_ver="$1"
-  local tag="$2"
+  local distro_ver="$1"
+  local bl_ver="$2"
+  local tag="$3"
   local out
-  out="$(bootloader_bench_root "$bl_ver")"
+  out="$(bootloader_bench_root "$distro_ver" "$bl_ver")"
   local tmp asset local_name downloaded=0
 
   tmp="$(mktemp -d)"
@@ -175,56 +217,65 @@ restore_from_flat_release() {
   echo "    → $out/"
 }
 
-restore_bootloader_version() {
-  local bl_ver="$1"
+restore_bootloader_for_distro() {
+  local distro_ver="$1"
+  local bl_ver="$2"
+  distro_ver="$(normalize_version "$distro_ver")" || return 1
   bl_ver="$(normalize_version "$bl_ver")" || return 1
 
-  migrate_legacy_bootloader_tree "$bl_ver" || true
-
-  if [[ "$FORCE" -eq 0 ]] && bootloader_tree_present "$bl_ver"; then
-    echo "==> $bl_ver already present (use --force to replace)"
+  if release_has_flat_bootloader_assets "$distro_ver"; then
+    if [[ "$FORCE" -eq 0 ]]; then
+      migrate_bootloader_package_tree "$distro_ver" "$bl_ver" || true
+      if bootloader_tree_present "$distro_ver" "$bl_ver"; then
+        echo "==> $distro_ver bootloader already present (use --force to replace)"
+        return 0
+      fi
+    else
+      rm -rf "$(bootloader_bench_root "$distro_ver" "$bl_ver")"
+    fi
+    echo "==> restore bootloader $bl_ver for distro $distro_ver from flat GitHub release assets"
+    restore_from_flat_release "$distro_ver" "$bl_ver" "$distro_ver"
+    ls -la "$(bootloader_bench_root "$distro_ver" "$bl_ver")"
     return 0
   fi
 
-  local tag
+  migrate_bootloader_package_tree "$distro_ver" "$bl_ver" || true
+
+  if [[ "$FORCE" -eq 0 ]] && bootloader_tree_present "$distro_ver" "$bl_ver"; then
+    echo "==> $distro_ver bootloader already present (use --force to replace)"
+    return 0
+  fi
+
+  if release_has_asset "$distro_ver" "bootloader-${bl_ver}.zip"; then
+    restore_from_legacy_zip "$distro_ver" "$bl_ver" "$distro_ver"
+    return 0
+  fi
+
   if release_has_asset "$bl_ver" "bootloader-${bl_ver}.zip"; then
-    restore_from_legacy_zip "$bl_ver" "$bl_ver"
+    restore_from_legacy_zip "$distro_ver" "$bl_ver" "$bl_ver"
     return 0
   fi
 
   for tag in v0.1.0 v0.1.1; do
     if release_has_asset "$tag" "bootloader-${bl_ver}.zip"; then
-      restore_from_legacy_zip "$bl_ver" "$tag"
+      restore_from_legacy_zip "$distro_ver" "$bl_ver" "$tag"
       return 0
     fi
   done
 
-  echo "==> restore $bl_ver from flat GitHub release assets"
-  local restored=0
-  while IFS= read -r tag || [[ -n "$tag" ]]; do
-    [[ -n "$tag" ]] || continue
-    if restore_from_flat_release "$bl_ver" "$tag"; then
-      restored=1
-    fi
-  done < <(list_distro_tags_for_bootloader_restore)
-
-  if ((restored == 0)); then
-    echo "error: no bootloader assets found for $bl_ver on GitHub releases" >&2
-    return 1
-  fi
-
-  ls -la "$(bootloader_bench_root "$bl_ver")"
+  echo "error: no bootloader assets found for distro $distro_ver (bootloader $bl_ver)" >&2
+  return 1
 }
 
-list_restore_versions() {
+list_restore_distros() {
   if ((${#SELECTED[@]} > 0)); then
     local v
     for v in "${SELECTED[@]}"; do
-      normalize_version "$v"
+      printf '%s\n' "$(normalize_version "$v")"
     done
     return 0
   fi
-  list_released_bootloader_versions
+  list_released_firmware_versions
 }
 
 while [[ $# -gt 0 ]]; do
@@ -248,20 +299,21 @@ done
 
 require_gh
 
-vers=()
+distros=()
 while IFS= read -r ver || [[ -n "$ver" ]]; do
   [[ -n "$ver" ]] || continue
-  vers+=("$ver")
-done < <(list_restore_versions)
+  distros+=("$ver")
+done < <(list_restore_distros)
 
-((${#vers[@]} > 0)) || {
-  echo "error: no bootloader versions to restore" >&2
+((${#distros[@]} > 0)) || {
+  echo "error: no distro tags to restore bootloaders for" >&2
   exit 1
 }
 
-echo "restore bootloader → build/*/bench/bootloader"
-for ver in "${vers[@]}"; do
-  restore_bootloader_version "$ver"
+echo "restore bootloader → build/*/bench/bootloader-*"
+for distro in "${distros[@]}"; do
+  bl_ver="$(resolve_bootloader_version_for_distro "$distro")"
+  restore_bootloader_for_distro "$distro" "$bl_ver"
 done
 
 echo "==> restore complete"
