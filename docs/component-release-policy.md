@@ -34,12 +34,16 @@ A component is bundled in a distro release only when it is **bench-gated**. Trac
 
 ## Per-repo reference
 
+New component? Start with [`docs/package-maintainer-guide.md`](package-maintainer-guide.md) (harness + distro wiring).
+
 | Repo | Policy doc | Release skill |
 |------|------------|---------------|
 | motatool | [motatool/docs/change-management.md](https://github.com/MeshEnvy/motatool/blob/envyos/main/docs/change-management.md) | `.cursor/skills/motatool-release/` |
-| envycore | `docs/change-management.md` | `.cursor/skills/envycore-release/` |
+| envycore | `docs/change-management.md` | `.cursor/skills/envycore-release/` · `./envyos` |
 | bootloader | `docs/change-management.md` | `.cursor/skills/bootloader-release/` |
 | mcmt-gateway | `docs/change-management.md` | `.cursor/skills/mcmt-release/` |
 | peaky-finders | [peaky_finders/docs/change-management.md](https://github.com/MeshEnvy/peaky-finders/blob/main/docs/change-management.md) | `peaky_finders/.cursor/skills/peaky-release/` |
 
 Branch model on forks: **`envyos/main`** = release line, **`envyos/dev`** = integration (envyos17 uses **`main`** / **`dev`**).
+
+Upstream integration: [`integration-policy.md`](integration-policy.md).

@@ -13,4 +13,6 @@ EnvyOS adds these enhancements:
 * mOTA (Mesh Over the Air) updates
 * Bug fixes in advance of upstream 
 
+See [`docs/package-maintainer-guide.md`](docs/package-maintainer-guide.md) to implement a component harness or bundle an existing package into the distro.
+
 All projects are licenced and distributed under their original licenses. Code written independently is licensed under MIT.
