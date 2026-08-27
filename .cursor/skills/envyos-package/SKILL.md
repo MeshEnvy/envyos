@@ -8,7 +8,7 @@ description: >-
 
 # EnvyOS package CLI
 
-Canonical contract for **component repos** (firmware, bootloader, motatool, …). The **distro** repo (`envyos17`) bundles component releases; it does not replace per-package `./envyos`.
+Canonical contract for **component repos** (firmware, bootloader, motatool, …). The **distro** repo (`envyos`) bundles component releases; it does not replace per-package `./envyos`.
 
 **Reference implementations:** [`envycore`](../../../envycore/) (firmware), [`motatool`](../../../motatool/) (Rust CLI).
 
@@ -48,17 +48,19 @@ Optional: `.github/workflows/ci.yml` for tests. **No release CI** — local prep
 
 | Command | Scope | Output | Version arg? |
 |---------|-------|--------|--------------|
-| **`build`** | Local dev — fast, partial | `build/<branch-slot>/…` | **No** |
-| **`prepare`** | Full release artifact set | `build/<branch-slot>/…` + `dist/<branch-slot>/…` | **No** |
+| **`build`** | Local dev — fast, partial | Same **artifact names** as prepare, host/subset only → `dist/<branch-slot>/…` | **No** |
+| **`prepare`** | Full release artifact set | Full set, same names → `dist/<branch-slot>/…` | **No** |
 | **`bump`** | Mutate version file | `Cargo.toml` / `VERSION` / … | level only (`rc`, `patch`, …) |
 | **`publish`** | Upload + lock + tag | Reads branch slot; locks version tree | Optional (defaults to version file) |
+
+**`build` and `prepare` share one naming convention.** Difference is scope (which artifacts), not filename pattern. Both write shippable files to `dist/<branch-slot>/` using the registered `{package}-{version}[-{variant}].{ext}` pattern from the table below. `build/<branch-slot>/` holds intermediates and unpacked working copies keyed by the same artifact stem (for sibling tools).
 
 **`build` semantics are package-defined** (single target vs all targets, host-only vs PlatformIO, …). **`prepare` always builds the full release set.**
 
 | Package | `build` | `prepare` |
 |---------|---------|-----------|
-| **motatool** | Host binary only | All platform tarballs in `dist/<slot>/` |
-| **envycore** | Branch-slot motas; optional `--target` | All targets + delta matrix + zip in `dist/<slot>/` |
+| **motatool** | Host tarball in `dist/<slot>/` (same name as prepare) | All platform tarballs in `dist/<slot>/` |
+| **envycore** | Branch-slot motas in `build/motas/<slot>/` (intermediate) | All targets + zip `dist/<slot>/firmware-vX.Y.Z.zip` |
 | **bootloader** | TBD | TBD |
 
 ### Pre-releases
@@ -70,16 +72,43 @@ Semver pre-releases (`v0.1.2-rc0`, …) are first-class. **`bump rc`** increment
 - Re-run **`prepare`** freely until **`publish`** locks.
 - **`publish`** does not compile unless `--skip-prepare` and `.prepared` marker exists for current branch slot.
 - Prepared marker must record `version=` matching the version file at prepare time.
-- Sibling consumers (envycore → motatool) resolve **`build/<branch-slot>/`**, not version trees.
+- Sibling consumers (envycore → motatool) resolve the **unpacked working copy** at `build/<branch-slot>/<artifact-stem>/…`, keyed to the same name as the dist tarball. Override env var (e.g. `MOTATOOL=`) for exceptions.
 
-## Standard commands
+### Docker and cross-platform build caches
+
+When `prepare` or distro bench builds use **Docker** for non-host targets (Linux gnu from macOS, etc.), mount caches so repeat runs do not re-fetch dependencies.
+
+| Cache | Scope | Host | Container mount |
+|-------|-------|------|-----------------|
+| **Crate registry** | Global (all projects/targets) | `$CARGO_HOME/registry` (default `~/.cargo/registry`) | `/usr/local/cargo/registry` |
+| **Git dependencies** | Global | `$CARGO_HOME/git` | `/usr/local/cargo/git` |
+| **Build artifacts** | Per-project, per triple | `<repo>/target/<triple>/` | via full repo bind-mount |
+
+Rules:
+
+- **Always** bind-mount the project tree (`-v "$ROOT:/work"` or `/src`) so `target/` persists on the host.
+- Mount **registry + git only**. Do not bind-mount host `rustup` toolchains into the container (toolchain stays in the image).
+- Native host `cargo build` and Docker builds **share** the same registry/git cache on the host.
+- Non-Rust toolchains (PlatformIO `.platformio`, bootloader ccache, …): document and mount package-specific global caches the same way.
+- Reference impl: `packages-meta/motatool/docker-lib.sh` (`docker_run_with_rust_cache`). Overrides: `ENVYOS_DOCKER_CARGO_REGISTRY`, `ENVYOS_DOCKER_CARGO_GIT`, `CARGO_HOME`.
+
+## Artifact naming (required)
+
+| Layer | Rule |
+|-------|------|
+| **Directory** | Shippable artifacts → `dist/<branch-slot>/` |
+| **Filename** | Registered pattern with version embedded (see table below) |
+| **`build` vs `prepare`** | Same names; `build` emits a subset, `prepare` emits the full set |
+| **`build/<branch-slot>/`** | Intermediates + unpacked mirror of dist artifact stem (not ad-hoc names like bare `motatool`) |
+
+Implement `release_*_path()` helpers in `scripts/version.sh` so `build`, `prepare`, and `publish` never hard-code strings.
 
 | Command | Purpose |
 |---------|---------|
 | `info` | Version file, branch slot, git HEAD, artifact status |
 | `path` | Print resolved dev binary path (optional; motatool) |
-| `build [args…]` | Local dev → `build/<branch-slot>/` |
-| `prepare [options]` | Full release → `dist/<branch-slot>/` (+ build tree) |
+| `build [args…]` | Local dev → `dist/<branch-slot>/` (subset; same artifact names as prepare) |
+| `prepare [options]` | Full release → `dist/<branch-slot>/` (+ working tree under `build/`) |
 | `publish [vX.Y.Z]` | Verify prepare, upload, lock, tag |
 | `bump rc\|patch\|minor\|major` | **Only** way to change version file via CLI |
 | `changelog check\|notes vX.Y.Z` | Release notes helpers |
@@ -103,10 +132,10 @@ Semver pre-releases (`v0.1.2-rc0`, …) are first-class. **`bump rc`** increment
 | Prepare dist | `dist/<branch-slot>/…` (filenames include version from version file) |
 | After publish lock | `build/…/vX.Y.Z/` immutable copy (envycore motas; optional elsewhere) |
 
-| Package | Dev/prepare build | Dist artifact |
-|---------|-------------------|---------------|
+| Package | Working tree (unpacked) | Dist artifact |
+|---------|-------------------------|---------------|
 | envycore | `build/motas/<branch-slot>/` | `dist/<slot>/firmware-vX.Y.Z.zip` |
-| motatool | `build/<branch-slot>/motatool` (siblings); `./envyos build` also writes host tarball | `dist/<slot>/motatool-X.Y.Z-<target>.tar.gz` |
+| motatool | `build/<branch-slot>/motatool-<ver>-<target>/motatool` | `dist/<slot>/motatool-<ver>-<target>.tar.gz` |
 
 ## Publish flow
 

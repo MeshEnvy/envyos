@@ -10,14 +10,14 @@ description: >-
 
 Rust CLI — [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool) (`envyos/main`). Byte-compatible with MeshCore's on-wire `.mota` format.
 
-**Bench:** install motatool from [MeshEnvy/motatool releases](https://github.com/MeshEnvy/motatool/releases) or `cargo build --release` in the motatool repo. **`motatool` on PATH** for packaging; override with **`MOTATOOL=/path/to/motatool`**.
+**Bench:** build sibling motatool for current branch: ``./envyos build motatool`` → `dist/<branch-slot>/motatool-<ver>-<host>.tar.gz` (same name as prepare). Override with **`MOTATOOL=/path/to/motatool`**.
 
-**Releases:** tag `v*` on MeshEnvy/motatool → CI publishes Linux/macOS binaries. Cut workflow lives in the motatool repo (`.cursor/skills/motatool-release/SKILL.md` there).
+**Releases:** distro `./envyos publish` only (per-repo motatool publish retired) (`.cursor/skills/motatool-release/SKILL.md` there). CI runs tests only.
 
 **Runtime:** pure Rust — no Python/detools needed for `build`, `verify`, `inspect`, `serve`.  
 detools is **test-oracle only** in the motatool repo (`make dev-setup` for delta unit tests).
 
-Spec: `envycore/docs/ota_protocol.md` · Source: https://github.com/MeshEnvy/motatool
+Spec: `packages/meshcore/docs/ota_protocol.md` · Source: https://github.com/MeshEnvy/motatool
 
 ## Commands
 
@@ -65,11 +65,11 @@ Produces a **small `.mota`** whose payload is a **detools patch** (`--compressio
 
 **Requirements:**
 
-- `--base` = **exact** running firmware image (with EndF) — typically `envycore/build/motas/v0.1.0/<slug>/firmware.hex` from prior `envycore/scripts/build-mota.sh`
+- `--base` = **exact** running firmware image (with EndF) — typically a base hex retained from a prior `./envyos build meshcore` (see `build/bases/`)
 - `--fw` = new build's hex
 - Manifest `base_hash` = base image's `EndF.body_hash` (motatool computes this)
 
-EnvyOS bench (`envycore/scripts/build-mota.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
+EnvyOS bench (`packages-meta/meshcore/build.sh`) always uses **`--patch-type in-place`** for WisMesh Tag.
 
 Optional in-place tuning: `--inplace-memory` (override; default derives from target staging ceiling + patch size), `--segment-size`.
 
@@ -97,18 +97,18 @@ Flags: `--baud`, `--no-recursive`, `-v` (log requests), `--seed <file>`.
 
 ## Integration with EnvyOS scripts
 
-`envycore/scripts/build-mota.sh` resolves motatool via PATH (`resolve_motatool` in `envycore/scripts/version.sh`; override `MOTATOOL=`), then:
+`packages-meta/meshcore/build.sh` resolves staged motatool (`resolve_motatool` in `scripts/version.sh`; override `MOTATOOL=`), then:
 
 ```bash
 motatool build --fw "$OUT/firmware.hex" --out-dir "$OUT"
 motatool build --base "$BASE_HEX" --fw "$OUT/firmware.hex" --patch-type in-place --out "$DELTA_OUT"
 ```
 
-Serve step: `motatool/scripts/seeder.sh` → `motatool serve --dir … --serial … -v`
+Serve step: `packages/motatool/scripts/seeder.sh` → `motatool serve --dir … --serial … -v`
 
 ## Target IDs
 
-Mirrors firmware `OtaTargets.h` in the motatool repo (`src/targets.rs`). Regenerate when OTA env set changes (`envycore/tools/mota/gen_targets.py`).
+Mirrors firmware `OtaTargets.h` in the motatool repo (`src/targets.rs`). Regenerate when OTA env set changes (`packages/meshcore/tools/mota/gen_targets.py`).
 
 ## Related skills
 

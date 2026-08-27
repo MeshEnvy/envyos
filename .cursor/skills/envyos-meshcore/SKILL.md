@@ -9,27 +9,29 @@ description: >-
 
 # EnvyOS MeshCore distro
 
-EnvyOS is MeshEnvy's integration distro of [MeshCore](https://github.com/meshcore-dev/MeshCore). **`envyos/main` is the integration head on every MeshEnvy fork** in the OTA stack — firmware, motatool, and otafix — even when open vk496 PRs use different base branches.
+EnvyOS is MeshEnvy's integration distro of [MeshCore](https://github.com/meshcore-dev/MeshCore). **`envyos/main` is the integration head on every MeshEnvy fork** in the OTA stack — firmware, motatool, and otafix.
 
-Firmware lives in `envycore/` submodule; `bootloader/` at repo root. **motatool** is a separate repo ([MeshEnvy/motatool](https://github.com/MeshEnvy/motatool)) — pinned in `ENVYOS_VERSIONS`, fetched for bench builds. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `ENVYOS_VERSIONS` at ota repo root).
+**Integration policy:** [`docs/integration-policy.md`](../../docs/integration-policy.md). MeshCore companion tags merge into `envyos/main`; **vk496 is OTA upstream PR target only**, not a freshen/integrate remote.
+
+Firmware in `packages/meshcore`; bootloader in `packages/bootloader` (gitignored under envyos). **motatool** is a separate repo ([MeshEnvy/motatool](https://github.com/MeshEnvy/motatool)) — pinned in `ENVYOS_VERSIONS`, fetched for bench builds. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `ENVYOS_VERSIONS` at ota repo root).
 
 ## Distro repos and remotes
 
-| Submodule / component | MeshEnvy fork (`origin`) | vk496 remote | vk496 PR base |
-|-----------|--------------------------|--------------|---------------|
-| `envycore/` | `MeshEnvy/meshcore-firmware` | `vk496/MeshCore` | `feature/ota-lora` |
-| motatool (external) | `MeshEnvy/motatool` | `vk496/motatool` | `main` |
-| `bootloader/` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` |
+| Package | MeshEnvy fork (`origin`) | Upstream integrate | OTA PR base (vk496) |
+|-----------|--------------------------|--------------------|---------------------|
+| `packages/meshcore/` | `MeshEnvy/meshcore-firmware` | `meshcore` `companion-v*` | `feature/ota-lora` |
+| motatool (external) | `MeshEnvy/motatool` | n/a | `main` |
+| `packages/bootloader` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `oltaco` `0.9.2-OTAFIX*` | `feature/ota-delta-apply` |
 
 All three MeshEnvy forks use **`envyos/main`** as the GitHub default branch and distro integration head.
 
-## Git remotes (firmware — `envycore/`)
+## Git remotes (firmware — `packages/meshcore/`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
 | `origin` | `MeshEnvy/meshcore-firmware` | EnvyOS fork — push feature branches here |
-| `vk496` | `vk496/MeshCore` | vk496's MeshCore fork — OTA and vk-specific work |
-| `meshcore` | `meshcore-dev/MeshCore` | Upstream MeshCore — core protocol/features |
+| `meshcore` | `meshcore-dev/MeshCore` | Upstream MeshCore — companion releases, mesh PRs |
+| `vk496` | `vk496/MeshCore` | **OTA PR target only** — LoRa OTA not in meshcore mainline yet |
 
 Verify: `git remote -v`
 
@@ -100,21 +102,21 @@ A feature often exists on **two tracks**:
 
 These diverge by design: `envyos/main` accumulates the full EnvyOS stack; each PR branch stays rebasable on its upstream base. When an upstream PR merges, pull/rebase that base into `envyos/main` if needed.
 
-The **`ota` monorepo** pins submodule commits (not branch names). Bump pointers at release freshen or when intentionally advancing; local `envycore/` checkout should be **`envyos/main`** for bench builds.
+Companion integrates and release publish bump submodule/lock pins; local `packages/meshcore/` checkout should be **`envyos/main`** for bench builds.
 
 ## Feature workflow
 
 For each feature:
 
-1. **Choose the vk496 PR base** — branch from the remote that owns the target:
-   - Core mesh / repeater behavior → `meshcore/dev` (PR to meshcore-dev)
-   - OTA firmware → `vk496/feature/ota-lora`
-   - motatool → `vk496/main`
-   - otafix → `vk496/feature/ota-delta-apply`
+1. **Choose the PR base** — branch from the remote that owns the target (see [`integration-policy.md`](../../docs/integration-policy.md)):
+   - Core mesh / repeater behavior → `meshcore/dev` → PR to **meshcore-dev**
+   - OTA firmware / `.mota` / device OTA CLI → `vk496/feature/ota-lora` → PR to **vk496**
+   - motatool → `vk496/main` → PR to **vk496/motatool**
+   - otafix → `vk496/feature/ota-delta-apply` → PR to **vk496/OTAFIX**
 2. **Implement on a focused branch** — e.g. `feature/ota-stage-ceiling`
 3. **Push to MeshEnvy `origin`** (or `meshenvy` for motatool) — `git push -u origin feature/<name>`
-4. **Open vk496 PR** — cross-fork: `--head MeshEnvy:feature/<name>`
-5. **Merge into `envyos/main`** on the MeshEnvy fork — even while the vk496 PR is open
+4. **Open upstream PR** — cross-fork: `--head MeshEnvy:feature/<name>` (meshcore-dev or vk496 per routing table)
+5. **Merge into `envyos/main`** on the MeshEnvy fork — even while the upstream PR is open
 6. **Push `envyos/main`** — `git push origin envyos/main`
 
 ```text
@@ -151,7 +153,7 @@ gh pr create -R vk496/MeshCore \
 
 ### Merge into envyos/main
 
-Same pattern in `envycore/` and `bootloader/` submodules (motatool is a separate repo with the same branch model):
+Same pattern in `packages/meshcore/` and `bootloader/` submodules (motatool is a separate repo with the same branch model):
 
 ```bash
 cd envycore   # or motatool, bootloader
@@ -167,10 +169,10 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
-- **Canonical file:** `ENVYOS_VERSIONS` at ota repo root (`distro`, `firmware`, `bootloader`, `motatool`)
-- **Build:** `envycore/scripts/build-mota.sh` reads `distro` → `envycore/build/motas/v0.1.0/`; version override for one-off builds and auto-deltas from prior patch if present
-- **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `envycore/scripts/build-mota.sh`
-- **Explicit delta base:** `envycore/scripts/build-mota.sh v0.1.2 --base v0.1.0` (default builds all prior bases)
+- **Canonical files:** `ENVYOS_VERSIONS` + `packages-meta/<pkg>/VERSION` (`distro`, `meshcore`, `bootloader`, `motatool`)
+- **Build:** `./envyos build meshcore` (recipe `packages-meta/meshcore/build.sh`) → `build/<branch>/bench/firmware-<ver>/`; version override for one-off builds and auto-deltas from prior patch if present
+- **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `packages-meta/meshcore/build.sh` (evN encoded as 4th version component)
+- **Explicit delta base:** `./envyos build meshcore v0.1.2 --base v0.1.0` (default builds all prior bases)
 
 Bump `ENVYOS_VERSIONS` at repo root for distro milestones. Use patch tags (`v0.1.0`, `v0.1.1`, …) for bench iterations.
 
@@ -184,7 +186,7 @@ When shipping EnvyOS work:
 - [ ] Upstream PR opened (if upstreamable)
 - [ ] Merged into **`envyos/main`** on MeshEnvy fork and pushed
 - [ ] **Open PR:** feature-specific follow-ups pushed to **`feature/<name>`** as well as `envyos/main`
-- [ ] Bench builds use **`envyos/main`** checkout in `envycore/`, not a PR branch
+- [ ] Bench builds use **`envyos/main`** checkout in `packages/meshcore/`, not a PR branch
 - [ ] Version references use EnvyOS `v0.1.x`, not upstream `v1.17.x`
 - [ ] Monorepo submodule pins bumped when cutting a release (not required for every feature merge)
 
@@ -196,5 +198,7 @@ When shipping EnvyOS work:
 - Build bench firmware from a PR branch when you need the full EnvyOS stack (log tail + hop retry + OTA, etc.)
 - Clone a **second otafix checkout** outside the submodule — only **`bootloader/`**
 - Treat vk496 PR base branches (`feature/ota-lora`, etc.) as the MeshEnvy distro head — that's **`envyos/main`**
+- Freshen/integrate from vk496 or replay vk496 OTA commit lists (bootstrap retired)
 - Open PRs on `MeshEnvy/meshcore-firmware` when the target owner is `vk496` or `meshcore-dev`
+- Send OTA patches only to meshcore-dev (OTA not in mainline — use vk496)
 - Confuse upstream MeshCore version tags with EnvyOS distro version

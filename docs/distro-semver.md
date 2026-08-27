@@ -19,8 +19,8 @@ The **distro tag** is the fleet contract. Component lines in `ENVYOS_VERSIONS` (
 | Bump | When |
 |------|------|
 | **Major** | Remove a bundled package from the release manifest, or ship a breaking fleet migration (mandatory bootloader reflash, incompatible OTA, no safe path from the previous tag). |
-| **Minor** | Add a bundled package, upgrade a bundled component version in the manifest, or expand shipped targets/platforms in a user-visible way. |
-| **Patch** | Same bundle membership, fleet-safe hotfix (firmware-only pin changes are common). Requires OTA deltas from the immediate predecessor tag. |
+| **Minor** | Add a bundled package, a component **minor/major** pin change (e.g. `0.1.x` → `0.2.0`), or expand shipped targets/platforms in a user-visible way. |
+| **Patch** | Same bundle membership; component **patch** pin changes only (`0.1.1` → `0.1.3` within the same major.minor line). Fleet-safe hotfixes. Requires OTA deltas from the immediate predecessor tag. |
 
 Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a stable bundle contract.
 
@@ -31,13 +31,13 @@ Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a
 ./envyos semver suggest           # CHANGELOG + bundle → proposed vX.Y.Z
 ./envyos publish                  # prompt for tag (or --yes)
 ./envyos publish v0.1.3 --yes     # explicit tag
-./envyos publish --dry-run        # recommendation only
+./envyos publish --dry-run        # full publish plan (no promote/upload)
 ```
 
-At publish, `./envyos` sets `distro=` and `firmware=` in `ENVYOS_VERSIONS` to the chosen tag. Other component keys stay as pinned for that release.
+At publish, `./envyos` sets `distro=` and `firmware=` in `ENVYOS_VERSIONS` to the chosen tag. GitHub Release notes include the component matrix, `CHANGELOG.md` **`## [Unreleased]`** body (until promoted), and the asset manifest.
 
 ## CHANGELOG
 
-User-facing notes live in repo-root `CHANGELOG.md` under `## [Unreleased]`. `./envyos semver suggest` reads Unreleased bullets plus bundle diffs vs the last entry in `RELEASED_VERSIONS`.
+User-facing notes live in repo-root `CHANGELOG.md` under `## [Unreleased]`. `./envyos semver suggest` reads Unreleased bullets plus bundle diffs vs the **last published git tag** (and `RELEASED_VERSIONS`). Missing local manifests fall back to the GitHub Release component table.
 
 See also: [`component-release-policy.md`](component-release-policy.md).

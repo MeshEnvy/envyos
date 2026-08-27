@@ -1,3 +1,7 @@
+> **Retired (2026-08).** Per-repo `./envyos` harnesses are removed from `packages/*`. Versioning, changelogs, and publish flow live in the distro repo. See **[`docs/distro-packaging.md`](distro-packaging.md)**.
+
+---
+
 # EnvyOS package maintainer guide
 
 Guide for **component repo maintainers**: implement the EnvyOS package harness in your repo, then wire it into the **distro** ([MeshEnvy/envyos](https://github.com/MeshEnvy/envyos)) when the fleet should ship your release.
@@ -15,7 +19,7 @@ Related: [`docs/component-release-policy.md`](component-release-policy.md), [`do
 Each EnvyOS **component** is a standalone repo with its own semver, changelog, GitHub Releases, and a root **`./envyos`** CLI. The distro repo does **not** compile your code for release. It pins tested versions and bundles published assets.
 
 ```
-Your repo                         Distro (envyos17)
+Your repo                         Distro (envyos)
 ─────────                         ─────────────────
 ./envyos build      dev           (optional bench consume)
 ./envyos prepare    full release  fetch GH assets at distro publish
@@ -28,7 +32,7 @@ Component repos are **siblings** under a common parent (MeshEnvy bench):
 
 ```
 $MESHENVY_ROOT/
-  envyos/envyos17/     ← distro orchestration
+  envyos/     ← distro orchestration
   envycore/            ← firmware (meshcore-firmware)
   motatool/
   bootloader/
@@ -48,8 +52,8 @@ Two keys, never mixed on the CLI:
 
 | Command | Takes version arg? | Responsibility |
 |---------|-------------------|----------------|
-| **`build`** | **No** | Fast local dev → `build/<branch-slot>/…` (package defines scope: one target, host only, …) |
-| **`prepare`** | **No** | Full release artifact set → `build/<branch-slot>/…` + `dist/<branch-slot>/…` |
+| **`build`** | **No** | Fast local dev → `dist/<branch-slot>/…` (subset; **same artifact names** as prepare) |
+| **`prepare`** | **No** | Full release set → `dist/<branch-slot>/…` (all registered artifacts) |
 | **`bump`** | level only (`rc`, `patch`, `minor`, `major`) | **Only** command that mutates the version file |
 | **`publish`** | Optional (defaults to version file) | Verify prepare, upload to GitHub, lock, tag |
 
@@ -100,13 +104,24 @@ git push origin vX.Y.Z
 
 Copy structure from the closest peer, then adapt `prepare` (what “full release” means for your artifact types).
 
+### Artifact naming (required)
+
+**`build` and `prepare` use the same registered filenames.** The only difference is scope: `build` emits what you need for local dev (usually one host target); `prepare` emits the full platform matrix.
+
+| Layer | Rule |
+|-------|------|
+| **Shippable output** | Always `dist/<branch-slot>/` |
+| **Filename** | Registered pattern with version embedded (see GitHub Release assets table) |
+| **Working tree** | `build/<branch-slot>/<artifact-stem>/` — unpacked mirror for sibling tools; same stem as the dist tarball |
+
+Implement `release_*_path()` helpers in `scripts/version.sh`. Do not hard-code artifact strings in `build.sh` / `prepare.sh`.
+
 ### Output layout (your repo)
 
 ```
-build/<branch-slot>/     ← build + prepare (dev and release trees)
-dist/<branch-slot>/      ← prepare release zips/tarballs (filenames include semver from version file)
+build/<branch-slot>/     ← intermediates + unpacked mirrors (<artifact-stem>/)
+dist/<branch-slot>/      ← shippable zips/tarballs (version in filename; build + prepare)
 build/…/vX.Y.Z/          ← optional immutable copy at publish lock (envycore motas)
-dist/…/vX.Y.Z/           ← not used; dist stays on branch slot until publish
 ```
 
 **Prepared marker:** `dist/<branch-slot>/.prepared` must record at least `version=` and match the version file when you run `publish`.
@@ -127,7 +142,27 @@ Your `publish` script must upload assets that match what the distro expects (or 
 
 ### Consuming siblings (optional)
 
-If another package invokes your binary at dev time (envycore → motatool), resolve **`../<sibling>/build/<branch-slot>/…`**, not version-keyed paths. Override env var (e.g. `MOTATOOL=`) for exceptions.
+If another package invokes your binary at dev time (envycore → motatool), resolve the unpacked working copy at **`build/<branch-slot>/<artifact-stem>/…`**, keyed to the dist tarball name. Override env var (e.g. `MOTATOOL=`) for exceptions.
+
+### Docker and cross-platform build caches
+
+When **`prepare`** or distro bench scripts build via **Docker** (Linux from macOS, etc.), repeat runs should hit local caches — not re-download crates or tool artifacts every time.
+
+| Cache | Scope | Host path | Mount in container |
+|-------|-------|-----------|-------------------|
+| Crate registry | Global | `$CARGO_HOME/registry` (`~/.cargo/registry`) | `/usr/local/cargo/registry` |
+| Git deps | Global | `$CARGO_HOME/git` | `/usr/local/cargo/git` |
+| Build output | Per triple | `<repo>/target/<triple>/` | full repo bind-mount |
+
+Required:
+
+1. Bind-mount the **whole repo** so `target/` survives between container runs.
+2. Bind-mount **registry + git** from the host (shared with native `cargo build`).
+3. Do **not** mount host `rustup` toolchains — the image owns the compiler.
+
+Reference: [`packages-meta/motatool/docker-lib.sh`](../packages-meta/motatool/docker-lib.sh) (`docker_run_with_rust_cache`). Env overrides: `CARGO_HOME`, `ENVYOS_DOCKER_CARGO_REGISTRY`, `ENVYOS_DOCKER_CARGO_GIT`.
+
+Non-Rust packages (PlatformIO, bootloader make-in-docker): apply the same split — global tool cache mounts + project tree for outputs.
 
 ---
 

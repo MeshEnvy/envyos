@@ -1,39 +1,33 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Orchestration repo** — `ENVYOS_VERSIONS`, `COMPONENTS.lock`, distro publish/verify. Component repos are **workspace siblings** under `$MESHENVY_ROOT/`.
+MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Distro repo** — `./envyos` CLI, `ENVYOS_VERSIONS`, `packages-meta/`, `COMPONENTS.lock`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts); identity and overlay notes live in **`packages-meta/`**.
 
-## Workspace siblings (`$MESHENVY_ROOT` = parent of `envyos/`)
-
-| Path | Role |
-|------|------|
-| `envycore/` | Firmware — `./envyos`, `build/motas/` |
-| `bootloader/` | EnvyBoot OTAFIX — `scripts/build-bl.sh`, `build/` |
-| `motatool/` | `.mota` CLI — `./envyos`, `build/<branch-slot>/motatool` |
-| `peaky_finders/` | RF planner — CI releases; mirrored into distro when `peaky=` pinned |
-| `mcmt-gateway/` | MT↔MC bridge (distro bundle from v0.2.0) |
-| `envyos/envyos17/` | This repo — orchestration only |
-
-## Repo layout (envyos17)
+## Layout
 
 | Path | Role |
 |------|------|
-| `ENVYOS_VERSIONS` | Component semver — `distro`, `firmware`, `bootloader`, `motatool`; optional `peaky=`, `mcmt-gateway=` |
-| `COMPONENTS.lock` | Git SHAs for git-pinned siblings (updated at publish) |
-| `scripts/` | `build.sh` (delegates to siblings), `publish.sh`, `version.sh`, `verify-components.sh` |
+| `packages/` | Gitignored workbenches — `meshcore`, `bootloader`, `motatool`, `mcmt-gateway` (merge + upstream PR vehicles) |
+| `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md`, `RELEASED`, `BACKLOG.md` (meshcore) |
+| `scripts/` | Shared distro machinery — `envyos` CLI, `version.sh`, `build-lib.sh`, `build-all.sh`, `publish.sh`, `targets.txt` (recipes live in `packages-meta/<pkg>/build.sh`) |
+| `build/` | Bench (`build/<branch>/bench/…`) and immutable `build/vX.Y.Z/` after publish |
+| `ENVYOS_VERSIONS` | Pinned package versions (`meshcore=1.16.0-ev1`, …) |
+| `peaky_finders/` | Workspace sibling — GitHub releases when `peaky=` pinned |
 | `apps/app/` | Flutter MeshCore client submodule |
+
+Doctrine: [`docs/distro-packaging.md`](docs/distro-packaging.md).
 
 ## Branch model
 
 | Repo | Release | Integration |
 |------|---------|-------------|
-| envyos17 | `main` | `dev` |
-| envycore, bootloader, motatool, mcmt-gateway | `envyos/main` | `envyos/dev` |
+| envyos | `main` | `dev` |
+| `packages/*` forks | `envyos/main` | `envyos/dev` |
 
-Bench day-to-day: checkout **`dev`** / **`envyos/dev`**. Publish cherry-picks to release branches.
+Bench day-to-day: checkout **`dev`** on envyos and **`envyos/dev`** on package forks. Publish cherry-picks to release branches.
 
-Policy: [`docs/component-release-policy.md`](docs/component-release-policy.md). Maintainer guide: [`docs/package-maintainer-guide.md`](docs/package-maintainer-guide.md).
+Policy: [`docs/component-release-policy.md`](docs/component-release-policy.md). Packaging: [`docs/distro-packaging.md`](docs/distro-packaging.md) (replaces retired package-maintainer guide).
 
-## Git remotes (`envycore/` — `$MESHENVY_ROOT/envycore`)
+## Git remotes (`packages/meshcore`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -41,7 +35,7 @@ Policy: [`docs/component-release-policy.md`](docs/component-release-policy.md). 
 | `vk496` | `vk496/MeshCore` | OTA / vk496 stack |
 | `meshcore` | `meshcore-dev/MeshCore` | Upstream MeshCore |
 
-## Git remotes (`bootloader/`)
+## Git remotes (`packages/bootloader`)
 
 | Remote | Repository | Role |
 |--------|------------|------|
@@ -57,15 +51,15 @@ Each OTA-stack repo has **two branch roles**:
 
 | Role | Branch | Where | Use |
 |------|--------|-------|-----|
-| **Distro integration** | `dev` (envyos17) / `envyos/dev` (components) | MeshEnvy fork | Bench WIP |
+| **Distro integration** | `dev` (envyos) / `envyos/dev` (components) | MeshEnvy fork | Bench WIP |
 | **Distro release** | `main` / `envyos/main` | Same | Published pins in `COMPONENTS.lock` |
 
 **PR bases** (not the same as `envyos/main`):
 
 | Component | Remote | PR base branch | Example PR branch |
 |-----------|--------|----------------|-------------------|
-| `envycore/` | `meshcore-dev/MeshCore` | `dev` | `feature/next-hop-retry`, `feature/log-tail-serial` |
-| `envycore/` | `vk496/MeshCore` | `feature/ota-lora` | `feature/ota-stage-ceiling` |
+| `packages/meshcore` | `meshcore-dev/MeshCore` | `dev` | `feature/next-hop-retry`, `feature/log-tail-serial` |
+| `packages/meshcore` | `vk496/MeshCore` | `feature/ota-lora` | `feature/ota-stage-ceiling` |
 | motatool (external) | `vk496/motatool` | `main` | … |
 | `bootloader/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` | … |
 
@@ -73,7 +67,7 @@ Workflow: branch `feature/<name>` from PR base → implement → open cross-fork
 
 Skill: `.cursor/skills/envyos-meshcore/SKILL.md`.
 
-## Open upstream PRs (`envycore/`)
+## Open upstream PRs (`packages/meshcore`)
 
 MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--head MeshEnvy:feature/<name>`.
 
@@ -87,7 +81,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 
 vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore` skill PR table.
 
-Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gateway}/`.
+Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway}` (+ peaky sibling)`.
 
 ## Released versions (immutable)
 
@@ -97,7 +91,7 @@ Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gat
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
 - Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
-- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`, optional `peaky-*.zip`. Local caches: **`envycore/build/motas/`**, **`bootloader/build/`**, **`motatool/build/`**, **`peaky_finders/dist/`**.
+- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`, optional `peaky-*.zip`. Local caches: **`packages/meshcore/build/motas/`**, **`build/…/bench/bootloader-…/`**, **`build/…/bench/motatool-…/`**, **`peaky_finders/dist/`**.
 - **`./scripts/publish.sh [version]`** — after `./envyos build`: promote `build/<branch>/bench/` → `build/vX.Y.Z/`, lock, GitHub Release. Suggests tag from CHANGELOG when version omitted (`docs/distro-semver.md`). Sets `distro=` + `firmware=` in `ENVYOS_VERSIONS` at publish.
 
 ## Versioning
@@ -105,13 +99,13 @@ Sibling checkouts live at `$MESHENVY_ROOT/{envycore,bootloader,motatool,mcmt-gat
 - **`ENVYOS_VERSIONS`** — component pins (`firmware`, `bootloader`, `motatool`, optional `peaky`, `mcmt-gateway`). **`distro=`** is the draft/published git tag, written at publish.
 - **Dev bench path:** `build/<git-branch>/bench/{firmware,bootloader,motatool}-<ver>/` (not `build/<distro>/`).
 - **Published path:** `build/vX.Y.Z/` (immutable after lock).
-- `firmware` → must match `envycore/VERSION`; built by **`envycore/scripts/build-mota.sh`**
+- `meshcore=` in `ENVYOS_VERSIONS` → `packages-meta/meshcore/VERSION`; built by **`packages-meta/meshcore/build.sh`**
 - `bootloader` → **`build/<branch>/bench/bootloader-<ver>/`**
-- `motatool` → **`motatool/build/<branch-slot>/motatool`** (dev); **`motatool/build/vX.Y.Z/`** + CI tarballs (release)
+- `motatool` → **`build/<branch>/bench/motatool-<ver>/`** (artifact); working copy under bench motatool tree
 - `peaky` → local `cargo build` when pinned
-- **Firmware build:** `$MESHENVY_ROOT/envycore/scripts/build-mota.sh` (or `./envyos build` in envycore). Requires sibling **`motatool/build/<branch-slot>/motatool`** (`../motatool && ./envyos build`) or **`MOTATOOL=`** override.
+- **Firmware build:** `./envyos build meshcore` (dispatches to `packages-meta/meshcore/build.sh`). Requires staged **`motatool`** on PATH (`./envyos build motatool`) or **`MOTATOOL=`** override.
 
-## OTA targets (`envycore/scripts/targets.txt`)
+## OTA targets (`scripts/targets.txt`)
 
 | Slug | PlatformIO env | Role |
 |------|----------------|------|
@@ -188,16 +182,16 @@ Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) 
 ## Build commands
 
 ```bash
-./scripts/build.sh                       # bootloader + envycore motas (motatool on PATH)
-./scripts/build.sh --bootloader-only
-./scripts/build.sh --mota-only --target rak4631-repeater-slim
-./scripts/build-bl.sh
-cd envycore && ./scripts/build-mota.sh   # firmware only → envycore/build/motas/<distro>/
-cd envycore && ./scripts/build-mota.sh --list-targets
+./envyos build                             # pinned packages (motatool before meshcore)
+./envyos build --bootloader-only
+./envyos build --mota-only --target rak4631-repeater-slim
+./envyos build bootloader
+./envyos build meshcore                    # firmware only → bench firmware tree
+./envyos build meshcore --list-targets
 ./scripts/publish.sh v0.1.2
 # USB seeder — motatool repo:
 /path/to/motatool/scripts/seeder.sh /dev/cu.usbmodem1444301
-/path/to/motatool/scripts/seeder.sh usbmodem1444301 envycore/build/motas/v0.1.2
+packages/meshcore/scripts/seeder.sh or motatool serve on bench firmware dir
 ```
 
 ## Conflict hotspots
@@ -206,7 +200,7 @@ When merging upstream into `envyos/main`: `Mesh.cpp`, `CommonCLI.*`, `platformio
 
 ## Integrate (`/integrate`, `/freshen`)
 
-**Policy:** meshcore `companion-v*` merged into `envyos/main` (preserve OTA + overlay). vk496 = OTA upstream PR target only, not integrate remote. Manifest: `envycore/FRESHEN.lock`. Skill: `.cursor/skills/envyos-freshen/SKILL.md`. Doc: [`docs/integration-policy.md`](docs/integration-policy.md).
+**Policy:** meshcore `companion-v*` merged into `envyos/main` (preserve OTA + overlay). vk496 = OTA upstream PR target only, not integrate remote. Integrate manifest: tracked in meshcore fork workflow (see `envyos-freshen` skill). Skill: `.cursor/skills/envyos-freshen/SKILL.md`. Doc: [`docs/integration-policy.md`](docs/integration-policy.md).
 
 | Command | Purpose | EnvyOS version? |
 |---------|---------|-----------------|
@@ -221,22 +215,22 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 
 | Skill | When to load |
 |-------|----------------|
-| `envyos-package` | Adopt component repo — `./envyos` CLI contract |
+| `envyos-package` | Legacy component harness (retired — see `distro-packaging`) |
 | `envyos-freshen` | `/integrate` / `/freshen` — companion merge; `/freshen dev` spike only |
 | `envyos-meshcore` | Git remotes, feature branches, upstream PRs |
 | `envyos-ota` | OTA protocol, device CLI, codecs, bench roles |
 | `ota-greenfield` | OTA format/protocol/tooling changes — no legacy or migration paths |
-| `envyos-scripts` | `scripts/build.sh`, `build-bl.sh`, `publish.sh`; firmware in `envycore/scripts/build-mota.sh` |
+| `envyos-scripts` | `./envyos build`, `packages-meta/*/build.sh` recipes, `publish.sh` |
 | `motatool` | `.mota` build, deltas, verify, serve |
 
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
-- **Envycore backlog split (2026-08-25):** EC-001–EC-009 on separate `feature/*` branches; canonical queue `envycore/BACKLOG.md`. **`envyos/main` stays v1.16 / 0.1.3** until items pulled deliberately. Monolith preserved at tag `envyos/dev-pre-split`.
+- **Meshcore backlog split (2026-08-25):** EC-001–EC-009 on separate `feature/*` branches; canonical queue `packages/meshcore/BACKLOG.md`. **`envyos/main` stays v1.16 / 0.1.3** until items pulled deliberately. Monolith preserved at tag `envyos/dev-pre-split`.
 - **P0 (operator, 2026-07-31): advert lockup on `rak4631-repeater-slim`** — admin settings change then advert → freeze; **adverts disabled in field**. Ops: `initiatives/envyos-field-stability.md`.
 - **Watchdog:** port from meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); note [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged (power-saving feed change).
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
-- **Mota matrix:** `envycore/scripts/build-mota.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
+- **Mota matrix:** `packages-meta/meshcore/build.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
 - meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
 - vk496 OTA PRs (contribution target; merged on `envyos/main`): MeshCore #3 staging ceiling, motatool #1, OTAFIX #2, #4 slim, [#5](https://github.com/vk496/MeshCore/pull/5) superseeder
 - **Direction (operator, 2026-07-23): firmware SD superseeders (32 GB cards) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.

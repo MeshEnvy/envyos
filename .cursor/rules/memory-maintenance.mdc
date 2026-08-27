@@ -21,12 +21,13 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Area | Examples |
 |------|----------|
 | Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync |
-| Versioning | `ENVYOS_VERSIONS`, `scripts/version.sh`, `-DFIRMWARE_VERSION` via `envycore/scripts/build-mota.sh` |
-| Firmware tree | `envycore/` layout, env names, variant boards, `ENABLE_OTA` flags, `envycore/scripts/build-mota.sh` |
+| Versioning | `ENVYOS_VERSIONS`, `packages-meta/<pkg>/VERSION` (upstream-evN), `scripts/version.sh`, `-DFIRMWARE_VERSION` stamping |
+| Packaging | `packages-meta/<pkg>/` recipes (`build.sh`, `PACKAGE`, `CHANGELOG.md`, `RELEASED`), `./envyos build` dispatch |
+| Firmware tree | `packages/meshcore/` layout, env names, variant boards, `ENABLE_OTA` flags |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
-| Build outputs | `envycore/build/motas/`, `scripts/build.sh`, `scripts/build-bl.sh` |
-| motatool | External repo [MeshEnvy/motatool](https://github.com/MeshEnvy/motatool); PATH install; `scripts/seeder.sh` |
-| Bootloader | `bootloader/` submodule vs stock BL, which boards need OTAFIX |
+| Build outputs | `build/<branch>/bench/`, `build/vX.Y.Z/`, `build/bases/` |
+| motatool | `packages/motatool/` checkout; staged bench binary; `packages/motatool/scripts/seeder.sh` |
+| Bootloader | `packages/bootloader/` checkout vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
 | Agent skills | `.cursor/skills/envyos-{ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |

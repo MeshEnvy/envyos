@@ -44,6 +44,6 @@ New component? Start with [`docs/package-maintainer-guide.md`](package-maintaine
 | mcmt-gateway | `docs/change-management.md` | `.cursor/skills/mcmt-release/` |
 | peaky-finders | [peaky_finders/docs/change-management.md](https://github.com/MeshEnvy/peaky-finders/blob/main/docs/change-management.md) | `peaky_finders/.cursor/skills/peaky-release/` |
 
-Branch model on forks: **`envyos/main`** = release line, **`envyos/dev`** = integration (envyos17 uses **`main`** / **`dev`**).
+Branch model on forks: **`envyos/main`** = release line, **`envyos/dev`** = integration (envyos uses **`main`** / **`dev`**).
 
 Upstream integration: [`integration-policy.md`](integration-policy.md).
