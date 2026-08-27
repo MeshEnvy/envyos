@@ -180,7 +180,7 @@ Do this when the fleet should **ship and pin** your component in a distro releas
 
 | File | Purpose |
 |------|---------|
-| **`ENVYOS_VERSIONS`** | Semver pin per component (`motatool=0.1.2`, …) plus `distro=` fleet tag |
+| **`MANIFEST`** | Semver pin per component (`motatool=0.1.2`, …) |
 | **`COMPONENTS.lock`** | Git SHAs for pinned component repos at publish |
 | **`scripts/version.sh`** | `read_<pkg>_version`, `list_release_component_ids`, `component_build_dir`, … |
 | **`scripts/build-lib.sh`** | Stage/download release assets into bench tree (if not already generic) |
@@ -192,13 +192,13 @@ Do this when the fleet should **ship and pin** your component in a distro releas
 #### A. First-time inclusion (new bundled component)
 
 1. **Ship your component release** (Part 1) and confirm assets on GitHub.
-2. **Add manifest key** to `ENVYOS_VERSIONS` on distro `dev`:
+2. **Add manifest key** to `MANIFEST` on distro `dev`:
    ```ini
    my-tool=0.1.0
    ```
 3. **Extend `list_release_component_ids()`** in `scripts/version.sh` if the component is optional (see `mcmt-gateway`, `peaky` gating). Core trio today: `firmware`, `bootloader`, `motatool`.
 4. **Wire version read** in `scripts/version.sh`:
-   - `read_my_tool_version` → reads `ENVYOS_VERSIONS` or your pin file
+   - `read_my_tool_version` → reads `MANIFEST` or your pin file
    - `component_version_at_publish` case arm
    - `component_build_dir` case arm (where bench cache lives)
    - `component_zip_basename` / download path if distro expects a zip wrapper
@@ -211,7 +211,7 @@ Do this when the fleet should **ship and pin** your component in a distro releas
 #### B. Routine pin bump (already bundled)
 
 1. Cut new release in **your** repo (`bump` → changelog → `prepare` → `publish`).
-2. On distro `dev`, bump the pin in **`ENVYOS_VERSIONS`**:
+2. On distro `dev`, bump the pin in **`MANIFEST`**:
    ```bash
    ./envyos bump patch my-tool    # or edit the file
    ```
@@ -241,7 +241,7 @@ Optional tools can ship releases from their own repos without being in every Env
 - [ ] `./envyos info` in **your** repo shows slot, version, prepared dist status
 - [ ] `./envyos prepare` + `./envyos publish` produces GH assets with registered names
 - [ ] Distro `./envyos build` stages your assets under `build/<branch-slot>/bench/…`
-- [ ] `ENVYOS_VERSIONS` pin matches your published tag
+- [ ] `MANIFEST` pin matches your published tag
 - [ ] Distro `./envyos publish --dry-run` lists your component in the release manifest
 - [ ] `COMPONENTS.lock` SHA matches the tag you intend to pin
 
@@ -252,6 +252,6 @@ Optional tools can ship releases from their own repos without being in every Env
 | Layer | Version lives in | Build output | Release cut |
 |-------|------------------|--------------|-------------|
 | **Component** | `Cargo.toml` / `VERSION` / … | `build/<branch-slot>/`, `dist/<branch-slot>/` | `./envyos publish` |
-| **Distro** | `ENVYOS_VERSIONS` | `build/<branch-slot>/bench/…` | `./envyos publish` (fleet tag) |
+| **Distro** | `MANIFEST` | `build/<branch-slot>/bench/…` | `./envyos publish` (fleet tag) |
 
 Questions or new component types: extend [`envyos-package` SKILL](.cursor/skills/envyos-package/SKILL.md) and this doc in the same PR.

@@ -89,7 +89,7 @@ usage() {
 usage: $0 [version] [--target <slug>]… [--release|--debug] [--base <version>] [--hex-only] [--targets-file <path>]
        $0 [--mota-jobs <n>] [--delta-jobs <n>] --list-targets [--targets-file <path>]
 
-  version         Optional override for ENVYOS_VERSIONS firmware (output dir + -DFIRMWARE_VERSION). Never distro.
+  version         Optional override for MANIFEST.json meshcore pin (output dir + -DFIRMWARE_VERSION).
   --target        Build one target slug (repeatable; default: all targets in targets.txt)
   --release       With no --target: field slugs only (skip *-debug)
   --debug         With no --target: *-debug twins only (does not wipe field artifacts)

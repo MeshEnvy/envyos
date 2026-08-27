@@ -8,14 +8,46 @@ EnvyOS is the **distro repo**: it owns package recipes, versioning, changelogs, 
 envyos/
   packages/           # gitignored — full git checkouts (meshcore, bootloader, motatool, mcmt-gateway, meshcore-open)
   packages-meta/      # tracked — per-package recipe (build.sh, PACKAGE, VERSION, CHANGELOG, RELEASES)
-  scripts/            # shared machinery — envyos CLI, version.sh, build-lib.sh, build-all.sh, publish.sh, targets.txt
+  scripts/            # shared machinery — envyos CLI, version.sh, manifest.py, build-lib.sh, publish.sh
   build/              # bench + published artifact trees
-  ENVYOS_VERSIONS     # pinned package versions for the current integration head
-  RELEASED_VERSIONS   # shipped distro tags (fleet releases)
-  COMPONENTS.lock     # fork SHAs at publish
+  MANIFEST.json       # releases.next (bench) + releases[vX.Y.Z] (shipped)
 ```
 
 Peaky remains a workspace sibling (`peaky_finders/`); the distro consumes its GitHub releases when pinned.
+
+## MANIFEST.json
+
+Single registry for the current integration head and shipped fleet tags:
+
+```json
+{
+  "releases": {
+    "next": {
+      "packages": {
+        "meshcore": { "repo": "...", "version": "1.16.0-ev1", "sha": "..." }
+      }
+    },
+    "v0.1.3": {
+      "published": "2026-08-27",
+      "packages": {
+        "meshcore": { "repo": "...", "version": "0.1.3", "sha": "..." }
+      }
+    }
+  }
+}
+```
+
+| Key | Role | Updated when |
+|-----|------|--------------|
+| **`releases.next`** | Bench integration head (WIP toward next publish) | `bump-ev`, pin edits, `./envyos publish` (sha lock on `next` before snapshot) |
+| **`releases[vX.Y.Z]`** | Immutable shipped fleet release | `./envyos publish` (`releases record` copies locked `next` → tag) |
+| **`releases[tag].packages`** | Exact version + sha for that release | Frozen at publish time |
+
+CLI verbs `get`, `list`, `set-version`, `lock` operate on **`releases.next.packages`**. Shipped tags (`v0.1.0`, …) never include `next` in `releases list` / `releases latest`.
+
+`packages-meta/<pkg>/VERSION` (structured `upstream` + `ev`) feeds `-evN` bumps; `./envyos bump-ev` syncs version into `releases.next`. A copy of `MANIFEST.json` lands at `build/vX.Y.Z/MANIFEST.json`; `RELEASE_MANIFEST` remains a human-readable key=value snapshot in the build tree.
+
+Component semver history for delta bases: **`packages-meta/*/RELEASES`**.
 
 ## Package classes
 
@@ -38,7 +70,7 @@ Firmware stamps `FIRMWARE_VERSION` as packed `a.b.c.ev` (fourth byte = ev). Delt
 
 ## Releases
 
-**Fleet consumes distro GitHub Releases only.** Component forks get no new releases after this pivot. `./envyos publish vX.Y.Z` is the sole publish path.
+**Fleet consumes distro GitHub Releases only.** `./envyos publish vX.Y.Z` is the sole publish path.
 
 The **distro tag** is the compatibility claim: bench-tested manifest of `(package, upstream-evN, fork SHA)`.
 
@@ -54,8 +86,6 @@ Shipped distro releases define which base hex archives are kept under `build/bas
 | `packages/bootloader` | Same |
 | `packages/motatool` | Same (vk496 PR base) |
 | `packages/meshcore-open` | Flutter client workbench (`MeshEnvy/meshcore-open`; upstream `zjs81/meshcore-open`) |
-
-No `./envyos` harness, no VERSION/CHANGELOG/RELEASES in package repos (meshcore-open is not a distro build artifact yet).
 
 ## CLI
 
@@ -79,9 +109,6 @@ Each bundled package has:
 | `build.sh` | the package recipe — how EnvyOS builds/stages this package |
 | `VERSION` | `upstream=X.Y.Z`, `ev=N` (patched) or `version=X.Y.Z` (native) |
 | `CHANGELOG.md` | user-facing overlay/release notes |
-| `RELEASES` | shipped package versions (immutable after publish; semver and `-evN`) |
-| build support (optional) | recipe-owned infra, e.g. `motatool/docker/` (cross-build image), `motatool/docker-lib.sh` — never committed to the package fork |
+| `RELEASES` | shipped component versions (immutable after publish; semver and `-evN`) |
 
-`./envyos build <pkg>` dispatches generically to `packages-meta/<pkg>/build.sh`; adding a package = adding a meta dir with a recipe. Recipes source `scripts/version.sh` for shared helpers; distro-wide inputs (`targets.txt`, `targets-lib.sh`) stay in `scripts/`.
-
-Replaces the old per-repo harness documented in `package-maintainer-guide.md` (retired).
+`./envyos build <pkg>` dispatches generically to `packages-meta/<pkg>/build.sh`.

@@ -14,7 +14,7 @@ Override slot: `ENVYOS_BUILD_SLOT=my-slot ./envyos build`
 
 ## Distro tag policy
 
-The **distro tag** is the fleet contract. Component lines in `ENVYOS_VERSIONS` (`firmware`, `bootloader`, `motatool`, optional `peaky`, `mcmt-gateway`) are the tested matrix pinned at publish.
+The **distro tag** is the fleet contract. **`releases.next`** is the bench integration head; **`releases[vX.Y.Z]`** is the immutable snapshot at publish.
 
 | Bump | When |
 |------|------|
@@ -34,10 +34,10 @@ Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a
 ./envyos publish --dry-run        # full publish plan (no promote/upload)
 ```
 
-At publish, `./envyos` sets `distro=` and `firmware=` in `ENVYOS_VERSIONS` to the chosen tag. GitHub Release notes include the component matrix, `CHANGELOG.md` **`## [Unreleased]`** body (until promoted), and the asset manifest.
+At publish, `./envyos` locks SHAs on `releases.next`, records `releases[vX.Y.Z]` from that snapshot, and writes `build/vX.Y.Z/RELEASE_MANIFEST`. GitHub Release notes include the component matrix, `CHANGELOG.md` **`## [Unreleased]`** body (until promoted), and the asset manifest.
 
 ## CHANGELOG
 
-User-facing notes live in repo-root `CHANGELOG.md` under `## [Unreleased]`. `./envyos semver suggest` reads Unreleased bullets plus bundle diffs vs the **last published git tag** (and `RELEASED_VERSIONS`). Missing local manifests fall back to the GitHub Release component table.
+User-facing notes live in repo-root `CHANGELOG.md` under `## [Unreleased]`. `./envyos semver suggest` reads Unreleased bullets plus bundle diffs vs the **last published git tag** (and `MANIFEST.json` `releases`). Missing local manifests fall back to the GitHub Release component table.
 
 See also: [`component-release-policy.md`](component-release-policy.md).

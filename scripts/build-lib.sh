@@ -182,7 +182,7 @@ maybe_migrate_version_bench_to_slot() {
   local slot=$1 draft src dest
   slot="$(normalize_tree_key "$slot")"
   is_version_tree_key "$slot" && return 0
-  draft="$(read_distro_version 2>/dev/null || return 0)"
+  draft="$(latest_published_distro_tag 2>/dev/null || return 0)"
   is_version_tree_key "$draft" || return 0
   src="$(distro_bench_root "$draft")"
   dest="$(distro_bench_root "$slot")"
@@ -305,7 +305,7 @@ list_released_bootloader_versions() {
 }
 
 list_released_distros() {
-  read_registry_versions "$RELEASED_VERSIONS_FILE"
+  manifest_py releases list 2>/dev/null || true
 }
 
 legacy_firmware_bench_paths() {
@@ -422,11 +422,11 @@ list_known_mota_versions() {
     [[ -n "$ver" ]] || continue
     tmp+=("$ver")
   done < <(read_registry_versions "$RELEASED_FIRMWARE_FILE")
-  if [[ -f "$RELEASED_VERSIONS_FILE" ]]; then
+  if [[ -f "$MANIFEST_JSON" ]]; then
     while IFS= read -r ver || [[ -n "$ver" ]]; do
       [[ -n "$ver" ]] || continue
       tmp+=("$ver")
-    done < <(read_registry_versions "$RELEASED_VERSIONS_FILE")
+    done < <(manifest_py releases list 2>/dev/null || true)
   fi
   if [[ -d "$BUILD_ROOT" ]]; then
     for d in "$BUILD_ROOT"/v[0-9]*.[0-9]*.[0-9]*/bench/firmware-v*; do
@@ -1068,13 +1068,18 @@ bump_component() {
   local id=$1 level=$2
   local old new major minor patch
   case "$id" in
-    distro | firmware | bootloader | motatool | mcmt-gateway | peaky) ;;
+    firmware) id=meshcore ;;
+    meshcore | bootloader | motatool | mcmt-gateway | peaky) ;;
+    distro)
+      echo "error: fleet tags live in MANIFEST.json releases — use ./envyos publish vX.Y.Z" >&2
+      return 1
+      ;;
     *)
       echo "error: unknown component '$id'" >&2
       return 1
       ;;
   esac
-  old="$(read_envyos_version_key "$id" 2>/dev/null || read_optional_envyos_version_key "$id")" || return 1
+  old="$(read_manifest_key "$id" 2>/dev/null || read_optional_manifest_key "$id")" || return 1
   read -r major minor patch <<<"$(parse_version "$old")"
   case "$level" in
     patch) patch=$((patch + 1)) ;;
@@ -1086,29 +1091,10 @@ bump_component() {
       ;;
   esac
   new="v${major}.${minor}.${patch}"
-  python3 - "$ENVYOS_VERSIONS_FILE" "$id" "${new#v}" <<'PY'
-import sys
-
-path, key, val = sys.argv[1], sys.argv[2], sys.argv[3]
-lines = open(path).read().splitlines()
-out = []
-found = False
-for line in lines:
-    raw = line
-    body = line.split("#", 1)[0].strip()
-    if not body:
-        out.append(raw)
-        continue
-    k, _, _ = body.partition("=")
-    if k.strip() == key:
-        out.append(f"{key}={val}")
-        found = True
-    else:
-        out.append(raw)
-if not found:
-    out.append(f"{key}={val}")
-open(path, "w").write("\n".join(out) + "\n")
-PY
+  case "$id" in
+    firmware) id=meshcore ;;
+  esac
+  manifest_py set-version "$id" "${new#v}"
   printf '%s %s\n' "$old" "$new"
 }
 
@@ -1217,14 +1203,13 @@ create_distro_full_tgz() {
 
   manifest="$(release_manifest_path "$distro_ver")"
   [[ -f "$manifest" ]] && cp "$manifest" "$staging/$root_name/RELEASE_MANIFEST"
-  [[ -f "$ENVYOS_VERSIONS_FILE" ]] && cp "$ENVYOS_VERSIONS_FILE" "$staging/$root_name/ENVYOS_VERSIONS"
-  [[ -f "$OTA_ROOT/COMPONENTS.lock" ]] && cp "$OTA_ROOT/COMPONENTS.lock" "$staging/$root_name/COMPONENTS.lock"
+  [[ -f "$MANIFEST_JSON" ]] && cp "$MANIFEST_JSON" "$staging/$root_name/MANIFEST.json"
 
   {
     echo "# EnvyOS full bundle — $distro_ver"
     echo "# Generated $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     echo ""
-    list_envyos_versions
+    list_manifest
     echo ""
     echo "# bench packages"
     for pkg_name in "${included[@]}"; do
@@ -1296,7 +1281,7 @@ populate_distro_release() {
   fi
 
   stage_motatool_release_archives "$release_dir" "$mt_ver" || true
-  if peaky_ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
+  if peaky_ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
     stage_peaky_release_archives "$release_dir" "$peaky_ver" || true
   fi
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
@@ -1322,7 +1307,7 @@ populate_distro_release() {
     echo "# EnvyOS release assets for $distro_ver"
     echo "# Generated $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     echo ""
-    list_envyos_versions
+    list_manifest
     echo ""
     echo "# GitHub release assets"
     for dst in "${staged[@]}"; do

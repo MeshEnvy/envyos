@@ -135,32 +135,20 @@ package_firmware_stamp() {
   component_firmware_stamp "$(read_package_version "${1:-meshcore}")"
 }
 
-sync_envyos_version_from_meta() {
+sync_manifest_from_meta() {
   local pkg=$1 key=$2 ver
   ver="$(read_package_version "$pkg")"
-  write_envyos_version_key "$key" "$ver"
+  write_manifest_key "$key" "$ver"
 }
 
-write_envyos_version_key() {
+write_manifest_key() {
   local key=$1 val=$2
-  local line k tmp
-  [[ -f "$ENVYOS_VERSIONS_FILE" ]] || return 1
-  tmp="$(mktemp)"
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    if [[ "$line" =~ ^[[:space:]]*# ]] || [[ ! "$line" =~ = ]]; then
-      printf '%s\n' "$line"
-      continue
-    fi
-    k="${line%%=*}"
-    k="${k#"${k%%[![:space:]]*}"}"
-    k="${k%"${k##*[![:space:]]}"}"
-    if [[ "$k" == "$key" ]]; then
-      printf '%s=%s\n' "$key" "$val"
-    else
-      printf '%s\n' "$line"
-    fi
-  done <"$ENVYOS_VERSIONS_FILE" >"$tmp"
-  mv "$tmp" "$ENVYOS_VERSIONS_FILE"
+  case "$key" in
+    firmware) key=meshcore ;;
+  esac
+  python3 "${MANIFEST_PY:-$OTA_ROOT/scripts/manifest.py}" "${MANIFEST_JSON:-$OTA_ROOT/MANIFEST.json}" \
+    --packages-meta "${PACKAGES_META_ROOT:-$OTA_ROOT/packages-meta}" \
+    set-version "$key" "${val#v}"
 }
 
 bump_package_ev() {
@@ -170,7 +158,7 @@ bump_package_ev() {
   ev=$((ev + 1))
   write_package_meta_key "$pkg" ev "$ev"
   new_ver="$(read_package_version "$pkg")"
-  write_envyos_version_key "$env_key" "$new_ver"
+  write_manifest_key "$env_key" "$new_ver"
   printf '%s\n' "$new_ver"
 }
 
@@ -187,16 +175,31 @@ fetch_package_checkout() {
   local pkg=$1 sha repo
   local dest
   dest="$(package_checkout_dir "$pkg")"
-  sha="$(read_components_lock_key firmware_sha 2>/dev/null || read_components_lock_key meshcore_sha 2>/dev/null || true)"
   case "$pkg" in
     meshcore)
       repo="MeshEnvy/meshcore-firmware"
+      sha="$(manifest_py get meshcore sha 2>/dev/null || true)"
       sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}"
       ;;
-    bootloader) repo="MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
-    motatool) repo="MeshEnvy/motatool"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
-    mcmt-gateway) repo="Imperator4422/mcmt-gateway"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
-    meshcore-open) repo="MeshEnvy/meshcore-open"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
+    bootloader)
+      repo="MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX"
+      sha="$(manifest_py get bootloader sha 2>/dev/null || true)"
+      sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}"
+      ;;
+    motatool)
+      repo="MeshEnvy/motatool"
+      sha="$(manifest_py get motatool sha 2>/dev/null || true)"
+      sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}"
+      ;;
+    mcmt-gateway)
+      repo="Imperator4422/mcmt-gateway"
+      sha="$(manifest_py get mcmt-gateway sha 2>/dev/null || true)"
+      sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}"
+      ;;
+    meshcore-open)
+      repo="MeshEnvy/meshcore-open"
+      sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}"
+      ;;
     *)
       echo "error: unknown package '$pkg'" >&2
       return 1

@@ -5,7 +5,7 @@
 #   ./envyos build bootloader [version] [--targets-file <path>] [--list-boards]
 #   ./envyos build bootloader [version] BOARD [BOARD…]
 #
-# version defaults to ENVYOS_VERSIONS bootloader (e.g. v0.1.3).
+# version defaults to MANIFEST.json bootloader (e.g. v0.1.3).
 # With no BOARD args, board profiles are inferred from scripts/targets.txt.
 #
 # UF2: bootloader/_build/build-<board>/<board>_bootloader-<ver>.uf2
@@ -30,7 +30,7 @@ usage() {
 usage: $0 [version] [--targets-file <path>] [--list-boards]
        $0 [version] BOARD [BOARD…]
 
-  version         Optional override; default is ENVYOS_VERSIONS bootloader (e.g. v0.1.0)
+  version         Optional override; default is MANIFEST.json bootloader (e.g. v0.1.0)
   --clean         Wipe bench bootloader tree before build (default: incremental)
   (no BOARD args) Build otafix bootloaders for base boards in targets.txt
   BOARD…          Build explicit otafix board name(s) instead

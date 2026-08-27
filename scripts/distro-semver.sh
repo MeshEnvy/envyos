@@ -99,7 +99,7 @@ bundle_set_diff_level() {
   local last_ids cur_ids id
   local key last_val cur_val level max=""
   last_ids="$(manifest_bundle_ids "$last" | sort)"
-  cur_ids="$(bundle_ids_sorted "$(read_distro_version 2>/dev/null || echo v0.0.0)")"
+  cur_ids="$(bundle_ids_sorted "$(propose_next_distro_version 2>/dev/null || latest_released_distro_version)")"
 
   while IFS= read -r id || [[ -n "$id" ]]; do
     [[ -n "$id" ]] || continue
@@ -123,8 +123,8 @@ bundle_set_diff_level() {
     case "$key" in
       bootloader) cur_val="$(read_bootloader_version 2>/dev/null || true)" ;;
       motatool) cur_val="$(read_motatool_version 2>/dev/null || true)" ;;
-      mcmt-gateway) cur_val="$(read_optional_envyos_version_key mcmt-gateway 2>/dev/null || true)" ;;
-      peaky) cur_val="$(read_optional_envyos_version_key peaky 2>/dev/null || true)" ;;
+      mcmt-gateway) cur_val="$(read_optional_manifest_key mcmt-gateway 2>/dev/null || true)" ;;
+      peaky) cur_val="$(read_optional_manifest_key peaky 2>/dev/null || true)" ;;
     esac
     [[ -n "$last_val" && -n "$cur_val" ]] || continue
     [[ "$last_val" == "$cur_val" ]] && continue
@@ -200,39 +200,4 @@ print_distro_publish_recommendation() {
   echo "Last published:    ${last:-(none)}"
   echo "Changelog suggests: $level"
   echo "Proposed tag:      $proposed"
-}
-
-write_envyos_version_key() {
-  local key=$1 val=$2
-  val="${val#v}"
-  python3 - "$ENVYOS_VERSIONS_FILE" "$key" "$val" <<'PY'
-import sys
-
-path, key, val = sys.argv[1], sys.argv[2], sys.argv[3]
-lines = open(path).read().splitlines()
-out = []
-found = False
-for line in lines:
-    raw = line
-    body = line.split("#", 1)[0].strip()
-    if not body:
-        out.append(raw)
-        continue
-    k, _, _ = body.partition("=")
-    if k.strip() == key:
-        out.append(f"{key}={val}")
-        found = True
-    else:
-        out.append(raw)
-if not found:
-    out.append(f"{key}={val}")
-open(path, "w").write("\n".join(out) + "\n")
-PY
-}
-
-set_distro_versions_for_publish() {
-  local publish_ver=$1
-  publish_ver="$(normalize_version "$publish_ver")"
-  write_envyos_version_key distro "${publish_ver#v}"
-  write_envyos_version_key firmware "${publish_ver#v}"
 }

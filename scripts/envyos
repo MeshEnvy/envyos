@@ -62,8 +62,8 @@ cmd_info() {
   slot="$(read_build_slot)"
   echo "Build slot: $slot  →  build/$slot/"
   echo ""
-  echo "Component versions (ENVYOS_VERSIONS)"
-  list_envyos_versions | sed 's/^/  /'
+  echo "Next release (MANIFEST.json releases.next)"
+  list_manifest | sed 's/^/  /'
   proposed="$(propose_next_distro_version 2>/dev/null || echo '?')"
   level="$(suggest_distro_bump_level 2>/dev/null || echo '?')"
   echo "  (publish suggests: $level → $proposed)"
@@ -96,7 +96,7 @@ cmd_info() {
   fi
   echo "Artifacts"
   for key in meshcore bootloader motatool; do
-    ver="$(read_envyos_version_key "$key")"
+    ver="$(read_manifest_key "$key")"
     id="$(package_to_bench_id "$key")"
     status="$(component_artifact_status "$id" "$ver")"
     if [[ "$key" == motatool ]]; then
@@ -109,14 +109,6 @@ cmd_info() {
 ' "$key" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
     fi
   done
-  distro_ver="$(read_distro_version 2>/dev/null || true)"
-  if [[ -n "$distro_ver" ]]; then
-    if [[ -n "$last_distro" && "$distro_ver" == "$last_distro" ]]; then
-      printf '  fleet distro   %-8s  (last published; bench uses branch slot)\n' "$distro_ver"
-    else
-      printf '  draft distro   %-8s  (target publish tag)\n' "$distro_ver"
-    fi
-  fi
 }
 
 cmd_semver() {
@@ -218,7 +210,7 @@ cmd_bump() {
   local level="${1:-}" id="${2:-}"
   local old new
   [[ -n "$level" && -n "$id" ]] || {
-    echo "usage: envyos bump patch|minor|major distro|firmware|bootloader|motatool" >&2
+    echo "usage: envyos bump patch|minor|major meshcore|firmware|bootloader|motatool" >&2
     exit 2
   }
   case "$level" in

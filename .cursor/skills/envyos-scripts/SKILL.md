@@ -17,7 +17,7 @@ description: >-
 | motatool | `packages/motatool/` | `packages-meta/motatool/build.sh`; staged + **`motatool` on PATH** |
 | peaky | release cache | `packages-meta/peaky/build.sh` (only when `peaky=` pinned) |
 | USB seeder | `packages/motatool/scripts/seeder.sh` | |
-| Distro manifest / publish | envyos | `ENVYOS_VERSIONS`, `scripts/version.sh`, `scripts/publish.sh` |
+| Distro manifest / publish | envyos | `MANIFEST.json`, `scripts/version.sh`, `scripts/publish.sh` |
 
 All builds go through **`./envyos build [pkg…]`** — it dispatches to `packages-meta/<pkg>/build.sh`. Shared machinery (`version.sh`, `build-lib.sh`, `packages-meta-lib.sh`, `targets.txt`, `targets-lib.sh`) stays in `scripts/`.
 
@@ -35,7 +35,7 @@ Materialize forks: `./envyos fetch meshcore bootloader motatool`
 
 ## Versioning
 
-Package pins live in **`ENVYOS_VERSIONS`** (mirrors `packages-meta/<pkg>/VERSION`). **Bench output** uses `build/<git-branch>/bench/` (see `docs/distro-semver.md`). **Published** trees live at `build/vX.Y.Z/`.
+Package pins live in **`MANIFEST.json` `releases.next`** (mirrors `packages-meta/<pkg>/VERSION`). **Bench output** uses `build/<git-branch>/bench/` (see `docs/distro-semver.md`). **Published** trees live at `build/vX.Y.Z/`.
 
 | Key | Role |
 |-----|------|
@@ -45,17 +45,17 @@ Package pins live in **`ENVYOS_VERSIONS`** (mirrors `packages-meta/<pkg>/VERSION
 | `motatool` | `upstream-evN` — `build/<branch>/bench/motatool-<ver>/` |
 | `peaky` | optional semver pin — staged from GitHub release cache |
 
-Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_envyos_versions`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**.
+Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_manifest`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**.
 
 **Publish** — `./envyos publish [vX.Y.Z]` (run **`./envyos build`** first):
 
 1. Suggest tag: `./envyos semver suggest` (CHANGELOG + bundle policy)
 2. Promote `build/<branch>/bench/` → `build/<ver>/`
-3. Verify delta matrix, lock `RELEASED_VERSIONS`, zip, GitHub Release (+ `envyos-<ver>-full.tgz`)
-4. Git tag `v<ver>`; writes `distro=` in `ENVYOS_VERSIONS`
+3. Verify delta matrix, lock `releases.next` SHAs, snapshot to `releases[vX.Y.Z]`, zip, GitHub Release (+ `envyos-<ver>-full.tgz`)
+4. Git tag `v<ver>`; records release in `MANIFEST.json` `releases`
 
 ```bash
-source scripts/version.sh && list_envyos_versions
+source scripts/version.sh && list_manifest
 ./envyos build meshcore --list-targets
 ./envyos build meshcore                    # version from packages-meta/meshcore/VERSION
 ./envyos build meshcore v0.1.1             # override output dir + FIRMWARE_VERSION stamp

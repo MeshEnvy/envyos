@@ -7,7 +7,7 @@ Canonical contract for every EnvyOS distro component repo (envycore, bootloader,
 | Component | Manifest key | When bundled |
 |-----------|--------------|--------------|
 | mcmt-gateway | `mcmt-gateway=` | Distro ≥ v0.2.0 |
-| peaky | `peaky=` | When pinned in `ENVYOS_VERSIONS` (bench-gated) |
+| peaky | `peaky=` | When pinned in `MANIFEST.json` (bench-gated) |
 
 Peaky and mcmt keep **independent semver** (like motatool). EnvyOS `publish.sh` mirrors their GitHub Release binaries into the distro zip; tags still land on each component repo.
 
@@ -24,9 +24,9 @@ GitHub Release bodies come from `CHANGELOG.md`, not commit subjects.
 
 ## Distro coupling
 
-[MeshEnvy/envyos](https://github.com/MeshEnvy/envyos) owns the **tested version matrix** (`ENVYOS_VERSIONS`) and **one-stop release assets**. Dev builds use **`build/<branch>/bench/`**; publish promotes to **`build/vX.Y.Z/`**. See [`distro-semver.md`](distro-semver.md).
+[MeshEnvy/envyos](https://github.com/MeshEnvy/envyos) owns the **tested version matrix** (`MANIFEST.json`) and **one-stop release assets**. Dev builds use **`build/<branch>/bench/`**; publish promotes to **`build/vX.Y.Z/`**. See [`distro-semver.md`](distro-semver.md).
 
-After cutting a component release, bump `ENVYOS_VERSIONS` and `COMPONENTS.lock` in envyos when that version ships in a bundle.
+After cutting a component release, bump `MANIFEST.json` in envyos when that version ships in a bundle.
 
 ## Inclusion rule
 

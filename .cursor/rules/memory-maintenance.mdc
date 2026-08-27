@@ -21,7 +21,7 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | Area | Examples |
 |------|----------|
 | Distro git | `envyos/main`, remotes, feature-branch workflow, **open upstream PRs**, PR↔branch sync |
-| Versioning | `ENVYOS_VERSIONS`, `packages-meta/<pkg>/VERSION` (upstream-evN), `scripts/version.sh`, `-DFIRMWARE_VERSION` stamping |
+| Versioning | `MANIFEST.json`, `packages-meta/<pkg>/VERSION` (upstream-evN), `scripts/version.sh`, `-DFIRMWARE_VERSION` stamping |
 | Packaging | `packages-meta/<pkg>/` recipes (`build.sh`, `PACKAGE`, `CHANGELOG.md`, `RELEASED`), `./envyos build` dispatch |
 | Firmware tree | `packages/meshcore/` layout, env names, variant boards, `ENABLE_OTA` flags |
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |

@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 source "$ROOT/scripts/version.sh"
 
 ver="$(read_peaky_version)" || {
-  echo "error: peaky= not set in ENVYOS_VERSIONS" >&2
+  echo "error: peaky= not set in MANIFEST.json" >&2
   exit 1
 }
 

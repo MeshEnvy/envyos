@@ -1,6 +1,6 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Distro repo** — `./envyos` CLI, `ENVYOS_VERSIONS`, `packages-meta/`, `COMPONENTS.lock`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts); identity and overlay notes live in **`packages-meta/`**.
+MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts); identity and overlay notes live in **`packages-meta/`**.
 
 ## Layout
 
@@ -10,7 +10,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md`, `RELEASES`, `BACKLOG.md` (meshcore) |
 | `scripts/` | Shared distro machinery — `envyos` CLI, `version.sh`, `build-lib.sh`, `build-all.sh`, `publish.sh`, `targets.txt` (recipes live in `packages-meta/<pkg>/build.sh`) |
 | `build/` | Bench (`build/<branch>/bench/…`) and immutable `build/vX.Y.Z/` after publish |
-| `ENVYOS_VERSIONS` | Pinned package versions (`meshcore=1.16.0-ev1`, …) |
+| `MANIFEST.json` | `releases.next` (bench head) + `releases[vX.Y.Z]` (immutable publish snapshots) |
 | `peaky_finders/` | Workspace sibling — GitHub releases when `peaky=` pinned |
 | `packages/meshcore-open/` | Flutter MeshCore client workbench (`MeshEnvy/meshcore-open`; `./envyos fetch meshcore-open`) |
 
@@ -52,7 +52,7 @@ Each OTA-stack repo has **two branch roles**:
 | Role | Branch | Where | Use |
 |------|--------|-------|-----|
 | **Distro integration** | `dev` (envyos) / `envyos/dev` (components) | MeshEnvy fork | Bench WIP |
-| **Distro release** | `main` / `envyos/main` | Same | Published pins in `COMPONENTS.lock` |
+| **Distro release** | `main` / `envyos/main` | Same | Published pins in `MANIFEST.json` |
 
 **PR bases** (not the same as `envyos/main`):
 
@@ -63,7 +63,7 @@ Each OTA-stack repo has **two branch roles**:
 | motatool (external) | `vk496/motatool` | `main` | … |
 | `bootloader/` | `vk496/Adafruit_nRF52_Bootloader_OTAFIX` | `feature/ota-delta-apply` | … |
 
-Workflow: branch `feature/<name>` from PR base → implement → open cross-fork PR → merge into **`envyos/dev`**. Pin SHAs in `COMPONENTS.lock` at distro publish.
+Workflow: branch `feature/<name>` from PR base → implement → open cross-fork PR → merge into **`envyos/dev`**. Lock SHAs in `MANIFEST.json` at distro publish.
 
 Skill: `.cursor/skills/envyos-meshcore/SKILL.md`.
 
@@ -90,16 +90,12 @@ Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,
 | **v0.1.0** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · **`firmware-v0.1.0.zip`** · **`build/motas/v0.1.0/`** |
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
-- Listed in **`RELEASED_VERSIONS`**; released component trees (`.released` markers) are immutable.
-- **Canonical off-machine copy:** GitHub Release on **`v<distro>`** — `firmware-*.zip`, `bootloader-*.zip`, `motatool-*.zip`, optional `peaky-*.zip`. Local caches: **`packages/meshcore/build/motas/`**, **`build/…/bench/bootloader-…/`**, **`build/…/bench/motatool-…/`**, **`peaky_finders/dist/`**.
-- **`./scripts/publish.sh [version]`** — after `./envyos build`: promote `build/<branch>/bench/` → `build/vX.Y.Z/`, lock, GitHub Release. Suggests tag from CHANGELOG when version omitted (`docs/distro-semver.md`). Sets `distro=` + `firmware=` in `ENVYOS_VERSIONS` at publish.
-
-## Versioning
-
-- **`ENVYOS_VERSIONS`** — component pins (`firmware`, `bootloader`, `motatool`, optional `peaky`, `mcmt-gateway`). **`distro=`** is the draft/published git tag, written at publish.
+- Listed in **`MANIFEST.json` `releases`** (keyed by fleet tag, each with a `packages` snapshot); released component trees (`.released` markers) are immutable.
+- **`./scripts/publish.sh [version]`** — promote bench → `build/vX.Y.Z/`, lock SHAs, record release snapshot, GitHub Release.
+- **`MANIFEST.json`** — `releases.next` (WIP bench pins) + shipped `releases[vX.Y.Z]`. `packages-meta/*/RELEASES` holds package semver history for deltas.
 - **Dev bench path:** `build/<git-branch>/bench/{firmware,bootloader,motatool}-<ver>/` (not `build/<distro>/`).
 - **Published path:** `build/vX.Y.Z/` (immutable after lock).
-- `meshcore=` in `ENVYOS_VERSIONS` → `packages-meta/meshcore/VERSION`; built by **`packages-meta/meshcore/build.sh`**
+- `meshcore` in `MANIFEST.json` → `packages-meta/meshcore/VERSION`; built by **`packages-meta/meshcore/build.sh`**
 - `bootloader` → **`build/<branch>/bench/bootloader-<ver>/`**
 - `motatool` → **`build/<branch>/bench/motatool-<ver>/`** (artifact); working copy under bench motatool tree
 - `peaky` → local `cargo build` when pinned

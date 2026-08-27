@@ -23,7 +23,7 @@ When a repo joins the EnvyOS stack:
 3. **`CHANGELOG.md`** — Keep a Changelog; `## [Unreleased]` for day-to-day
 4. **`docs/change-management.md`** — commit vs changelog rules
 5. **Version file** — one canonical source (`VERSION`, `Cargo.toml`, `envyboot/VERSION`)
-6. **`RELEASED_VERSIONS`** — immutable shipped semver list (one line per `vX.Y.Z`, including pre-releases)
+6. **`MANIFEST.json releases`** — immutable shipped semver list (one line per `vX.Y.Z`, including pre-releases)
 7. **`.cursor/skills/<pkg>-release/SKILL.md`** — cut workflow for agents
 8. **GitHub Release asset name** — register in this skill's table below; distro `bundle` fetches by name
 
@@ -36,13 +36,13 @@ Optional: `.github/workflows/ci.yml` for tests. **No release CI** — local prep
 | Concept | Source | Used for |
 |---------|--------|----------|
 | **Branch slot** | Sanitized git branch (`envyos-main`, …) | **`build`** and **`prepare`** output paths |
-| **Version** | Package version file (`Cargo.toml`, `VERSION`, …) | Asset names, changelog, git tag, `RELEASED_VERSIONS` |
+| **Version** | Package version file (`Cargo.toml`, `VERSION`, …) | Asset names, changelog, git tag, `MANIFEST.json releases` |
 
 **`build` and `prepare` never take a version argument.** They always write under `build/<branch-slot>/…` and `dist/<branch-slot>/…`.
 
 **`bump` is the only `./envyos` command that mutates the version file** (package defines how: semver, `-rcN`, etc.).
 
-**`publish`** reads the version from the version file (optional CLI arg must match). It uploads from `dist/<branch-slot>/`, locks `RELEASED_VERSIONS`, copies to immutable `build/…/vX.Y.Z/` where needed (envycore motas), and tags.
+**`publish`** reads the version from the version file (optional CLI arg must match). It uploads from `dist/<branch-slot>/`, locks `MANIFEST.json releases`, copies to immutable `build/…/vX.Y.Z/` where needed (envycore motas), and tags.
 
 ### Command split (required)
 
@@ -160,7 +160,7 @@ All components: **local prepare + publish**. No tag-triggered CI.
 3. Promote changelog → `## [vX.Y.Z] - date`; fresh Unreleased
 4. `./envyos prepare` — review `dist/<branch-slot>/`
 5. `./envyos publish --yes`
-6. Commit version file, CHANGELOG, RELEASED_VERSIONS; push branch and tag
-7. When bundled: bump pins in envyos `ENVYOS_VERSIONS`
+6. Commit version file, CHANGELOG, MANIFEST.json releases; push branch and tag
+7. When bundled: bump pins in envyos `MANIFEST.json`
 
 Load the package's `<pkg>-release` skill for repo-specific gates.

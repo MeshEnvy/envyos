@@ -20,7 +20,7 @@ disable-model-invocation: true
 ```text
 meshcore companion-vX.Y.Z
   + merge envyos/main overlay (OTA + EnvyOS customizations already on branch)
-  = bench → bump ENVYOS_VERSIONS / tag when publishing
+  = bench → bump MANIFEST.json / tag when publishing
 ```
 
 **Not** in normal flow:
@@ -89,7 +89,7 @@ envyos_main_sha: <short after merge>
 last_integrate: YYYY-MM-DD
 ```
 
-Then publish path (envyos repo): bump `ENVYOS_VERSIONS`, `./envyos build`, component tags/releases as ready — see `component-release-policy.md`.
+Then publish path (envyos repo): bump `MANIFEST.json`, `./envyos build`, component tags/releases as ready — see `component-release-policy.md`.
 
 ### EC-001 pattern
 
@@ -103,7 +103,7 @@ git checkout -B "$WORK" meshcore/dev
 git merge envyos/main -m "spike: meshcore/dev + overlay"
 ```
 
-Preview API drift only. **Do not** bump `ENVYOS_VERSIONS` or ship motas.
+Preview API drift only. **Do not** bump `MANIFEST.json` or ship motas.
 
 ### Conflict resolution
 
@@ -168,7 +168,7 @@ cd packages/meshcore && pio test -e native -f test_ota && pio run -e RAK_WisMesh
 - Skip merging OTA fixes to `envyos/main` while waiting on vk496 PR merge
 - Send **OTA** patches only to meshcore-dev (not in mainline yet — use vk496)
 - Deploy `/freshen dev` or `meshcore/dev` output to fleet
-- Rebuild or delete released `build/motas/v0.1.0/` trees (immutable — `RELEASED_VERSIONS`)
+- Rebuild or delete released `build/motas/v0.1.0/` trees (immutable — `MANIFEST.json releases`)
 - Commit integrate WIP without tests passing
 
 ## Legacy bootstrap (reference only)

@@ -2,4 +2,4 @@ class=native
 name=peaky
 artifact=peaky
 repo=MeshEnvy/peaky_finders
-# Optional pin: peaky= in ENVYOS_VERSIONS. Binaries staged from GitHub release cache.
+# Optional pin: peaky= in MANIFEST.json. Binaries staged from GitHub release cache.

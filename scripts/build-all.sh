@@ -22,7 +22,7 @@ usage: envyos build [options] [firmware-version] [build-mota options…]
   --clean           Wipe bench output trees and force full rebuild
   --no-release      Skip release/ after build
   --no-peaky        Skip peaky even when peaky= is pinned
-  --list-versions   Print ENVYOS_VERSIONS and exit
+  --list-versions   Print MANIFEST.json and exit
   --list-targets    Print scripts/targets.txt and exit
   --list-boards     Print otafix boards from targets.txt and exit
 
@@ -79,7 +79,7 @@ while (($# > 0)); do
       shift
       ;;
     --list-versions)
-      list_envyos_versions
+      list_manifest
       exit 0
       ;;
     --list-targets)
@@ -117,7 +117,7 @@ release_root="$(distro_release_root "$distro_ver")"
 
 if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1)); then
   echo "==> EnvyOS build (slot: $distro_ver$( ((BUILD_CLEAN == 1)) && printf ', clean'))"
-  list_envyos_versions | sed 's/^/    /'
+  list_manifest | sed 's/^/    /'
   export ENVYOS_SKIP_RELEASE=1
 fi
 
@@ -160,7 +160,7 @@ if ((BUILD_FIRMWARE == 1)); then
   fi
 fi
 
-if ((BUILD_PEAKY == 1)) && ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
+if ((BUILD_PEAKY == 1)) && ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
   echo ""
   echo "==> peaky ($ver)"
   "$META/peaky/build.sh"
@@ -185,7 +185,7 @@ if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY 
   if ((BUILD_FIRMWARE == 1)); then
     echo "    bench/firmware:   $(firmware_bench_root "$distro_ver" "$(read_firmware_version)")/"
   fi
-  if ((BUILD_PEAKY == 1)) && ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
+  if ((BUILD_PEAKY == 1)) && ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
     echo "    bench/peaky:      $(peaky_bench_root "$distro_ver" "$ver")/"
   fi
   if ((BUILD_RELEASE == 1)); then

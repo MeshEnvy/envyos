@@ -118,7 +118,7 @@ fi
 
 if [[ "$RELEASE_ONLY" -eq 1 ]]; then
   is_released_version "$PUBLISH_VER" || {
-    echo "error: $PUBLISH_VER is not in RELEASED_VERSIONS — publish it first" >&2
+    echo "error: $PUBLISH_VER is not in MANIFEST.json releases — publish it first" >&2
     exit 1
   }
   ensure_release_manifest_for_backfill "$PUBLISH_VER"
@@ -137,13 +137,12 @@ if [[ "$RELEASE_ONLY" -eq 1 ]]; then
 fi
 
 if is_published_distro_tag "$PUBLISH_VER"; then
-  echo "error: $PUBLISH_VER is already published (git tag or RELEASED_VERSIONS)" >&2
+  echo "error: $PUBLISH_VER is already published (git tag or MANIFEST.json releases)" >&2
   exit 1
 fi
 
 echo "publish:  $PUBLISH_VER  (from slot $BUILD_SLOT)"
-set_distro_versions_for_publish "$PUBLISH_VER"
-list_envyos_versions | sed 's/^/  manifest /'
+list_manifest | sed 's/^/  manifest /'
 
 promote_bench_to_release_tree "$BUILD_SLOT" "$PUBLISH_VER"
 populate_distro_release "$PUBLISH_VER"
@@ -178,5 +177,5 @@ if [[ "$GITHUB_RELEASE" -eq 1 ]]; then
 fi
 
 echo ""
-echo "Done. Commit release changes (ENVYOS_VERSIONS, RELEASED_VERSIONS, COMPONENTS.lock, CHANGELOG)."
-echo "Next dev cycle: keep building on branch slot build/$BUILD_SLOT/ — bump component keys in ENVYOS_VERSIONS as needed."
+echo "Done. Commit release changes (MANIFEST.json, CHANGELOG)."
+echo "Next dev cycle: keep building on branch slot build/$BUILD_SLOT/ — bump pins in releases.next as needed."

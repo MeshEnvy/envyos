@@ -26,7 +26,7 @@ demote_pkg() {
     envyos
     VERSION
     CHANGELOG.md
-    RELEASED_VERSIONS
+    MANIFEST.json
     RELEASES
     BACKLOG.md
     FRESHEN.lock
