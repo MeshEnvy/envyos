@@ -4,4 +4,4 @@ firmware_sha=7e4ff35ba4c61cde3afc27a9fff7361e9c68082a
 bootloader_repo=MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX
 bootloader_sha=3ea21a1ed59dab8d15330f5bb96bfd23a0e459bd
 mcmt_gateway_repo=MeshEnvy/mcmt-gateway
-mcmt_gateway_sha=
+mcmt_gateway_sha=093a1e12f099f3966bfa8bf15a195eb961489176
