@@ -6,7 +6,7 @@ EnvyOS is the **distro repo**: it owns package recipes, versioning, changelogs, 
 
 ```
 envyos/
-  packages/           # gitignored — full git checkouts (meshcore, bootloader, motatool, mcmt-gateway)
+  packages/           # gitignored — full git checkouts (meshcore, bootloader, motatool, mcmt-gateway, meshcore-open)
   packages-meta/      # tracked — per-package recipe (build.sh, PACKAGE, VERSION, CHANGELOG, RELEASED)
   scripts/            # shared machinery — envyos CLI, version.sh, build-lib.sh, build-all.sh, publish.sh, targets.txt
   build/              # bench + published artifact trees
@@ -52,8 +52,9 @@ Shipped distro releases define which base hex archives are kept under `build/bas
 | `packages/meshcore` | Merge workbench (`envyos/main`), upstream PR vehicle |
 | `packages/bootloader` | Same |
 | `packages/motatool` | Same (vk496 PR base) |
+| `packages/meshcore-open` | Flutter client workbench (`MeshEnvy/meshcore-open`; upstream `zjs81/meshcore-open`) |
 
-No `./envyos` harness, no VERSION/CHANGELOG/RELEASED in package repos.
+No `./envyos` harness, no VERSION/CHANGELOG/RELEASED in package repos (meshcore-open is not a distro build artifact yet).
 
 ## CLI
 

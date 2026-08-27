@@ -151,6 +151,7 @@ fetch_package_checkout() {
     bootloader) repo="MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
     motatool) repo="MeshEnvy/motatool"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
     mcmt-gateway) repo="Imperator4422/mcmt-gateway"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
+    meshcore-open) repo="MeshEnvy/meshcore-open"; sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}" ;;
     *)
       echo "error: unknown package '$pkg'" >&2
       return 1

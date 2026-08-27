@@ -250,6 +250,7 @@ submodule_git_sha() {
     meshcore) path="$MESHCORE_ROOT" ;;
     bootloader) path="$BOOTLOADER_SRC" ;;
     motatool) path="$MOTATOOL_ROOT" ;;
+    meshcore-open) path="$MESHCORE_OPEN_ROOT" ;;
     *)
       echo "?"
       return 0

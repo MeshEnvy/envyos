@@ -72,6 +72,7 @@ cmd_info() {
   printf '  meshcore    %s\n' "$(submodule_git_sha meshcore)"
   printf '  bootloader  %s\n' "$(submodule_git_sha bootloader)"
   printf '  motatool    %s\n' "$(submodule_git_sha motatool)"
+  printf '  meshcore-open %s\n' "$(submodule_git_sha meshcore-open)"
   echo ""
   echo "Package meta (packages-meta/)"
   for pkg in meshcore bootloader motatool; do
@@ -110,7 +111,11 @@ cmd_info() {
   done
   distro_ver="$(read_distro_version 2>/dev/null || true)"
   if [[ -n "$distro_ver" ]]; then
-    printf '  draft distro   %-8s  (set at publish; bench uses branch slot)\n' "$distro_ver"
+    if [[ -n "$last_distro" && "$distro_ver" == "$last_distro" ]]; then
+      printf '  fleet distro   %-8s  (last published; bench uses branch slot)\n' "$distro_ver"
+    else
+      printf '  draft distro   %-8s  (target publish tag)\n' "$distro_ver"
+    fi
   fi
 }
 
@@ -203,7 +208,7 @@ cmd_bump_ev() {
 cmd_fetch() {
   local pkg="${1:-}"
   [[ -n "$pkg" ]] || {
-    echo "usage: envyos fetch meshcore|bootloader|motatool|mcmt-gateway" >&2
+    echo "usage: envyos fetch meshcore|bootloader|motatool|mcmt-gateway|meshcore-open" >&2
     exit 2
   }
   fetch_package_checkout "$pkg"

@@ -6,13 +6,13 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 
 | Path | Role |
 |------|------|
-| `packages/` | Gitignored workbenches — `meshcore`, `bootloader`, `motatool`, `mcmt-gateway` (merge + upstream PR vehicles) |
+| `packages/` | Gitignored workbenches — `meshcore`, `bootloader`, `motatool`, `mcmt-gateway`, `meshcore-open` |
 | `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md`, `RELEASED`, `BACKLOG.md` (meshcore) |
 | `scripts/` | Shared distro machinery — `envyos` CLI, `version.sh`, `build-lib.sh`, `build-all.sh`, `publish.sh`, `targets.txt` (recipes live in `packages-meta/<pkg>/build.sh`) |
 | `build/` | Bench (`build/<branch>/bench/…`) and immutable `build/vX.Y.Z/` after publish |
 | `ENVYOS_VERSIONS` | Pinned package versions (`meshcore=1.16.0-ev1`, …) |
 | `peaky_finders/` | Workspace sibling — GitHub releases when `peaky=` pinned |
-| `apps/app/` | Flutter MeshCore client submodule |
+| `packages/meshcore-open/` | Flutter MeshCore client workbench (`MeshEnvy/meshcore-open`; `./envyos fetch meshcore-open`) |
 
 Doctrine: [`docs/distro-packaging.md`](docs/distro-packaging.md).
 
@@ -81,7 +81,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 
 vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore` skill PR table.
 
-Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway}` (+ peaky sibling)`.
+Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,meshcore-open}` (+ peaky sibling)`.
 
 ## Released versions (immutable)
 
