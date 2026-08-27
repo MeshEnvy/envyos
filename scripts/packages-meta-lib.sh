@@ -83,11 +83,17 @@ read_package_version() {
 }
 
 # FIRMWARE_VERSION stamp: 1.16.0.1 (fourth byte = ev).
+component_firmware_stamp() {
+  local v="${1#v}"
+  if [[ "$v" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-ev([0-9]+)$ ]]; then
+    printf '%s.%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    return 0
+  fi
+  printf '%s' "$v"
+}
+
 package_firmware_stamp() {
-  local pkg=${1:-meshcore} upstream ev
-  upstream="$(read_package_meta_key "$pkg" upstream)"
-  ev="$(read_package_meta_key "$pkg" ev)"
-  printf '%s.%s' "$upstream" "$ev"
+  component_firmware_stamp "$(read_package_version "${1:-meshcore}")"
 }
 
 sync_envyos_version_from_meta() {
@@ -186,6 +192,21 @@ normalize_component_version() {
     return 0
   fi
   normalize_version "$1"
+}
+
+# Bench directory suffix: firmware-v0.1.2 (semver) or firmware-1.16.0-ev1 (overlay).
+package_bench_component_label() {
+  local ver=$1
+  if normalize_package_version "$ver" >/dev/null 2>&1; then
+    ver="$(normalize_package_version "$ver")"
+    if [[ "$ver" =~ -ev[0-9]+$ ]]; then
+      printf '%s' "$ver"
+    else
+      normalize_version "$ver"
+    fi
+    return 0
+  fi
+  normalize_version "$ver"
 }
 
 package_to_bench_id() {

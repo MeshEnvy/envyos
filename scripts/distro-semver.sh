@@ -54,9 +54,50 @@ changelog_has_pattern() {
   grep -Eiq "$pattern" <<<"$body"
 }
 
+component_pin_upstream() {
+  local v="${1#v}"
+  v="${v%-ev*}"
+  printf '%s' "$v"
+}
+
+# patch | minor | major — compare upstream semver pins (ignores -evN overlay).
+component_pin_bump_level() {
+  local last=$1 cur=$2
+  local last_m last_mi last_p cur_m cur_mi cur_p
+  last="$(component_pin_upstream "$last")"
+  cur="$(component_pin_upstream "$cur")"
+  [[ "$last" == "$cur" ]] && return 1
+  IFS=. read -r last_m last_mi last_p <<<"$last"
+  IFS=. read -r cur_m cur_mi cur_p <<<"$cur"
+  last_p="${last_p:-0}"
+  cur_p="${cur_p:-0}"
+  if [[ "$cur_m" -gt "$last_m" ]]; then
+    printf '%s\n' major
+  elif [[ "$cur_m" -lt "$last_m" ]]; then
+    printf '%s\n' major
+  elif [[ "$cur_mi" -gt "$last_mi" ]]; then
+    printf '%s\n' minor
+  elif [[ "$cur_mi" -lt "$last_mi" ]]; then
+    printf '%s\n' minor
+  else
+    printf '%s\n' patch
+  fi
+}
+
+# True when bench pins use upstream-evN but the last published manifest still used distro-coupled semver.
+packaging_scheme_migration_pending() {
+  local last=$1 last_motatool cur_motatool
+  [[ -n "$last" ]] || return 1
+  cur_motatool="$(read_motatool_version 2>/dev/null || true)"
+  [[ "$cur_motatool" == *-ev* ]] || return 1
+  last_motatool="$(read_release_manifest_key "$last" motatool 2>/dev/null || true)"
+  [[ -n "$last_motatool" && "$last_motatool" != *-ev* ]]
+}
+
 bundle_set_diff_level() {
   local last=$1
   local last_ids cur_ids id
+  local key last_val cur_val level max=""
   last_ids="$(manifest_bundle_ids "$last" | sort)"
   cur_ids="$(bundle_ids_sorted "$(read_distro_version 2>/dev/null || echo v0.0.0)")"
 
@@ -76,7 +117,6 @@ bundle_set_diff_level() {
     }
   done <<<"$cur_ids"
 
-  local key last_val cur_val
   for key in bootloader motatool mcmt-gateway peaky; do
     last_val="$(read_release_manifest_key "$last" "$key" 2>/dev/null || true)"
     cur_val=""
@@ -86,12 +126,19 @@ bundle_set_diff_level() {
       mcmt-gateway) cur_val="$(read_optional_envyos_version_key mcmt-gateway 2>/dev/null || true)" ;;
       peaky) cur_val="$(read_optional_envyos_version_key peaky 2>/dev/null || true)" ;;
     esac
-    [[ -n "$last_val" && -n "$cur_val" && "$last_val" != "$cur_val" ]] || continue
-    grep -qxF "$key" <<<"$cur_ids" || continue
-    printf '%s\n' minor
-    return 0
+    [[ -n "$last_val" && -n "$cur_val" ]] || continue
+    [[ "$last_val" == "$cur_val" ]] && continue
+    level="$(component_pin_bump_level "$last_val" "$cur_val")" || continue
+    case "$level" in
+      major) printf '%s\n' major; return 0 ;;
+      minor) max=minor ;;
+      patch)
+        [[ "$max" != minor ]] && max=patch
+        ;;
+    esac
   done
 
+  [[ -n "$max" ]] && printf '%s\n' "$max" && return 0
   return 1
 }
 
@@ -104,6 +151,10 @@ suggest_distro_bump_level() {
   fi
 
   last="$(latest_released_distro_from_registry 2>/dev/null || true)"
+  if [[ -n "$last" ]] && packaging_scheme_migration_pending "$last"; then
+    printf '%s\n' patch
+    return 0
+  fi
   if [[ -n "$last" ]]; then
     if level="$(bundle_set_diff_level "$last")"; then
       printf '%s\n' "$level"

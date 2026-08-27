@@ -80,7 +80,7 @@ release_manifest_path() {
 package_bench_root() {
   local tree_key=$1 package=$2 component_ver=$3
   tree_key="$(normalize_tree_key "$tree_key")"
-  component_ver="$(normalize_component_version "$component_ver")"
+  component_ver="$(package_bench_component_label "$component_ver")"
   printf '%s/%s-%s' "$(distro_bench_root "$tree_key")" "$package" "$component_ver"
 }
 
@@ -273,8 +273,12 @@ read_registry_versions() {
   done <"$file"
 }
 
+# True when ver is listed in RELEASED_FIRMWARE (shipped distro semver firmware).
 is_released_firmware_version() {
   local ver want
+  if normalize_package_version "$1" >/dev/null 2>&1; then
+    return 1
+  fi
   ver="$(normalize_version "$1")" || return 1
   while IFS= read -r want || [[ -n "$want" ]]; do
     [[ "$want" == "$ver" ]] && return 0
@@ -306,7 +310,12 @@ list_released_distros() {
 legacy_firmware_bench_paths() {
   local ver=$1
   local distro
-  distro="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
+  if normalize_version "$ver" >/dev/null 2>&1; then
+    distro="$(normalize_version "$ver")"
+  else
+    distro="$(read_bench_tree_key 2>/dev/null || printf '%s' main)"
+  fi
   printf '%s\n' \
     "$BUILD_ROOT/firmware/$ver" \
     "$MESHCORE_ROOT/build/motas/$ver" \
@@ -317,7 +326,12 @@ legacy_firmware_bench_paths() {
 legacy_bootloader_bench_paths() {
   local ver=$1
   local distro
-  distro="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
+  if normalize_version "$ver" >/dev/null 2>&1; then
+    distro="$(normalize_version "$ver")"
+  else
+    distro="$(read_bench_tree_key 2>/dev/null || printf '%s' main)"
+  fi
   printf '%s\n' \
     "$BUILD_ROOT/bootloader/$ver" \
     "$(distro_bench_root "$distro")/bootloader" \
@@ -326,8 +340,12 @@ legacy_bootloader_bench_paths() {
 
 migrate_legacy_firmware_tree() {
   local ver=$1 src dest distro_root item base distro fw_ver
-  ver="$(normalize_version "$ver")"
-  distro="$ver"
+  ver="$(normalize_component_version "$ver")"
+  if normalize_version "$ver" >/dev/null 2>&1; then
+    distro="$(normalize_version "$ver")"
+  else
+    distro="$(read_bench_tree_key 2>/dev/null || printf '%s' main)"
+  fi
   fw_ver="$ver"
   dest="$(firmware_bench_root "$distro" "$fw_ver")"
   [[ -d "$dest" ]] && return 0
@@ -364,8 +382,12 @@ migrate_legacy_firmware_tree() {
 
 migrate_legacy_bootloader_tree() {
   local ver=$1 src dest distro bl_ver
-  ver="$(normalize_version "$ver")"
-  distro="$ver"
+  ver="$(normalize_component_version "$ver")"
+  if normalize_version "$ver" >/dev/null 2>&1; then
+    distro="$(normalize_version "$ver")"
+  else
+    distro="$(read_bench_tree_key 2>/dev/null || printf '%s' main)"
+  fi
   bl_ver="$ver"
   dest="$(bootloader_bench_root "$distro" "$bl_ver")"
   [[ -d "$dest" ]] && return 0
@@ -382,8 +404,12 @@ migrate_legacy_bootloader_tree() {
 
 firmware_version_tree_present() {
   local ver=$1 path distro fw_ver
-  ver="$(normalize_version "$ver")"
-  distro="$ver"
+  ver="$(normalize_component_version "$ver")"
+  if normalize_version "$ver" >/dev/null 2>&1; then
+    distro="$(normalize_version "$ver")"
+  else
+    distro="$(read_bench_tree_key 2>/dev/null || printf '%s' main)"
+  fi
   fw_ver="$ver"
   migrate_legacy_firmware_tree "$ver" || true
   [[ -d "$(firmware_bench_root "$distro" "$fw_ver")" ]]
@@ -415,9 +441,11 @@ list_known_mota_versions() {
       ver="$(normalize_version "$ver" 2>/dev/null)" || continue
       tmp+=("$ver")
     done
-    for d in "$BUILD_ROOT"/firmware/v[0-9]*.[0-9]*.[0-9]*; do
+    for d in "$BUILD_ROOT"/*/bench/firmware-*; do
       [[ -d "$d" ]] || continue
-      ver="$(normalize_version "$(basename "$d")" 2>/dev/null)" || continue
+      ver="$(basename "$d")"
+      ver="${ver#firmware-}"
+      ver="$(normalize_component_version "$ver" 2>/dev/null)" || continue
       tmp+=("$ver")
     done
   fi
@@ -443,9 +471,16 @@ latest_released_distro() {
 
 # --- firmware artifact names ---
 
+# Filename-safe version label (1.16.0-ev1 or 0.1.2 — no leading v).
+firmware_artifact_ver_label() {
+  local ver=$1
+  ver="$(normalize_component_version "$ver")"
+  printf '%s' "${ver#v}"
+}
+
 firmware_artifact_name() {
   local slug=$1 ver=$2 kind=$3
-  ver="$(normalize_version "$ver")"
+  ver="$(firmware_artifact_ver_label "$ver")"
   case "$kind" in
     hex) printf 'fw-%s-%s.hex' "$slug" "$ver" ;;
     uf2) printf 'fw-%s-%s.uf2' "$slug" "$ver" ;;
@@ -460,7 +495,7 @@ firmware_artifact_name() {
 
 github_full_mota_name() {
   local slug=$1 ver=$2
-  ver="$(normalize_version "$ver")"
+  ver="$(firmware_artifact_ver_label "$ver")"
   printf 'fw-%s-%s-full-*.mota' "$slug" "$ver"
 }
 

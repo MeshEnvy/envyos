@@ -255,6 +255,9 @@ parse_version() {
 # True when ver is listed in RELEASED_VERSIONS (shipped, immutable mota tree).
 is_released_version() {
   local ver line
+  if normalize_package_version "$1" >/dev/null 2>&1; then
+    return 1
+  fi
   ver="$(normalize_version "$1")" || return 1
   [[ -f "$RELEASED_VERSIONS_FILE" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -280,9 +283,17 @@ assert_version_not_released() {
 
 # Zero-padded key for portable version sort (macOS sort lacks -V).
 version_sort_key() {
-  local major minor patch
+  local ver="$1" major minor patch ev upstream
+  ver="${ver#v}"
+  if [[ "$ver" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-ev([0-9]+)$ ]]; then
+    upstream="${BASH_REMATCH[1]}"
+    ev="${BASH_REMATCH[2]}"
+    IFS=. read -r major minor patch <<<"$upstream"
+    printf '%03d.%03d.%03d.%03d' "$major" "$minor" "${patch:-0}" "$ev"
+    return 0
+  fi
   read -r major minor patch <<<"$(parse_version "$1")"
-  printf '%03d.%03d.%03d' "$major" "$minor" "$patch"
+  printf '%03d.%03d.%03d.%03d' "$major" "$minor" "$patch" 0
 }
 
 # Print unique versions sorted ascending (args: v0.1.0 v0.1.2 …).
@@ -320,13 +331,25 @@ version_lt() {
 
 list_delta_base_versions() {
   local target ver
+  # upstream-evN builds: delta bases are released distro semver firmware trees.
+  if normalize_package_version "$1" >/dev/null 2>&1; then
+    while IFS= read -r ver || [[ -n "$ver" ]]; do
+      [[ -n "$ver" ]] || continue
+      printf '%s\n' "$ver"
+    done < <(read_registry_versions "$RELEASED_FIRMWARE_FILE")
+    return 0
+  fi
   target="$(normalize_version "$1")" || return 1
   while IFS= read -r ver || [[ -n "$ver" ]]; do
     [[ -n "$ver" ]] || continue
     if version_lt "$ver" "$target"; then
       printf '%s\n' "$ver"
     fi
-  done < <(list_known_mota_versions)
+  done < <(list_known_mota_versions | while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    ver="$(normalize_version "$ver" 2>/dev/null)" || continue
+    printf '%s\n' "$ver"
+  done | awk '!seen[$0]++')
 }
 
 # v0.1.1 → v0.1.0; v0.1.0 → (empty)
@@ -381,11 +404,15 @@ write_motatool_cargo_version() {
 
 append_released_version() {
   local ver="$1"
+  ver="$(normalize_version "$ver")"
   if is_released_version "$ver"; then
     echo "error: $ver is already listed in RELEASED_VERSIONS" >&2
     return 1
   fi
   printf '%s\n' "$ver" >>"$RELEASED_VERSIONS_FILE"
+  if ! is_released_firmware_version "$ver"; then
+    printf '%s\n' "$ver" >>"$RELEASED_FIRMWARE_FILE"
+  fi
 }
 
 read_mcmt_gateway_version() { read_envyos_version_key mcmt-gateway; }

@@ -220,7 +220,6 @@ run_full_mota_job() {
   local mt="$1"
   local slug="$2"
   local out="$3"
-  local fw_sem="${FW_VER#v}"
   local fw_image
 
   fw_image="$(resolve_firmware_image_in_dir "$out" "$slug" "$VER")" || {
@@ -229,7 +228,7 @@ run_full_mota_job() {
   }
 
   echo "==> full .mota ($slug)"
-  "$mt" build --fw "$fw_image" --fw-version "$fw_sem" \
+  "$mt" build --fw "$fw_image" --fw-version "$FW_STAMP" \
     --name-stem "fw-${slug}-${VER}" --out-dir "$out"
 }
 
@@ -247,8 +246,8 @@ run_one_delta_job() {
   echo "==> in-place delta ($slug) $base_ver → $VER"
   echo "    base: $base_hex"
   echo "    fw:   $fw_hex"
-  "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "${FW_VER#v}" \
-    --patch-type in-place --name-stem "fw-${slug}-${VER}" --base-version "$base_ver" \
+  "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "$FW_STAMP" \
+    --patch-type in-place --name-stem "fw-${slug}-${VER}" --base-version "${base_ver#v}" \
     --out-dir "$out"
 }
 
@@ -322,7 +321,7 @@ build_target_firmware() {
   else
     (
       cd "$MC"
-      export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_VER}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
+      export PLATFORMIO_BUILD_FLAGS="${PLATFORMIO_BUILD_FLAGS:-} -DFIRMWARE_VERSION='\"${FW_STAMP}\"' -DFIRMWARE_BUILD_DATE='\"${BUILD_STAMP}\"'"
       pio run -e "$env_name"
       pio run -e "$env_name" -t create_uf2
     )
@@ -440,6 +439,7 @@ if [[ -z "$VER" ]]; then
 fi
 
 FW_VER="$VER"
+FW_STAMP="$(component_firmware_stamp "$FW_VER")"
 
 load_targets "$TARGETS_FILE"
 
@@ -522,7 +522,7 @@ else
   MOTA_JOBS_LIMIT="$MOTA_JOBS"
   echo "mota jobs: $MOTA_JOBS_LIMIT (full + delta, pipelined after each pio build)"
 fi
-echo "version: $VER  label: $FW_VER_LABEL  meshcore: $GIT_SHA  build: $BUILD_STAMP"
+echo "version: $VER  stamp: $FW_STAMP  label: $FW_VER_LABEL  meshcore: $GIT_SHA  build: $BUILD_STAMP"
 if [[ ${#SELECTED[@]} -eq 0 ]]; then
   echo "target set: $TARGET_SET"
 fi

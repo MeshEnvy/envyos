@@ -2,7 +2,7 @@
 # Bench builds use build/<git-branch>/bench/ — not distro= until publish.
 # Bump overlay: ./envyos bump-ev meshcore|bootloader|motatool
 # Publish: ./envyos publish vX.Y.Z
-distro=0.2.0
+distro=0.1.2
 meshcore=1.16.0-ev1
 bootloader=0.9.2-ev1
 motatool=0.1.1-ev1
