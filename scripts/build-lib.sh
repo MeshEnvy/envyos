@@ -275,8 +275,9 @@ read_registry_versions() {
 
 # True when ver is listed in RELEASED_FIRMWARE (shipped distro semver firmware).
 is_released_firmware_version() {
-  local ver want
-  if normalize_package_version "$1" >/dev/null 2>&1; then
+  local ver want pkg
+  pkg="$(normalize_package_version "$1" 2>/dev/null || true)"
+  if [[ "$pkg" == *-ev* ]]; then
     return 1
   fi
   ver="$(normalize_version "$1")" || return 1

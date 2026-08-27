@@ -255,9 +255,6 @@ parse_version() {
 # True when ver is listed in RELEASED_VERSIONS (shipped, immutable mota tree).
 is_released_version() {
   local ver line
-  if normalize_package_version "$1" >/dev/null 2>&1; then
-    return 1
-  fi
   ver="$(normalize_version "$1")" || return 1
   [[ -f "$RELEASED_VERSIONS_FILE" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -965,8 +962,10 @@ collect_distro_release_assets() {
   local distro_ver=$1
   local release_dir f
   distro_ver="$(normalize_version "$distro_ver")"
-  populate_distro_release "$distro_ver"
   release_dir="$(distro_release_root "$distro_ver")"
+  if [[ ! -d "$release_dir" ]]; then
+    populate_distro_release "$distro_ver" >&2
+  fi
   while IFS= read -r f || [[ -n "$f" ]]; do
     [[ -n "$f" ]] || continue
     printf '%s\n' "$f"
