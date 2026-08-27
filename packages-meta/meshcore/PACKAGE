@@ -1,0 +1,9 @@
+class=patched-upstream
+name=meshcore
+artifact=firmware
+fork_repo=MeshEnvy/meshcore-firmware
+upstream_repo=meshcore-dev/MeshCore
+upstream_integrate=companion-v*
+ota_pr_base=vk496/feature/ota-lora
+mesh_pr_base=meshcore/dev
+artifact_zip=firmware-{version}.zip

@@ -24,9 +24,11 @@ usage() {
 usage: envyos <command> [args…]
 
 commands:
-  info                              Dev HEAD, last distro release, artifact status
-  build [target] [options…]         Build components; default runs all + publish preview
-  bump patch|minor|major <component>  Bump distro|firmware|bootloader|motatool
+  info                              Dev HEAD, package versions, artifact status
+  build [pkg…] [options…]           Build packages (default: all pinned)
+  bump-ev <pkg>                     Bump packages-meta ev counter (meshcore|bootloader|motatool)
+  fetch <pkg>                       Ensure packages/<pkg> checkout exists
+  bump patch|minor|major <component>  Bump distro semver (legacy component bump)
   semver suggest                    Proposed distro tag from CHANGELOG + bundle policy
   publish [options] [vX.Y.Z]        Promote branch bench → version tree, lock, upload
   publish release [vX.Y.Z]          Refresh build/<ver>/release from bench
@@ -37,30 +39,20 @@ commands:
   restore [vX.Y.Z]…                 Restore firmware + bootloader (default)
   gucp check [vX.Y.Z]               Verify GUCP registry for a release
   gucp list                         List release sections and blocking rows
-  gucp audit [vX.Y.Z] [N]           Triage: candidates + last N envycore commits
+  gucp audit [vX.Y.Z] [N]           Triage: candidates + last N meshcore commits
   changelog check [vX.Y.Z]          Verify Packages table + package changelogs
   changelog delta [vX.Y.Z]          Print package version deltas for a release
 
-  build targets: (omit) | firmware | bootloader | motatool | peaky | all
+  build packages: meshcore (firmware) | bootloader | motatool | peaky | all
+  Omit package list for full bench build (motatool → bootloader → meshcore order).
 
 examples:
   envyos build
-  envyos build --release-only
-  envyos build motatool --host-only
-  envyos build firmware --target wismesh-tag-repeater
-  envyos build firmware --release             # field slugs only
-  envyos build firmware --debug               # *-debug twins only
-  envyos bump patch firmware
+  envyos build motatool meshcore
+  envyos build meshcore --target wismesh-tag-repeater
+  envyos bump-ev meshcore
+  envyos fetch meshcore
   envyos publish --dry-run
-  envyos semver suggest
-  envyos publish release
-  envyos publish finalize
-  envyos publish upload v0.1.2
-  envyos gucp check v0.2.0
-  envyos gucp audit v0.2.0
-  envyos gucp list
-  envyos changelog check v0.2.0
-  envyos changelog delta
 EOF
   exit 2
 }
@@ -76,16 +68,22 @@ cmd_info() {
   level="$(suggest_distro_bump_level 2>/dev/null || echo '?')"
   echo "  (publish suggests: $level → $proposed)"
   echo ""
-  echo "Submodules"
-  printf '  envycore    %s\n' "$(submodule_git_sha envycore)"
+  echo "Package checkouts (packages/)"
+  printf '  meshcore    %s\n' "$(submodule_git_sha meshcore)"
   printf '  bootloader  %s\n' "$(submodule_git_sha bootloader)"
   printf '  motatool    %s\n' "$(submodule_git_sha motatool)"
   echo ""
-  last_distro="$(latest_released_distro_from_registry 2>/dev/null || latest_released_distro || true)"
+  echo "Package meta (packages-meta/)"
+  for pkg in meshcore bootloader motatool; do
+    printf '  %-12s %s\n' "$pkg" "$(read_package_version "$pkg" 2>/dev/null || echo '?')"
+  done
+  echo ""
+  last_distro="$(latest_published_distro_tag 2>/dev/null || true)"
   if [[ -n "$last_distro" ]]; then
     echo "Last published distro: $last_distro"
-    for id in distro firmware bootloader motatool; do
+    for id in distro meshcore bootloader motatool; do
       ver="$(manifest_component_version "$id" "$last_distro" 2>/dev/null || echo '?')"
+      [[ "$id" == meshcore && "$ver" == "?" ]] && ver="$(manifest_component_version firmware "$last_distro" 2>/dev/null || echo '?')"
       printf '  %-12s %s\n' "$id" "$ver"
     done
     published="$(read_release_manifest_key "$last_distro" published 2>/dev/null || echo '?')"
@@ -96,15 +94,18 @@ cmd_info() {
     echo ""
   fi
   echo "Artifacts"
-  for id in firmware bootloader motatool; do
-    ver="$(read_envyos_version_key "$id")"
+  for key in meshcore bootloader motatool; do
+    ver="$(read_envyos_version_key "$key")"
+    id="$(package_to_bench_id "$key")"
     status="$(component_artifact_status "$id" "$ver")"
-    if [[ "$id" == motatool ]]; then
+    if [[ "$key" == motatool ]]; then
       platforms="$(list_staged_motatool_platforms "$ver" | paste -sd, -)"
-      printf '  %-12s %-8s  %s  (%s%s)\n' "$id" "$ver" "$(component_build_dir "$id" "$ver")" "$status" \
+      printf '  %-12s %-8s  %s  (%s%s)
+' "$key" "$ver" "$(component_build_dir "$id" "$ver")" "$status" \
         "${platforms:+, $platforms}"
     else
-      printf '  %-12s %-8s  %s  (%s)\n' "$id" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
+      printf '  %-12s %-8s  %s  (%s)
+' "$key" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
     fi
   done
   distro_ver="$(read_distro_version 2>/dev/null || true)"
@@ -126,38 +127,86 @@ cmd_semver() {
 }
 
 cmd_build() {
-  local component="${1:-all}"
-  shift || true
-  case "$component" in
-    firmware | f)
-      exec "$SCRIPTS/build-mota.sh" "$@"
-      ;;
-    bootloader | bl)
-      exec "$SCRIPTS/build-bl.sh" "$@"
-      ;;
-    motatool | mt)
-      exec "$SCRIPTS/build-motatool.sh" "$@"
-      ;;
-    peaky | pk)
-      exec "$SCRIPTS/build-peaky.sh" "$@"
-      ;;
-    release | stage)
-      populate_distro_release "$@"
-      ;;
-    all | "")
-      exec "$SCRIPTS/build-all.sh" "$@"
-      ;;
-    -h | --help | help)
-      exec "$SCRIPTS/build-all.sh" --help
-      ;;
-    --*)
-      exec "$SCRIPTS/build-all.sh" "$component" "$@"
-      ;;
-    *)
-      echo "error: unknown build target '$component' (want firmware, bootloader, motatool, peaky, or omit for all)" >&2
+  local packages=() pkg
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      meshcore | firmware | f)
+        packages+=(meshcore)
+        shift
+        ;;
+      bootloader | bl)
+        packages+=(bootloader)
+        shift
+        ;;
+      motatool | mt)
+        packages+=(motatool)
+        shift
+        ;;
+      peaky | pk)
+        packages+=(peaky)
+        shift
+        ;;
+      all | "")
+        shift
+        exec "$SCRIPTS/build-all.sh" "$@"
+        ;;
+      release | stage)
+        shift
+        populate_distro_release "$@"
+        return 0
+        ;;
+      -h | --help | help)
+        exec "$SCRIPTS/build-all.sh" --help
+        ;;
+      --*)
+        break
+        ;;
+      *)
+        packages+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if ((${#packages[@]} == 0)); then
+    exec "$SCRIPTS/build-all.sh" "$@"
+  fi
+
+  local recipe
+  for pkg in "${packages[@]}"; do
+    case "$pkg" in
+      firmware) pkg=meshcore ;;
+    esac
+    recipe="$ROOT/packages-meta/$pkg/build.sh"
+    [[ -x "$recipe" ]] || {
+      echo "error: unknown package '$pkg' (no packages-meta/$pkg/build.sh)" >&2
       exit 1
-      ;;
+    }
+    "$recipe" "$@"
+  done
+}
+
+cmd_bump_ev() {
+  local pkg="${1:-}"
+  [[ -n "$pkg" ]] || {
+    echo "usage: envyos bump-ev meshcore|bootloader|motatool" >&2
+    exit 2
+  }
+  case "$pkg" in
+    firmware) pkg=meshcore ;;
   esac
+  local new_ver
+  new_ver="$(bump_package_ev "$pkg")"
+  echo "$pkg: ev bumped → $new_ver"
+}
+
+cmd_fetch() {
+  local pkg="${1:-}"
+  [[ -n "$pkg" ]] || {
+    echo "usage: envyos fetch meshcore|bootloader|motatool|mcmt-gateway" >&2
+    exit 2
+  }
+  fetch_package_checkout "$pkg"
 }
 
 cmd_bump() {
@@ -235,6 +284,14 @@ case "$1" in
   build)
     shift
     cmd_build "$@"
+    ;;
+  bump-ev)
+    shift
+    cmd_bump_ev "$@"
+    ;;
+  fetch)
+    shift
+    cmd_fetch "$@"
     ;;
   bump)
     shift

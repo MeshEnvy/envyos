@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared build/publish helpers for envyos17 (sourced by version.sh).
+# Shared build/publish helpers for envyos (sourced by version.sh).
 set -euo pipefail
 
 # --- paths: build/<branch-slot>/bench during dev; build/<vX.Y.Z>/ at publish ---
@@ -80,7 +80,7 @@ release_manifest_path() {
 package_bench_root() {
   local tree_key=$1 package=$2 component_ver=$3
   tree_key="$(normalize_tree_key "$tree_key")"
-  component_ver="$(normalize_version "$component_ver")"
+  component_ver="$(normalize_component_version "$component_ver")"
   printf '%s/%s-%s' "$(distro_bench_root "$tree_key")" "$package" "$component_ver"
 }
 
@@ -121,7 +121,7 @@ migrate_bootloader_package_tree() {
   local tree_key=$1 bl_ver=$2
   local dest src
   tree_key="$(normalize_tree_key "$tree_key")"
-  bl_ver="$(normalize_version "$bl_ver")"
+  bl_ver="$(normalize_component_version "$bl_ver")"
   dest="$(bootloader_bench_root "$tree_key" "$bl_ver")"
   [[ -d "$dest" ]] && return 0
   for src in \
@@ -142,7 +142,7 @@ migrate_firmware_package_tree() {
   local tree_key=$1 fw_ver=$2
   local dest src
   tree_key="$(normalize_tree_key "$tree_key")"
-  fw_ver="$(normalize_version "$fw_ver")"
+  fw_ver="$(normalize_component_version "$fw_ver")"
   dest="$(firmware_bench_root "$tree_key" "$fw_ver")"
   [[ -d "$dest" ]] && return 0
   for src in \
@@ -162,7 +162,7 @@ migrate_motatool_package_tree() {
   local tree_key=$1 mt_ver=$2
   local dest src
   tree_key="$(normalize_tree_key "$tree_key")"
-  mt_ver="$(normalize_version "$mt_ver")"
+  mt_ver="$(normalize_component_version "$mt_ver")"
   dest="$(motatool_bench_root "$tree_key" "$mt_ver")"
   [[ -d "$dest" ]] && return 0
   for src in \
@@ -247,7 +247,7 @@ submodule_git_sha() {
   local name=$1
   local path
   case "$name" in
-    envycore) path="$ENVYCORE_ROOT" ;;
+    meshcore) path="$MESHCORE_ROOT" ;;
     bootloader) path="$BOOTLOADER_SRC" ;;
     motatool) path="$MOTATOOL_ROOT" ;;
     *)
@@ -308,7 +308,7 @@ legacy_firmware_bench_paths() {
   distro="$(normalize_version "$ver")"
   printf '%s\n' \
     "$BUILD_ROOT/firmware/$ver" \
-    "$ENVYCORE_ROOT/build/motas/$ver" \
+    "$MESHCORE_ROOT/build/motas/$ver" \
     "$(distro_bench_root "$distro")/firmware" \
     "$(package_bench_root "$distro" firmware "$ver")"
 }
@@ -420,8 +420,8 @@ list_known_mota_versions() {
       tmp+=("$ver")
     done
   fi
-  if [[ -d "$ENVYCORE_ROOT/build/motas" ]]; then
-    for d in "$ENVYCORE_ROOT/build/motas"/v[0-9]*.[0-9]*.[0-9]*; do
+  if [[ -d "$MESHCORE_ROOT/build/motas" ]]; then
+    for d in "$MESHCORE_ROOT/build/motas"/v[0-9]*.[0-9]*.[0-9]*; do
       [[ -d "$d" ]] || continue
       ver="$(normalize_version "$(basename "$d")" 2>/dev/null)" || continue
       tmp+=("$ver")
@@ -484,25 +484,25 @@ bootloader_bench_board_name() {
 
 bootloader_bench_uf2_name() {
   local board=$1 bl_ver=$2
-  bl_ver="$(normalize_version "$bl_ver")"
+  bl_ver="$(normalize_component_version "$bl_ver")"
   printf '%s_bootloader-%s.uf2' "$(bootloader_bench_board_name "$board")" "${bl_ver#v}"
 }
 
 bootloader_bench_recovery_name() {
   local board=$1 bl_ver=$2
-  bl_ver="$(normalize_version "$bl_ver")"
+  bl_ver="$(normalize_component_version "$bl_ver")"
   printf '%s_bootloader-%s.recovery.zip' "$(bootloader_bench_board_name "$board")" "${bl_ver#v}"
 }
 
 bootloader_flat_uf2_name() {
   local board=$1 bl_ver=$2
-  bl_ver="$(normalize_version "$bl_ver")"
+  bl_ver="$(normalize_component_version "$bl_ver")"
   printf 'bl-%s-%s.uf2' "$(bootloader_flat_slug "$board")" "$bl_ver"
 }
 
 bootloader_flat_recovery_name() {
   local board=$1 bl_ver=$2
-  bl_ver="$(normalize_version "$bl_ver")"
+  bl_ver="$(normalize_component_version "$bl_ver")"
   printf 'bl-%s-recovery-%s.zip' "$(bootloader_flat_slug "$board")" "$bl_ver"
 }
 
@@ -586,7 +586,7 @@ resolve_firmware_image_in_dir() {
 resolve_base_image() {
   local slug=$1 base_ver=$2
   local dir candidates p legacy_slug legacy_dir
-  base_ver="$(normalize_version "$base_ver")"
+  base_ver="$(normalize_component_version "$base_ver")"
   migrate_legacy_firmware_tree "$base_ver" || true
   dir="$(firmware_slug_dir "$base_ver" "$base_ver" "$slug")"
   candidates=(
@@ -758,7 +758,7 @@ motatool_staged_binary_path() {
 
 resolve_motatool_bin() {
   local ver=$1 platform path distro
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   platform="$(host_motatool_platform_slug)"
   path="$(motatool_staged_binary_path "$platform" "$distro")"
@@ -776,7 +776,7 @@ resolve_motatool_bin() {
 
 list_staged_motatool_platforms() {
   local ver=$1 dir distro f base
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   dir="$(motatool_bench_root "$distro" "$ver")"
   [[ -d "$dir" ]] || return 0
@@ -849,7 +849,7 @@ motatool_platform_has_binary() {
 
 motatool_all_platforms_present() {
   local ver=$1 platform
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   while IFS= read -r platform || [[ -n "$platform" ]]; do
     [[ -n "$platform" ]] || continue
     motatool_platform_has_binary "$ver" "$platform" || return 1
@@ -858,7 +858,7 @@ motatool_all_platforms_present() {
 
 motatool_release_archive_basename() {
   local ver=$1 platform=$2 triple
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   platform="$(normalize_motatool_platform_slug "$platform")"
   triple="$(motatool_platform_to_rust_triple "$platform")"
   printf 'motatool-%s-%s.tar.gz' "${ver#v}" "$triple"
@@ -872,7 +872,7 @@ motatool_release_archive_path() {
 create_motatool_platform_archive() {
   local ver=$1 platform=$2 dest_dir=${3:-}
   local bin archive staging distro
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   platform="$(normalize_motatool_platform_slug "$platform")"
   dest_dir="${dest_dir:-$(distro_release_root "$distro")}"
@@ -891,7 +891,7 @@ create_motatool_platform_archive() {
 stage_motatool_release_archives() {
   local dest_dir=$1 ver=$2
   local platform archive missing=0
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   mkdir -p "$dest_dir"
   while IFS= read -r platform || [[ -n "$platform" ]]; do
     [[ -n "$platform" ]] || continue
@@ -908,7 +908,7 @@ stage_motatool_release_archives() {
 collect_motatool_release_assets() {
   local ver=$1 dest_dir=${2:-}
   local distro
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   dest_dir="${dest_dir:-$(distro_release_root "$distro")}"
   stage_motatool_release_archives "$dest_dir" "$ver"
@@ -916,7 +916,7 @@ collect_motatool_release_assets() {
 
 record_motatool_platform_staged() {
   local ver=$1 platform=$2 dir distro
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
   platform="$(normalize_motatool_platform_slug "$platform")"
   dir="$(motatool_bench_root "$distro" "$ver")"
@@ -1014,7 +1014,7 @@ collect_peaky_release_assets() {
 
 component_artifact_status() {
   local id=$1 ver=$2 dir
-  ver="$(normalize_version "$ver")"
+  ver="$(normalize_component_version "$ver")"
   dir="$(component_build_dir "$id" "$ver")"
   if [[ ! -d "$dir" ]]; then
     printf '%smissing'

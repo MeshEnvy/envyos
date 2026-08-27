@@ -1,0 +1,7 @@
+class=patched-upstream
+name=motatool
+artifact=motatool
+fork_repo=MeshEnvy/motatool
+upstream_repo=vk496/motatool
+ota_pr_base=vk496/main
+artifact_zip=motatool-{version}.zip

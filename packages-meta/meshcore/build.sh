@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Build firmware (+ optional .mota) for targets listed in scripts/targets.txt.
+# meshcore recipe — build firmware (+ optional .mota) for targets in scripts/targets.txt.
 #
-# Usage:
-#   ./scripts/build-mota.sh                    # firmware version from ./ENVYOS_VERSIONS
-#   ./scripts/build-mota.sh v0.1.1             # override firmware version (output dir + device ver)
-#   ./scripts/build-mota.sh --target wismesh-tag-repeater
-#   ./scripts/build-mota.sh --debug            # *-debug twins only
-#   ./scripts/build-mota.sh --release          # field slugs only (skip *-debug)
-#   ./scripts/build-mota.sh v0.1.2 --base v0.1.0   # delta from one base only
-#   ./scripts/build-mota.sh --hex-only         # stock MeshCore (no EndF / OTA)
-#   ./scripts/build-mota.sh --list-targets
+# Usage (via ./envyos build meshcore [args…]):
+#   ./envyos build meshcore                    # firmware version from packages-meta/meshcore/VERSION
+#   ./envyos build meshcore v0.1.1             # override firmware version (output dir + device ver)
+#   ./envyos build meshcore --target wismesh-tag-repeater
+#   ./envyos build meshcore --debug            # *-debug twins only
+#   ./envyos build meshcore --release          # field slugs only (skip *-debug)
+#   ./envyos build meshcore v0.1.2 --base v0.1.0   # delta from one base only
+#   ./envyos build meshcore --hex-only         # stock MeshCore (no EndF / OTA)
+#   ./envyos build meshcore --list-targets
 #
-# Requires: PlatformIO (`pio`). Full .mota packaging also needs ./motatool/ (built via cargo if needed).
+# Requires: PlatformIO (`pio`). Full .mota packaging also needs staged motatool.
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# shellcheck source=scripts/version.sh
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../../scripts/version.sh
 source "$ROOT/scripts/version.sh"
-MC="$ENVYCORE_ROOT"
+MC="$MESHCORE_ROOT"
 TARGETS_FILE="$ROOT/scripts/targets.txt"
 
 TARGET_SLUGS=()
@@ -412,7 +412,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --base)
       [[ $# -ge 2 ]] || usage
-      BASE_VER="$(normalize_version "$2")" || usage
+      BASE_VER="$(normalize_component_version "$2")" || usage
       shift 2
       ;;
     -h | --help)
@@ -423,7 +423,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       [[ -z "$VER" ]] || usage
-      VER="$(normalize_version "$1")" || usage
+      VER="$(normalize_component_version "$1")" || usage
       VER_EXPLICIT=1
       shift
       ;;
@@ -440,13 +440,6 @@ if [[ -z "$VER" ]]; then
 fi
 
 FW_VER="$VER"
-if [[ "$VER_EXPLICIT" -eq 1 ]]; then
-  verify_firmware_version_sync "$FW_VER" || {
-    echo "note: FIRMWARE_VERSION=$FW_VER (envycore/envyos/VERSION differs; bump on /freshen)" >&2
-  }
-else
-  verify_firmware_version_sync "$FW_VER"
-fi
 
 load_targets "$TARGETS_FILE"
 
@@ -501,7 +494,7 @@ mkdir -p "$OUT"
 GIT_SHA="$(git_short_sha "$MC")"
 BUILD_STAMP=""
 if ((CLEAN == 0)) && [[ -f "$OUT/version.txt" ]]; then
-  if [[ "$(normalize_version "$(head -1 "$OUT/version.txt" | tr -d '[:space:]')")" == "$VER" ]]; then
+  if [[ "$(normalize_component_version "$(head -1 "$OUT/version.txt" | tr -d '[:space:]')")" == "$VER" ]]; then
     cached_tree_sha="$(sed -n '3p' "$OUT/version.txt" 2>/dev/null | tr -d '[:space:]')"
     if [[ -z "$cached_tree_sha" || "$cached_tree_sha" == "$GIT_SHA" ]]; then
       BUILD_STAMP="$(sed -n '2p' "$OUT/version.txt" | tr -d '[:space:]')"
@@ -529,7 +522,7 @@ else
   MOTA_JOBS_LIMIT="$MOTA_JOBS"
   echo "mota jobs: $MOTA_JOBS_LIMIT (full + delta, pipelined after each pio build)"
 fi
-echo "version: $VER  label: $FW_VER_LABEL  envycore: $GIT_SHA  build: $BUILD_STAMP"
+echo "version: $VER  label: $FW_VER_LABEL  meshcore: $GIT_SHA  build: $BUILD_STAMP"
 if [[ ${#SELECTED[@]} -eq 0 ]]; then
   echo "target set: $TARGET_SET"
 fi

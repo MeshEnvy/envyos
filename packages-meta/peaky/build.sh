@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Stage all peaky platform binaries under peaky_finders/dist/<ver>/.
+# peaky recipe — stage all peaky platform binaries from the release cache.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# shellcheck source=scripts/version.sh
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../../scripts/version.sh
 source "$ROOT/scripts/version.sh"
 
 ver="$(read_peaky_version)" || {

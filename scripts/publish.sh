@@ -92,17 +92,14 @@ resolve_publish_version() {
     echo "error: --release-only requires a version" >&2
     usage
   fi
-  echo "Build slot: $BUILD_SLOT"
-  print_distro_publish_recommendation >/dev/null
-  last="$(latest_released_distro_from_registry 2>/dev/null || true)"
-  level="$(suggest_distro_bump_level)"
-  proposed="$(propose_next_distro_version)"
-  echo "Last published:    ${last:-(none)}"
-  echo "Changelog suggests: $level"
-  echo "Proposed tag:      $proposed"
   if ((DRY_RUN == 1)); then
+    proposed="$(propose_next_distro_version)"
+    print_distro_publish_plan "$proposed" "$BUILD_SLOT" "$GIT_TAG" "$GITHUB_RELEASE" || true
     exit 0
   fi
+  echo "Build slot: $BUILD_SLOT"
+  print_distro_bump_summary
+  proposed="$(propose_next_distro_version)"
   if ((AUTO_YES == 1)) || [[ ! -t 0 ]]; then
     PUBLISH_VER="$proposed"
     echo "Using: $PUBLISH_VER"
@@ -115,15 +112,7 @@ resolve_publish_version() {
 if [[ -z "$PUBLISH_VER" ]]; then
   resolve_publish_version
 elif ((DRY_RUN == 1)); then
-  echo "Build slot: $BUILD_SLOT"
-  echo "Requested tag: $PUBLISH_VER"
-  level="$(suggest_distro_bump_level)"
-  echo "Changelog suggests: $level"
-  exit 0
-fi
-
-if ((DRY_RUN == 1)); then
-  echo "publish:  $PUBLISH_VER (dry-run)"
+  print_distro_publish_plan "$PUBLISH_VER" "$BUILD_SLOT" "$GIT_TAG" "$GITHUB_RELEASE" || true
   exit 0
 fi
 
@@ -147,8 +136,8 @@ if [[ "$RELEASE_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-if is_released_version "$PUBLISH_VER"; then
-  echo "error: $PUBLISH_VER is already published (listed in RELEASED_VERSIONS)" >&2
+if is_published_distro_tag "$PUBLISH_VER"; then
+  echo "error: $PUBLISH_VER is already published (git tag or RELEASED_VERSIONS)" >&2
   exit 1
 fi
 

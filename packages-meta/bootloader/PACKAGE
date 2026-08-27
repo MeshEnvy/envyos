@@ -1,0 +1,8 @@
+class=patched-upstream
+name=bootloader
+artifact=bootloader
+fork_repo=MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX
+upstream_repo=oltaco/Adafruit_nRF52_Bootloader_OTAFIX
+upstream_tag=0.9.2-OTAFIX*
+ota_pr_base=vk496/feature/ota-delta-apply
+artifact_zip=bootloader-{version}.zip

@@ -6,12 +6,14 @@ OTA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENVYOS_VERSIONS_FILE="$OTA_ROOT/ENVYOS_VERSIONS"
 RELEASED_VERSIONS_FILE="$OTA_ROOT/RELEASED_VERSIONS"
 COMPONENTS_LOCK_FILE="$OTA_ROOT/COMPONENTS.lock"
+PACKAGES_ROOT="$OTA_ROOT/packages"
+PACKAGES_META_ROOT="$OTA_ROOT/packages-meta"
 
 MESHENVY_ROOT="$(cd "$OTA_ROOT/../.." && pwd)"
-ENVYCORE_ROOT="${ENVYCORE_ROOT:-$MESHENVY_ROOT/envycore}"
-BOOTLOADER_SRC="${BOOTLOADER_SRC:-$MESHENVY_ROOT/bootloader}"
-MCMT_ROOT="${MCMT_ROOT:-$MESHENVY_ROOT/mcmt-gateway}"
-MOTATOOL_ROOT="${MOTATOOL_ROOT:-$MESHENVY_ROOT/motatool}"
+MESHCORE_ROOT="${MESHCORE_ROOT:-$PACKAGES_ROOT/meshcore}"
+BOOTLOADER_SRC="${BOOTLOADER_SRC:-$PACKAGES_ROOT/bootloader}"
+MCMT_ROOT="${MCMT_ROOT:-$PACKAGES_ROOT/mcmt-gateway}"
+MOTATOOL_ROOT="${MOTATOOL_ROOT:-$PACKAGES_ROOT/motatool}"
 PEAKY_ROOT="${PEAKY_ROOT:-$MESHENVY_ROOT/peaky_finders}"
 
 BUILD_ROOT="$OTA_ROOT/build"
@@ -21,7 +23,12 @@ RELEASED_BOOTLOADER_FILE="$OTA_ROOT/RELEASED_BOOTLOADER"
 
 export ENVYOS_ROOT="$OTA_ROOT"
 export RELEASED_VERSIONS_FILE
-export ENVYCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT PEAKY_ROOT
+export MESHCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT PEAKY_ROOT PACKAGES_ROOT PACKAGES_META_ROOT
+# Back-compat alias
+
+
+# shellcheck source=scripts/packages-meta-lib.sh
+source "$OTA_ROOT/scripts/packages-meta-lib.sh"
 
 normalize_version() {
   local v="${1#v}"
@@ -39,6 +46,9 @@ read_envyos_version_key() {
     echo "error: missing $ENVYOS_VERSIONS_FILE" >&2
     return 1
   }
+  case "$key" in
+    firmware) key=meshcore ;;
+  esac
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"
@@ -49,7 +59,14 @@ read_envyos_version_key() {
     val="${line#*=}"
     val="${val#"${val%%[![:space:]]*}"}"
     val="${val%"${val##*[![:space:]]}"}"
-    normalize_version "$val"
+    case "$key" in
+      meshcore | bootloader | motatool)
+        normalize_package_version "$val"
+        ;;
+      *)
+        normalize_version "$val"
+        ;;
+    esac
     return 0
   done <"$ENVYOS_VERSIONS_FILE"
   echo "error: missing key '$key' in $ENVYOS_VERSIONS_FILE" >&2
@@ -79,7 +96,8 @@ read_optional_envyos_version_key() {
 }
 
 read_distro_version() { read_envyos_version_key distro; }
-read_firmware_version() { read_envyos_version_key firmware; }
+read_meshcore_version() { read_envyos_version_key meshcore; }
+read_firmware_version() { read_meshcore_version; }
 read_bootloader_version() { read_envyos_version_key bootloader; }
 read_motatool_version() { read_envyos_version_key motatool; }
 read_peaky_version() { read_optional_envyos_version_key peaky; }
@@ -90,7 +108,7 @@ read_bootloader_version_file() { read_bootloader_version; }
 
 list_envyos_versions() {
   local key ver
-  for key in distro firmware bootloader motatool; do
+  for key in distro meshcore bootloader motatool; do
     printf '%s=%s\n' "$key" "$(read_envyos_version_key "$key")"
   done
   if ver="$(read_optional_envyos_version_key mcmt-gateway 2>/dev/null)"; then
@@ -119,27 +137,11 @@ write_mota_version_txt() {
 }
 
 verify_firmware_version_sync() {
-  local expected="${1#v}"
-  local submod="$ENVYCORE_ROOT/envyos/VERSION"
-  [[ -f "$submod" ]] || return 0
-  local actual
-  actual="$(tr -d '[:space:]' <"$submod")"
-  [[ "$actual" == "$expected" ]] || {
-    echo "error: envycore/envyos/VERSION ($actual) != ENVYOS_VERSIONS firmware ($expected)" >&2
-    return 1
-  }
+  return 0
 }
 
 verify_motatool_version_sync() {
-  local expected="${1#v}"
-  local cargo="$MOTATOOL_ROOT/Cargo.toml"
-  [[ -f "$cargo" ]] || return 0
-  local actual
-  actual="$(sed -n 's/^version = "\(.*\)"/\1/p' "$cargo" | head -1)"
-  [[ "$actual" == "$expected" ]] || {
-    echo "error: motatool/Cargo.toml version ($actual) != ENVYOS_VERSIONS motatool ($expected)" >&2
-    return 1
-  }
+  return 0
 }
 
 verify_peaky_version_sync() {
@@ -347,19 +349,16 @@ next_patch_version() {
 
 write_envyos_versions() {
   local ver="${1#v}"
-  local bootloader motatool mcmt peaky
-  bootloader="$(read_optional_envyos_version_key bootloader 2>/dev/null || read_envyos_version_key bootloader 2>/dev/null || echo "$ver")"
-  motatool="$(read_optional_envyos_version_key motatool 2>/dev/null || read_envyos_version_key motatool 2>/dev/null || echo "$ver")"
-  bootloader="${bootloader#v}"
-  motatool="${motatool#v}"
+  local meshcore bootloader motatool mcmt peaky
+  meshcore="$(read_meshcore_version 2>/dev/null || echo 1.16.0-ev1)"
+  bootloader="$(read_bootloader_version 2>/dev/null || echo 0.9.2-ev1)"
+  motatool="$(read_motatool_version 2>/dev/null || echo 0.1.1-ev1)"
   mcmt="$(read_optional_envyos_version_key mcmt-gateway 2>/dev/null || true)"
   peaky="$(read_optional_envyos_version_key peaky 2>/dev/null || true)"
   cat >"$ENVYOS_VERSIONS_FILE" <<EOF
-# EnvyOS component versions (MAJOR.MINOR.PATCH).
-# Set explicitly: ./envyos bump patch|minor|major distro|firmware|bootloader|motatool
-# Git release tag: v<distro> (publish locks; does not auto-bump)
+# EnvyOS package versions — see docs/distro-packaging.md
 distro=$ver
-firmware=$ver
+meshcore=$meshcore
 bootloader=$bootloader
 motatool=$motatool
 EOF
@@ -372,17 +371,11 @@ EOF
 }
 
 write_firmware_version_file() {
-  local ver="${1#v}"
-  local f="$ENVYCORE_ROOT/envyos/VERSION"
-  [[ -f "$f" ]] || return 0
-  printf '%s\n' "$ver" >"$f"
+  return 0
 }
 
 write_motatool_cargo_version() {
-  local ver="${1#v}"
-  local cargo="$MOTATOOL_ROOT/Cargo.toml"
-  [[ -f "$cargo" ]] || return 0
-  sed -i '' "s/^version = \".*\"/version = \"$ver\"/" "$cargo"
+  return 0
 }
 
 append_released_version() {
@@ -448,7 +441,7 @@ verify_components_lock() {
   fw="$(read_components_lock_key firmware_sha 2>/dev/null || true)"
   bl="$(read_components_lock_key bootloader_sha 2>/dev/null || true)"
   mcmt="$(read_components_lock_key mcmt_gateway_sha 2>/dev/null || true)"
-  verify_sibling_sha "$ENVYCORE_ROOT" "$fw" firmware || return 1
+  verify_sibling_sha "$MESHCORE_ROOT" "$fw" meshcore || return 1
   verify_sibling_sha "$BOOTLOADER_SRC" "$bl" bootloader || return 1
   if [[ -n "$mcmt" ]]; then
     verify_sibling_sha "$MCMT_ROOT" "$mcmt" mcmt-gateway || return 1
@@ -492,7 +485,7 @@ ensure_motatool_release_cache() {
   host="$(host_motatool_platform_slug 2>/dev/null || true)"
   if [[ -n "$host" ]] && ! motatool_platform_has_binary "$ver" "$host"; then
     if [[ -d "$MOTATOOL_ROOT" ]] && command -v cargo >/dev/null 2>&1; then
-      "$OTA_ROOT/scripts/build-motatool.sh" --host-only || true
+      "$OTA_ROOT/packages-meta/motatool/build.sh" --host-only || true
     fi
   fi
 
@@ -611,7 +604,7 @@ write_released_marker() {
   today="$(date '+%Y-%m-%d')"
   cat >"$dir/.released" <<EOF
 EnvyOS $ver — released $today. Do not delete or rebuild this directory.
-Listed in RELEASED_VERSIONS; build-mota.sh refuses to overwrite released versions.
+Listed in RELEASED_VERSIONS; the meshcore recipe refuses to overwrite released versions.
 Includes delta_from_<base>.mota for every prior version with base hex (fleet jump updates).
 EOF
 }
@@ -742,30 +735,54 @@ EOF
 
 read_release_manifest_key() {
   local distro_ver=$1 key=$2
-  local file line k val
+  local file line k val from_gh
   file="$(release_manifest_path "$distro_ver")"
   if [[ ! -f "$file" ]]; then
     file="$(firmware_bench_root "$distro_ver" "$distro_ver")/RELEASE_MANIFEST"
   fi
-  [[ -f "$file" ]] || return 1
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    [[ -n "$line" ]] || continue
-    k="${line%%=*}"
-    k="${k%"${k##*[![:space:]]}"}"
-    [[ "$k" == "$key" ]] || continue
-    val="${line#*=}"
-    val="${val#"${val%%[![:space:]]*}"}"
-    val="${val%"${val##*[![:space:]]}"}"
-    if [[ "$key" == "published" ]]; then
-      printf '%s' "$val"
-    else
-      normalize_version "$val"
-    fi
-    return 0
-  done <"$file"
-  return 1
+  if [[ -f "$file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%%#*}"
+      line="${line#"${line%%[![:space:]]*}"}"
+      [[ -n "$line" ]] || continue
+      k="${line%%=*}"
+      k="${k%"${k##*[![:space:]]}"}"
+      [[ "$k" == "$key" ]] || continue
+      val="${line#*=}"
+      val="${val#"${val%%[![:space:]]*}"}"
+      val="${val%"${val##*[![:space:]]}"}"
+      if [[ "$key" == "published" ]]; then
+        printf '%s' "$val"
+      else
+        normalize_version "$val"
+      fi
+      return 0
+    done <"$file"
+  fi
+  from_gh="$(read_release_manifest_key_from_github "$distro_ver" "$key" 2>/dev/null || true)"
+  [[ -n "$from_gh" ]] || return 1
+  if [[ "$key" == "published" ]]; then
+    printf '%s' "$from_gh"
+  else
+    normalize_version "$from_gh"
+  fi
+}
+
+read_release_manifest_key_from_github() {
+  local distro_ver=$1 key=$2
+  command -v gh >/dev/null 2>&1 || return 1
+  gh release view "$distro_ver" --json body -q .body 2>/dev/null | awk -v want="$key" '
+    /^\|/ && $0 !~ /Component/ && $0 !~ /---/ {
+      n = split($0, cells, "|")
+      for (i = 1; i <= n; i++) {
+        gsub(/^[ \t]+|[ \t]+$/, "", cells[i])
+      }
+      if (cells[2] == want && cells[3] != "") {
+        print cells[3]
+        exit 0
+      }
+    }
+  '
 }
 
 manifest_component_version() {
@@ -837,19 +854,10 @@ EOF
 
 verify_release_components() {
   local distro_ver=$1
-  local firmware_ver bootloader_ver motatool_ver
+  local motatool_ver
   local id ver dir
 
-  firmware_ver="$(normalize_version "$distro_ver")"
-  bootloader_ver="$(read_bootloader_version)" || return 1
   motatool_ver="$(read_motatool_version)" || return 1
-
-  local fw_key="${firmware_ver#v}"
-  verify_firmware_version_sync "$fw_key" || {
-    echo "error: publish $distro_ver requires envycore/envyos/VERSION == firmware ($fw_key)" >&2
-    return 1
-  }
-  verify_motatool_version_sync "$motatool_ver" || return 1
 
   ensure_motatool_release_cache "$motatool_ver"
 
@@ -870,7 +878,7 @@ verify_release_components() {
     if [[ -f "$dir/version.txt" ]]; then
       local actual
       actual="$(head -1 "$dir/version.txt" | tr -d '[:space:]]')"
-      [[ "$(normalize_version "$actual")" == "$ver" ]] || {
+      [[ "$(normalize_component_version "$actual")" == "$ver" ]] || {
         echo "error: $dir/version.txt ($actual) != expected $ver" >&2
         return 1
       }
@@ -878,7 +886,7 @@ verify_release_components() {
   done < <(list_release_component_ids "$distro_ver")
 
   verify_components_lock || true
-  verify_release_delta_matrix "$distro_ver" "$ENVYCORE_ROOT/scripts/targets.txt"
+  verify_release_delta_matrix "$distro_ver" "$OTA_ROOT/scripts/targets.txt"
 }
 
 create_component_zip() {
@@ -922,7 +930,7 @@ lock_release_components() {
     peaky_ver="$(read_peaky_version)"
     write_component_released_marker peaky "$peaky_ver" "$distro_ver"
   fi
-  write_components_lock "$(git -C "$ENVYCORE_ROOT" rev-parse HEAD)" "$(git -C "$BOOTLOADER_SRC" rev-parse HEAD)" "$(git -C "$MCMT_ROOT" rev-parse HEAD 2>/dev/null || true)"
+  write_components_lock "$(git -C "$MESHCORE_ROOT" rev-parse HEAD)" "$(git -C "$BOOTLOADER_SRC" rev-parse HEAD)" "$(git -C "$MCMT_ROOT" rev-parse HEAD 2>/dev/null || true)"
 }
 
 collect_distro_release_assets() {
@@ -938,12 +946,22 @@ collect_distro_release_assets() {
 }
 
 release_notes_for_distro() {
-  local distro_ver=$1
-  local firmware_ver bootloader_ver motatool_ver peaky_ver mcmt_ver published
-  firmware_ver="$(manifest_component_version firmware "$distro_ver")"
-  bootloader_ver="$(manifest_component_version bootloader "$distro_ver")"
-  motatool_ver="$(manifest_component_version motatool "$distro_ver")"
-  published="$(read_release_manifest_key "$distro_ver" published 2>/dev/null || date '+%Y-%m-%d')"
+  local distro_ver=$1 preview=${2:-0}
+  local firmware_ver bootloader_ver motatool_ver peaky_ver mcmt_ver published changelog_body
+
+  distro_ver="$(normalize_version "$distro_ver")"
+
+  if ((preview == 1)); then
+    firmware_ver="$distro_ver"
+    bootloader_ver="$(read_bootloader_version)"
+    motatool_ver="$(read_motatool_version)"
+    published="$(date '+%Y-%m-%d')"
+  else
+    firmware_ver="$(manifest_component_version firmware "$distro_ver")"
+    bootloader_ver="$(manifest_component_version bootloader "$distro_ver")"
+    motatool_ver="$(manifest_component_version motatool "$distro_ver")"
+    published="$(read_release_manifest_key "$distro_ver" published 2>/dev/null || date '+%Y-%m-%d')"
+  fi
 
   cat <<EOF
 EnvyOS distro release **${distro_ver}** (${published}).
@@ -955,12 +973,29 @@ EnvyOS distro release **${distro_ver}** (${published}).
 | motatool | ${motatool_ver} |
 EOF
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
-    mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
+    if ((preview == 1)); then
+      mcmt_ver="$(read_mcmt_gateway_version)"
+    else
+      mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
+    fi
     printf '| mcmt-gateway | %s |\n' "$mcmt_ver"
   fi
   if component_in_distro_bundle peaky "$distro_ver"; then
-    peaky_ver="$(manifest_component_version peaky "$distro_ver")"
+    if ((preview == 1)); then
+      peaky_ver="$(read_peaky_version)"
+    else
+      peaky_ver="$(manifest_component_version peaky "$distro_ver")"
+    fi
     printf '| peaky | %s |\n' "$peaky_ver"
+  fi
+
+  if changelog_body="$(changelog_body_for_distro_release "$distro_ver" 2>/dev/null)"; then
+    cat <<EOF
+
+### Changes
+
+${changelog_body}
+EOF
   fi
 
   cat <<EOF
@@ -974,11 +1009,19 @@ EOF
 - \`motatool-<ver>-<platform>.tar.gz\` — bench motatool (pick your OS/arch)
 EOF
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
-    mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
+    if ((preview == 1)); then
+      mcmt_ver="$(read_mcmt_gateway_version)"
+    else
+      mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
+    fi
     printf -- '- \`mcmt-gateway-%s.zip\` — Meshtastic ↔ MeshCore bridge\n' "$mcmt_ver"
   fi
   if component_in_distro_bundle peaky "$distro_ver"; then
-    peaky_ver="$(manifest_component_version peaky "$distro_ver")"
+    if ((preview == 1)); then
+      peaky_ver="$(read_peaky_version)"
+    else
+      peaky_ver="$(manifest_component_version peaky "$distro_ver")"
+    fi
     printf -- '- \`peaky-%s-<platform>.tar.gz\` — Peaky Finders \`peaky serve\` (pick Linux or macOS archive)\n' "${peaky_ver#v}"
   fi
 
@@ -1062,5 +1105,36 @@ ensure_git_tag_on_remote() {
 source "$OTA_ROOT/scripts/targets-lib.sh"
 # shellcheck source=scripts/build-lib.sh
 source "$OTA_ROOT/scripts/build-lib.sh"
+
+list_distro_git_tags() {
+  local tag
+  git -C "$OTA_ROOT" tag -l 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null | while IFS= read -r tag || [[ -n "$tag" ]]; do
+    [[ -n "$tag" ]] || continue
+    normalize_version "$tag" 2>/dev/null || true
+  done
+}
+
+latest_published_distro_tag() {
+  local -a tmp=()
+  local ver
+  while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    tmp+=("$ver")
+  done < <(list_released_distros)
+  while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    tmp+=("$ver")
+  done < <(list_distro_git_tags)
+  ((${#tmp[@]} == 0)) && return 1
+  sort_versions "${tmp[@]}" | tail -1
+}
+
+is_published_distro_tag() {
+  local ver
+  ver="$(normalize_version "$1")" || return 1
+  is_released_version "$ver" && return 0
+  git -C "$OTA_ROOT" rev-parse "$ver^{tag}" >/dev/null 2>&1
+}
+
 # shellcheck source=scripts/distro-semver.sh
 source "$OTA_ROOT/scripts/distro-semver.sh"

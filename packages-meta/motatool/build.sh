@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Build and stage motatool for one or more platform targets.
+# motatool recipe — build and stage motatool for one or more platform targets.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# shellcheck source=scripts/version.sh
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../../scripts/version.sh
 source "$ROOT/scripts/version.sh"
 
 MOTATOOL_DOCKER_IMAGE="${ENVYOS_MOTATOOL_DOCKER_IMAGE:-motatool-build}"
-MOTATOOL_DOCKER_DIR="$MOTATOOL_ROOT/docker/motatool-build"
+MOTATOOL_DOCKER_DIR="$ROOT/packages-meta/motatool/docker"
 MOTATOOL_DOCKERFILE="$MOTATOOL_DOCKER_DIR/Dockerfile"
 
 usage() {
@@ -25,7 +25,7 @@ usage: $0 [--host-only] [--no-docker] [--target <platform>]…
   Release platforms:
     darwin-aarch64   darwin-x86_64   linux-aarch64   linux-x86_64
 
-  Linux targets always use Docker by default (see motatool/docker/motatool-build/).
+  Linux targets always use Docker by default (see packages-meta/motatool/docker/).
   Darwin targets require a macOS host.
 
 examples:
@@ -174,7 +174,9 @@ build_motatool_linux_docker() {
   done
 
   echo "==> motatool $mt_ver (linux: ${todo[*]}, docker)"
-  docker run --rm \
+  # shellcheck source=docker-lib.sh
+  source "$ROOT/packages-meta/motatool/docker-lib.sh"
+  docker_run_with_rust_cache --rm \
     -v "$MOTATOOL_ROOT:/src" \
     -w /src \
     "$MOTATOOL_DOCKER_IMAGE" \
@@ -248,7 +250,7 @@ if ((${#DARWIN_PLATFORMS[@]} > 0)) && [[ "$(uname -s)" != Darwin ]]; then
 fi
 
 distro_ver="$(read_bench_tree_key)"
-mt_ver="$(read_motatool_version)"
+mt_ver="$(normalize_component_version "$(read_motatool_version)")"
 migrate_motatool_package_tree "$distro_ver" "$mt_ver" || true
 mt_bench="$(motatool_bench_root "$distro_ver" "$mt_ver")"
 if ((CLEAN == 1)); then

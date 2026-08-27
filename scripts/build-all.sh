@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPTS="$ROOT/scripts"
+META="$ROOT/packages-meta"
 
 # shellcheck source=scripts/version.sh
 source "$SCRIPTS/version.sh"
@@ -25,7 +26,7 @@ usage: envyos build [options] [firmware-version] [build-mota options…]
   --list-targets    Print scripts/targets.txt and exit
   --list-boards     Print otafix boards from targets.txt and exit
 
-  Other flags (--target, --hex-only, --base, …) forward to scripts/build-mota.sh.
+  Other flags (--target, --hex-only, --base, …) forward to packages-meta/meshcore/build.sh.
 EOF
   exit 2
 }
@@ -58,11 +59,11 @@ while (($# > 0)); do
       ;;
     --motatool-only)
       shift
-      exec "$SCRIPTS/build-motatool.sh" "$@"
+      exec "$META/motatool/build.sh" "$@"
       ;;
     --peaky-only)
       shift
-      exec "$SCRIPTS/build-peaky.sh" "$@"
+      exec "$META/peaky/build.sh" "$@"
       ;;
     --release-only | --stage-only)
       shift
@@ -82,10 +83,10 @@ while (($# > 0)); do
       exit 0
       ;;
     --list-targets)
-      exec "$SCRIPTS/build-mota.sh" --list-targets "${@:2}"
+      exec "$META/meshcore/build.sh" --list-targets "${@:2}"
       ;;
     --list-boards)
-      exec "$SCRIPTS/build-bl.sh" --list-boards "${@:2}"
+      exec "$META/bootloader/build.sh" --list-boards "${@:2}"
       ;;
     -h | --help)
       usage
@@ -125,9 +126,9 @@ if ((BUILD_BL == 1)); then
   bl_ver="$(read_bootloader_version)"
   echo "==> bootloader ($bl_ver)"
   if ((BUILD_CLEAN == 1)); then
-    "$SCRIPTS/build-bl.sh" --clean
+    "$META/bootloader/build.sh" --clean
   else
-    "$SCRIPTS/build-bl.sh"
+    "$META/bootloader/build.sh"
   fi
 fi
 
@@ -136,9 +137,9 @@ if ((BUILD_MOTATOOL == 1)); then
   mt_ver="$(read_motatool_version)"
   echo "==> motatool ($mt_ver, all platforms)"
   if ((BUILD_CLEAN == 1)); then
-    "$SCRIPTS/build-motatool.sh" --clean
+    "$META/motatool/build.sh" --clean
   else
-    "$SCRIPTS/build-motatool.sh"
+    "$META/motatool/build.sh"
   fi
 fi
 
@@ -148,21 +149,21 @@ if ((BUILD_FIRMWARE == 1)); then
   echo "==> firmware + .mota ($fw_ver)"
   if ((BUILD_CLEAN == 1)); then
     if ((${#MOTA_ARGS[@]} > 0)); then
-      "$SCRIPTS/build-mota.sh" --clean "${MOTA_ARGS[@]}"
+      "$META/meshcore/build.sh" --clean "${MOTA_ARGS[@]}"
     else
-      "$SCRIPTS/build-mota.sh" --clean
+      "$META/meshcore/build.sh" --clean
     fi
   elif ((${#MOTA_ARGS[@]} > 0)); then
-    "$SCRIPTS/build-mota.sh" "${MOTA_ARGS[@]}"
+    "$META/meshcore/build.sh" "${MOTA_ARGS[@]}"
   else
-    "$SCRIPTS/build-mota.sh"
+    "$META/meshcore/build.sh"
   fi
 fi
 
 if ((BUILD_PEAKY == 1)) && ver="$(read_optional_envyos_version_key peaky 2>/dev/null)"; then
   echo ""
   echo "==> peaky ($ver)"
-  "$SCRIPTS/build-peaky.sh"
+  "$META/peaky/build.sh"
 fi
 
 unset ENVYOS_SKIP_RELEASE

@@ -221,7 +221,7 @@ restore_bootloader_for_distro() {
   local distro_ver="$1"
   local bl_ver="$2"
   distro_ver="$(normalize_version "$distro_ver")" || return 1
-  bl_ver="$(normalize_version "$bl_ver")" || return 1
+  bl_ver="$(normalize_component_version "$bl_ver")" || return 1
 
   if release_has_flat_bootloader_assets "$distro_ver"; then
     if [[ "$FORCE" -eq 0 ]]; then

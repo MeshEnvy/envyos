@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Build EnvyBoot nRF52 bootloaders (in-place .mota apply) via Docker.
+# bootloader recipe — build EnvyBoot nRF52 bootloaders (in-place .mota apply) via Docker.
 #
-# Usage:
-#   ./scripts/build-bl.sh [version] [--targets-file <path>] [--list-boards]
-#   ./scripts/build-bl.sh [version] BOARD [BOARD…]
+# Usage (via ./envyos build bootloader [args…]):
+#   ./envyos build bootloader [version] [--targets-file <path>] [--list-boards]
+#   ./envyos build bootloader [version] BOARD [BOARD…]
 #
 # version defaults to ENVYOS_VERSIONS bootloader (e.g. v0.1.3).
 # With no BOARD args, board profiles are inferred from scripts/targets.txt.
@@ -16,11 +16,11 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TARGETS_FILE="$ROOT/scripts/targets.txt"
 IMAGE="vk-otafix-build"
 
-# shellcheck source=scripts/version.sh
+# shellcheck source=../../scripts/version.sh
 source "$ROOT/scripts/version.sh"
 
 OTAFIX="$BOOTLOADER_SRC"
@@ -83,7 +83,7 @@ fi
 VER=""
 EXPLICIT_BOARDS=()
 if ((${#POSITIONAL[@]} > 0)); then
-  if VER="$(normalize_version "${POSITIONAL[0]}" 2>/dev/null)"; then
+  if VER="$(normalize_component_version "${POSITIONAL[0]}" 2>/dev/null)"; then
     EXPLICIT_BOARDS=("${POSITIONAL[@]:1}")
   else
     EXPLICIT_BOARDS=("${POSITIONAL[@]}")

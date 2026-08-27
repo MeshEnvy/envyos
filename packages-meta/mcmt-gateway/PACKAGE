@@ -1,0 +1,5 @@
+class=native
+name=mcmt-gateway
+artifact=mcmt-gateway
+repo=Imperator4422/mcmt-gateway
+artifact_zip=mcmt-gateway-{version}.zip
