@@ -32,7 +32,7 @@ The EnvyOS OTA stack is **pre-deployment greenfield**. Nothing is deployed in pr
 |----------|--------------|
 | `.mota` container format | Upstream MeshCore merges (handle normally) |
 | LoRa OTA wire protocol | Stock `--hex-only` builds (no OTA) |
-| `motatool`, `vendor/detools` usage for OTA | Non-OTA firmware features |
+| `motatool` usage for OTA | Non-OTA firmware features |
 | Device OTA engine (`envycore/src/helpers/ota/`) | |
 | OTAFIX bootloader apply path | |
 | OTA build scripts, EndF / delta identity | |
