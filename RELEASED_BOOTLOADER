@@ -1,3 +1,0 @@
-# Released EnvyBoot versions — immutable artifact trees under build/<ver>/bench/bootloader/.
-# Used for bench flash and publish staging; build-bl.sh refuses to overwrite listed versions.
-v0.1.0

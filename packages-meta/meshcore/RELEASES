@@ -1,0 +1,7 @@
+# Shipped meshcore firmware trees — immutable after distro publish.
+# Legacy fleet semver (v0.1.x): one line per released distro tag; used for delta base lookup.
+# Future upstream-evN pins (1.16.0-ev1) append here on publish when bench uses overlay versions.
+v0.1.0
+v0.1.1
+v0.1.2
+v0.1.3

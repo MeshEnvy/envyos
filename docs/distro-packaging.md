@@ -7,10 +7,11 @@ EnvyOS is the **distro repo**: it owns package recipes, versioning, changelogs, 
 ```
 envyos/
   packages/           # gitignored — full git checkouts (meshcore, bootloader, motatool, mcmt-gateway, meshcore-open)
-  packages-meta/      # tracked — per-package recipe (build.sh, PACKAGE, VERSION, CHANGELOG, RELEASED)
+  packages-meta/      # tracked — per-package recipe (build.sh, PACKAGE, VERSION, CHANGELOG, RELEASES)
   scripts/            # shared machinery — envyos CLI, version.sh, build-lib.sh, build-all.sh, publish.sh, targets.txt
   build/              # bench + published artifact trees
   ENVYOS_VERSIONS     # pinned package versions for the current integration head
+  RELEASED_VERSIONS   # shipped distro tags (fleet releases)
   COMPONENTS.lock     # fork SHAs at publish
 ```
 
@@ -54,7 +55,7 @@ Shipped distro releases define which base hex archives are kept under `build/bas
 | `packages/motatool` | Same (vk496 PR base) |
 | `packages/meshcore-open` | Flutter client workbench (`MeshEnvy/meshcore-open`; upstream `zjs81/meshcore-open`) |
 
-No `./envyos` harness, no VERSION/CHANGELOG/RELEASED in package repos (meshcore-open is not a distro build artifact yet).
+No `./envyos` harness, no VERSION/CHANGELOG/RELEASES in package repos (meshcore-open is not a distro build artifact yet).
 
 ## CLI
 
@@ -78,7 +79,7 @@ Each bundled package has:
 | `build.sh` | the package recipe — how EnvyOS builds/stages this package |
 | `VERSION` | `upstream=X.Y.Z`, `ev=N` (patched) or `version=X.Y.Z` (native) |
 | `CHANGELOG.md` | user-facing overlay/release notes |
-| `RELEASED` | shipped package versions (immutable after publish) |
+| `RELEASES` | shipped package versions (immutable after publish; semver and `-evN`) |
 | build support (optional) | recipe-owned infra, e.g. `motatool/docker/` (cross-build image), `motatool/docker-lib.sh` — never committed to the package fork |
 
 `./envyos build <pkg>` dispatches generically to `packages-meta/<pkg>/build.sh`; adding a package = adding a meta dir with a recipe. Recipes source `scripts/version.sh` for shared helpers; distro-wide inputs (`targets.txt`, `targets-lib.sh`) stay in `scripts/`.

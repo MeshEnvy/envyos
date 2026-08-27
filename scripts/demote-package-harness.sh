@@ -27,7 +27,7 @@ demote_pkg() {
     VERSION
     CHANGELOG.md
     RELEASED_VERSIONS
-    RELEASED
+    RELEASES
     BACKLOG.md
     FRESHEN.lock
     scripts/envyos

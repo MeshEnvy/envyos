@@ -273,7 +273,7 @@ read_registry_versions() {
   done <"$file"
 }
 
-# True when ver is listed in RELEASED_FIRMWARE (shipped distro semver firmware).
+# True when ver is listed in packages-meta/meshcore/RELEASES (shipped distro semver firmware).
 is_released_firmware_version() {
   local ver want pkg
   pkg="$(normalize_package_version "$1" 2>/dev/null || true)"

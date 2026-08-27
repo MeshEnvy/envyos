@@ -7,7 +7,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | Path | Role |
 |------|------|
 | `packages/` | Gitignored workbenches — `meshcore`, `bootloader`, `motatool`, `mcmt-gateway`, `meshcore-open` |
-| `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md`, `RELEASED`, `BACKLOG.md` (meshcore) |
+| `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md`, `RELEASES`, `BACKLOG.md` (meshcore) |
 | `scripts/` | Shared distro machinery — `envyos` CLI, `version.sh`, `build-lib.sh`, `build-all.sh`, `publish.sh`, `targets.txt` (recipes live in `packages-meta/<pkg>/build.sh`) |
 | `build/` | Bench (`build/<branch>/bench/…`) and immutable `build/vX.Y.Z/` after publish |
 | `ENVYOS_VERSIONS` | Pinned package versions (`meshcore=1.16.0-ev1`, …) |

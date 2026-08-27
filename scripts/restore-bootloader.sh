@@ -2,7 +2,7 @@
 # Restore released EnvyBoot trees under build/<ver>/bench/bootloader/ from GitHub Releases.
 #
 # Usage:
-#   ./scripts/restore-bootloader.sh                  # every RELEASED_FIRMWARE distro tag
+#   ./scripts/restore-bootloader.sh                  # every distro in meshcore RELEASES
 #   ./scripts/restore-bootloader.sh v0.1.2
 #   ./scripts/restore-bootloader.sh --force v0.1.2
 #
@@ -23,7 +23,7 @@ usage() {
   cat >&2 <<EOF
 usage: $0 [--force] [vX.Y.Z]…
 
-  (default)     Restore bootloaders for every distro in RELEASED_FIRMWARE
+  (default)     Restore bootloaders for every firmware release in packages-meta/meshcore/RELEASES
   vX.Y.Z        Restore one or more explicit distro tags
   --force       Re-download and replace existing trees
 

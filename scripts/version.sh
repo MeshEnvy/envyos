@@ -19,9 +19,6 @@ PEAKY_ROOT="${PEAKY_ROOT:-$MESHENVY_ROOT/peaky_finders}"
 
 BUILD_ROOT="$OTA_ROOT/build"
 PEAKY_GITHUB_REPO="${PEAKY_GITHUB_REPO:-MeshEnvy/peaky-finders}"
-RELEASED_FIRMWARE_FILE="$OTA_ROOT/RELEASED_FIRMWARE"
-RELEASED_BOOTLOADER_FILE="$OTA_ROOT/RELEASED_BOOTLOADER"
-
 export ENVYOS_ROOT="$OTA_ROOT"
 export RELEASED_VERSIONS_FILE
 export MESHCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT MESHCORE_OPEN_ROOT PEAKY_ROOT PACKAGES_ROOT PACKAGES_META_ROOT
@@ -30,6 +27,10 @@ export MESHCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT MESHCORE_OPEN_ROOT PEAKY_ROOT 
 
 # shellcheck source=scripts/packages-meta-lib.sh
 source "$OTA_ROOT/scripts/packages-meta-lib.sh"
+
+RELEASED_FIRMWARE_FILE="${RELEASED_FIRMWARE_FILE:-$(package_releases_file meshcore)}"
+RELEASED_BOOTLOADER_FILE="${RELEASED_BOOTLOADER_FILE:-$(package_releases_file bootloader)}"
+export RELEASED_FIRMWARE_FILE RELEASED_BOOTLOADER_FILE
 
 normalize_version() {
   local v="${1#v}"
@@ -273,7 +274,7 @@ assert_version_not_released() {
   local ver="$1"
   if is_released_firmware_version "$ver" || is_released_version "$ver"; then
     echo "error: $ver is released — $(firmware_bench_root "$ver" "$ver") is immutable" >&2
-    echo "       (listed in RELEASED_FIRMWARE or RELEASED_VERSIONS)" >&2
+    echo "       (listed in packages-meta/meshcore/RELEASES or RELEASED_VERSIONS)" >&2
     exit 1
   fi
 }
@@ -407,9 +408,7 @@ append_released_version() {
     return 1
   fi
   printf '%s\n' "$ver" >>"$RELEASED_VERSIONS_FILE"
-  if ! is_released_firmware_version "$ver"; then
-    printf '%s\n' "$ver" >>"$RELEASED_FIRMWARE_FILE"
-  fi
+  append_package_release firmware "$ver"
 }
 
 read_mcmt_gateway_version() { read_envyos_version_key mcmt-gateway; }
@@ -629,7 +628,7 @@ write_released_marker() {
   today="$(date '+%Y-%m-%d')"
   cat >"$dir/.released" <<EOF
 EnvyOS $ver — released $today. Do not delete or rebuild this directory.
-Listed in RELEASED_VERSIONS; the meshcore recipe refuses to overwrite released versions.
+Listed in RELEASED_VERSIONS and packages-meta/meshcore/RELEASES; the meshcore recipe refuses to overwrite released versions.
 Includes delta_from_<base>.mota for every prior version with base hex (fleet jump updates).
 EOF
 }

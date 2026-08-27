@@ -8,6 +8,45 @@ package_meta_dir() {
   printf '%s/%s' "$PACKAGES_META_ROOT" "$1"
 }
 
+# Immutable shipped versions for a bundled package (packages-meta/<pkg>/RELEASES).
+package_releases_file() {
+  printf '%s/RELEASES' "$(package_meta_dir "$1")"
+}
+
+# Map legacy registry / component ids to packages-meta package names.
+package_meta_id() {
+  case "$1" in
+    firmware | meshcore) printf '%s' meshcore ;;
+    bootloader) printf '%s' bootloader ;;
+    motatool) printf '%s' motatool ;;
+    mcmt-gateway) printf '%s' mcmt-gateway ;;
+    peaky) printf '%s' peaky ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+append_package_release() {
+  local pkg=$1 ver=$2
+  local file line
+  pkg="$(package_meta_id "$pkg")"
+  file="$(package_releases_file "$pkg")"
+  [[ -f "$file" ]] || {
+    echo "error: missing $file" >&2
+    return 1
+  }
+  ver="$(normalize_component_version "$ver" 2>/dev/null || normalize_version "$ver" 2>/dev/null || printf '%s' "$ver")"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -n "$line" ]] || continue
+    if [[ "$(normalize_version "$line" 2>/dev/null || normalize_component_version "$line" 2>/dev/null || printf '%s' "$line")" == "$ver" ]]; then
+      return 0
+    fi
+  done <"$file"
+  printf '%s\n' "$ver" >>"$file"
+}
+
 read_package_meta_key() {
   local pkg=$1 key=$2
   local file line k val

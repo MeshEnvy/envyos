@@ -2,7 +2,7 @@
 # Restore released firmware trees under build/<ver>/bench/firmware/ from GitHub Releases.
 #
 # Usage:
-#   ./scripts/restore-firmware.sh                  # all RELEASED_FIRMWARE versions
+#   ./scripts/restore-firmware.sh                  # all meshcore RELEASES versions
 #   ./scripts/restore-firmware.sh v0.1.0 v0.1.1
 #   ./scripts/restore-firmware.sh --force v0.1.2
 #
@@ -27,7 +27,7 @@ usage() {
   cat >&2 <<EOF
 usage: $0 [--force] [vX.Y.Z]…
 
-  (default)     Restore every version listed in RELEASED_FIRMWARE
+  (default)     Restore every version listed in packages-meta/meshcore/RELEASES
   vX.Y.Z        Restore one or more explicit firmware versions
   --force       Re-download and replace (same as deleting build/<ver>/bench/firmware/)
 
