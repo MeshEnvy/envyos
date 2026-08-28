@@ -32,6 +32,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist | `feature/ota-provenance` | P2 | M | EC-001 | Release mota verifies + applies with allowlisted signer; rejects unknown signer | backlog |
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
+| EC-014 | Directional telemetry backhaul — zero-hop relay chain toward mothership | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Edge node pushes compact telemetry to chosen backhaul neighbor; relay buffers and forwards upstream; mothership ingest receives without mesh flood | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
@@ -114,6 +115,26 @@ Each slot contributes two chars when both streams exist: battery then temp (`Koo
 
 **Out of scope v1:** LPP export, mesh-side pull, motatool parser (follow-on once format stable).
 
+### EC-014 — directional telemetry backhaul (design sketch)
+
+**Working names:** *telemetry suction*, telemetry backhaul, gradient relay.
+
+**Goal:** Move fleet telemetry from edge repeaters to mothership (envybot ingest / warehouse) without periodic mesh-wide status flood or advert-as-telemetry noise.
+
+**Rough model**
+
+1. **Sample locally** — EC-013 ring (battery, temp, optional traffic/neighbor stats later).
+2. **Choose backhaul neighbor** — the one adjacent node that moves packets **toward** home base (ingest hub). Not broadcast; not multi-hop flood in one shot.
+3. **Zero-hop push** — direct exchange with that neighbor only (same pattern as zero-hop pull in social feed / status ping, but **push** direction and relay semantics).
+4. **Relay chain** — intermediate repeaters buffer compact telemetry and push upstream to *their* chosen backhaul neighbor when reachable.
+5. **Sink** — mothership node(s) with envybot telemetry harvest role; warehouse + Peaky fleet book consume (`initiatives/envybot-radio-daemon.md`, `initiatives/peaky-fleet-management.md`).
+
+**Anti-patterns:** global status advert cadence as fleet telemetry; flooding telemetry on shared channels; requiring admin CLI poll of every edge node.
+
+**Open (see `ops/initiatives/envyos-backlog.md` § Missing information):** backhaul direction discovery (Peaky path vs hop-to-ingest vs compass); push cadence; offline relay buffer policy; wire format; EC-011 stealth interaction.
+
+**Out of scope v1:** cross-mesh MQTT bridge; Prns transport (spec transport-agnostic until LoRa gate).
+
 ### Source commits (from `envyos/dev-pre-split` monolith)
 
 | ID | Cherry-pick SHAs |
@@ -178,3 +199,4 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 | 2026-08-25 | EC-012: OTA release provenance — sign published motas, fleet `ota key` allowlist, apply trust separate from discovery (EC-011). |
 | 2026-08-28 | EC-013: battery + temp telemetry history ring — compact ASCII CLI dump (`battery history`), set/get interval; builds on `TimeSeriesData` example. |
 | 2026-08-28 | EC-011: admin-only `REQ_TYPE_GET_STATUS` when stealth on — closes guest status ping fingerprint; fleet `--ping` must login. |
+| 2026-08-28 | EC-014: directional telemetry backhaul (*telemetry suction*) — zero-hop neighbor relay chain toward mothership; depends EC-013; Icebox. |
