@@ -31,8 +31,88 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist | `feature/ota-provenance` | P2 | M | EC-001 | Release mota verifies + applies with allowlisted signer; rejects unknown signer | backlog |
+| EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
+
+### EC-013 — telemetry history (design)
+
+**Goal:** Ring-buffer recent battery voltage and (when present) board/sensor temperature. Configurable sample interval. One-line CLI dump suitable for serial, BLE, and remote CLI (fits ~160-byte reply with pagination).
+
+**Prior art:** `examples/simple_sensor/TimeSeriesData.{h,cpp}` — in-RAM float ring, interval-gated `recordData()`. Promote to `src/helpers/TelemetryHistory.*`, switch samples to `uint8_t` encoded values, add FS persistence.
+
+**Sampling**
+
+| Stream | Source | When |
+|--------|--------|------|
+| Battery | `_board` ADC / `getBootVoltage()` path where available | Every interval if board reports voltage |
+| Temp | `SensorManager` or onboard sensor | Every interval when sensor present; omit slot char when absent |
+
+**Prefs (persisted in node prefs / sidecar file)**
+
+| Key | Default | Notes |
+|-----|---------|-------|
+| `battery.history.interval` | 300 | Seconds between samples; min 60 |
+| `battery.history.slots` | 288 | Fixed at compile time for v1 (24 h @ 5 min) |
+| `temp.history.interval` | 300 | Same as battery unless split later |
+
+CLI: `get battery.history.interval`, `set battery.history.interval <sec>` (mirror for `temp`).
+
+**Wire encoding — printable byte**
+
+Each sample is one ASCII char: `ch = '!' + value` where `value` is 0–93 (`!` … `~`).
+
+| Stream | `value` meaning | Decode |
+|--------|-----------------|--------|
+| Battery | Tenths of volt | `V = value / 10.0` (42 → 4.2 V) |
+| Temp | Whole °C offset | `T = value - 40` (-40 … +53 °C) |
+| Missing / gap | `_` (0x5F) | No sample this slot (sensor absent or pre-fill) |
+
+Examples: 4.2 V → `value=42` → `'K'`; 22 °C → `value=62` → `'o'`.
+
+**Dump format**
+
+Oldest→newest, one line:
+
+```
+<start_unix>|<interval_sec>|B:<battery_chars>|T:<temp_chars>
+```
+
+- `start_unix` — RTC epoch of oldest slot (0 if buffer not yet filled).
+- `interval_sec` — active sample period.
+- `B:` — battery run only.
+- `T:` — temp run only (may be shorter or all `_` when no sensor).
+
+Combined interleaved (optional alias `telemetry history`):
+
+```
+<start_unix>|<interval_sec>|:<interleaved>
+```
+
+Each slot contributes two chars when both streams exist: battery then temp (`KoooKK...`). Temp-only-absent slots use `_` for the temp char.
+
+**CLI surface**
+
+| Command | Action |
+|---------|--------|
+| `battery history` | Full `B:` dump |
+| `temp history` | Full `T:` dump |
+| `telemetry history` | Interleaved `:` form |
+| `battery history clear` | Zero ring + reset `start_unix` |
+| `get/set battery.history.interval <sec>` | Interval prefs |
+
+**Pagination:** If payload exceeds reply buffer (~140 chars body), support `battery history <offset>` where offset is slot index (0 = oldest). Reply prefix `> part <offset>/<total>|` then truncated payload.
+
+**Persistence:** Small file on InternalFS/LittleFS (`/tel_hist`) — header (magic, version, start_unix, interval, write_idx) + raw uint8 slot arrays. Load at boot; append on sample; wear-friendly (rewrite whole file every N samples or use circular file — v1 may be RAM-only with FS save on interval if EC-004 atomic prefs lands first).
+
+**Bench gate**
+
+1. `set battery.history.interval 10`; wait ≥3 samples.
+2. `battery history` → `start_unix>0`, `interval=10`, three monotonic-ish `B:` chars decodable to plausible voltage.
+3. Reboot → history still present (if FS enabled).
+4. Board without temp → `T:` all `_` or empty; no crash.
+
+**Out of scope v1:** LPP export, mesh-side pull, motatool parser (follow-on once format stable).
 
 ### Source commits (from `envyos/dev-pre-split` monolith)
 
@@ -76,3 +156,4 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 | 2026-08-25 | Reverted mistaken merge of EC-001–EC-009 to `envyos/main`. Feature branches only. |
 | 2026-08-25 | EC-011: repeater `stealth_mode` — gate self-adverts, anon owner/region/clock, node discover, OTA beacons; path hash on relay remains. |
 | 2026-08-25 | EC-012: OTA release provenance — sign published motas, fleet `ota key` allowlist, apply trust separate from discovery (EC-011). |
+| 2026-08-28 | EC-013: battery + temp telemetry history ring — compact ASCII CLI dump (`battery history`), set/get interval; builds on `TimeSeriesData` example. |
