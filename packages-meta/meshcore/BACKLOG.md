@@ -29,7 +29,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-007 | Firmware identity codegen | `feature/firmware-identity-codegen` | P2 | S | EC-001 | Release rebuild only touches generated identity | backlog |
 | EC-008 | Bench `-debug` target twins | `feature/debug-targets` | P2 | S | EC-001 | `-debug` twin builds and boots with log tail | backlog |
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
-| EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; still relays | backlog |
+| EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist | `feature/ota-provenance` | P2 | M | EC-001 | Release mota verifies + applies with allowlisted signer; rejects unknown signer | backlog |
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
 
@@ -130,6 +130,26 @@ Each slot contributes two chars when both streams exist: battery then temp (`Koo
 
 EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 
+### EC-011 — stealth mode (design)
+
+**Goal:** Field repeaters stay on the mesh as relays but stop leaking identity and health on the discovery plane.
+
+**Gated when `stealth_mode` pref is on**
+
+| Surface | Today | Stealth |
+|---------|-------|---------|
+| Self-advert / node discover | on | off |
+| Anon owner / region / clock | on | off |
+| OTA beacons | on | off |
+| `REQ_TYPE_GET_STATUS` (status ping) | guest + admin | **admin only** — drop (reply_len 0) for non-admin senders |
+| Path hash on relay | on | on (unchanged) |
+
+**Status ping detail:** `simple_repeater/MyMesh.cpp` `handleRequest()` serves `REQ_TYPE_GET_STATUS` to guest ACL clients today (`// guests can also access this now`). Stealth closes that hole so strangers cannot confirm node presence or read uptime/battery/RSSI without an admin key.
+
+**Fleet tooling:** `peaky-nevada/scripts/poll_fleet_versions.py --ping` uses unauthenticated `req_status_sync`. On stealth nodes, ping must admin-login first (same path as full poll) or `--ping` will time out. Document in script help when EC-011 ships.
+
+**Bench gate add-on:** guest status ping → silence; admin status ping → stats reply; relay still forwards third-party traffic.
+
 ## Icebox
 
 | ID | Item | Notes |
@@ -157,3 +177,4 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 | 2026-08-25 | EC-011: repeater `stealth_mode` — gate self-adverts, anon owner/region/clock, node discover, OTA beacons; path hash on relay remains. |
 | 2026-08-25 | EC-012: OTA release provenance — sign published motas, fleet `ota key` allowlist, apply trust separate from discovery (EC-011). |
 | 2026-08-28 | EC-013: battery + temp telemetry history ring — compact ASCII CLI dump (`battery history`), set/get interval; builds on `TimeSeriesData` example. |
+| 2026-08-28 | EC-011: admin-only `REQ_TYPE_GET_STATUS` when stealth on — closes guest status ping fingerprint; fleet `--ping` must login. |
