@@ -617,6 +617,13 @@ resolve_firmware_image_in_dir() {
     printf '%s' "$legacy"
     return 0
   fi
+  local mota
+  for mota in "$dir"/fw-"${slug}"-*-full-*.mota "$dir"/fw-"${slug}"-full-*.mota "$dir"/*_full_*.mota; do
+    [[ -f "$mota" ]] || continue
+    extract_full_mota_payload "$mota" "$dir/$(firmware_artifact_name "$slug" "$ver" bin)"
+    printf '%s' "$dir/$(firmware_artifact_name "$slug" "$ver" bin)"
+    return 0
+  done
   return 1
 }
 
@@ -1115,6 +1122,7 @@ verify_release_delta_matrix() {
   local ver=$1
   local targets_file=$2
   local line slug base_ver base_image missing=0 delta_name
+  local -a matrix_slugs=()
 
   [[ -f "$targets_file" ]] || {
     echo "error: targets file not found: $targets_file" >&2
@@ -1128,10 +1136,28 @@ verify_release_delta_matrix() {
     read -r slug _ <<<"$line"
     [[ -n "$slug" ]] || continue
     is_debug_target_slug "$slug" && continue
+    matrix_slugs+=("$slug")
+  done <"$targets_file"
+
+  ensure_firmware_bases_for_build "$ver" "${matrix_slugs[@]}"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$line" ]] || continue
+    read -r slug _ <<<"$line"
+    [[ -n "$slug" ]] || continue
+    is_debug_target_slug "$slug" && continue
 
     while IFS= read -r base_ver || [[ -n "$base_ver" ]]; do
       [[ -n "$base_ver" ]] || continue
-      resolve_base_image "$slug" "$base_ver" >/dev/null || continue
+      if ! resolve_base_image "$slug" "$base_ver" >/dev/null; then
+        if is_released_firmware_version "$base_ver"; then
+          echo "error: missing base image for $slug $base_ver (restore failed — cannot verify delta matrix)" >&2
+          missing=1
+        fi
+        continue
+      fi
       delta_name=""
       while IFS= read -r delta_name || [[ -n "$delta_name" ]]; do
         [[ -n "$delta_name" ]] && break
@@ -1239,9 +1265,18 @@ populate_distro_release() {
   else
     distro_ver="$(normalize_tree_key "$distro_ver")"
   fi
-  fw_ver="$(read_firmware_version)"
-  bl_ver="$(read_bootloader_version)"
-  mt_ver="$(read_motatool_version)"
+  if is_released_version "$distro_ver" 2>/dev/null; then
+    fw_ver="$(manifest_component_version firmware "$distro_ver")"
+    bl_ver="$(manifest_component_version bootloader "$distro_ver")"
+    mt_ver="$(manifest_component_version motatool "$distro_ver")"
+  else
+    fw_ver="$(read_firmware_version)"
+    bl_ver="$(read_bootloader_version)"
+    mt_ver="$(read_motatool_version)"
+  fi
+  fw_ver="$(normalize_component_version "$fw_ver")"
+  bl_ver="$(normalize_component_version "$bl_ver")"
+  mt_ver="$(normalize_component_version "$mt_ver")"
 
   release_dir="$(distro_release_root "$distro_ver")"
   rm -rf "$release_dir"
