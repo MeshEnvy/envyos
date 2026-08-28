@@ -1,0 +1,24 @@
+# Distro build artifacts and release zips
+/build/
+*.tar.gz
+*.zip
+
+# Firmware / embedded toolchains
+**/.pio/
+**/.platformio/
+
+# Python / Node (mcmt-gateway, scripts)
+**/.venv/
+**/__pycache__/
+**/node_modules/
+
+# Rust (motatool, etc.)
+**/target/
+
+# Flutter (meshcore-open — also has its own .cursorignore)
+**/build/
+**/.dart_tool/
+**/android/.gradle/
+**/ios/Pods/
+
+.DS_Store
