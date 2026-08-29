@@ -32,7 +32,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist | `feature/ota-provenance` | P2 | M | EC-001 | Release mota verifies + applies with allowlisted signer; rejects unknown signer | backlog |
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
-| EC-014 | Directional telemetry backhaul — zero-hop relay chain toward mothership | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Edge node pushes compact telemetry to chosen backhaul neighbor; relay buffers and forwards upstream; mothership ingest receives without mesh flood | backlog |
+| EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
@@ -119,19 +119,26 @@ Each slot contributes two chars when both streams exist: battery then temp (`Koo
 
 **Working names:** *telemetry suction*, telemetry backhaul, gradient relay.
 
-**Goal:** Move fleet telemetry from edge repeaters to mothership (envybot ingest / warehouse) without periodic mesh-wide status flood or advert-as-telemetry noise.
+**Goal:** Move fleet telemetry from edge repeaters to a collector/sink (envybot ingest / warehouse) without periodic mesh-wide status flood or advert-as-telemetry noise.
 
-**Rough model**
+**Routing decision (operator 08-28):** **next hop, not a set path.** Each node knows the **sink destination** (identity). Any neighbor that has **heard of the sink** may accept the payload. A pinned A→B→C chain is rejected as brittle.
+
+**Rough model (operator 08-28)**
 
 1. **Sample locally** — EC-013 ring (battery, temp, optional traffic/neighbor stats later).
-2. **Choose backhaul neighbor** — the one adjacent node that moves packets **toward** home base (ingest hub). Not broadcast; not multi-hop flood in one shot.
-3. **Zero-hop push** — direct exchange with that neighbor only (same pattern as zero-hop pull in social feed / status ping, but **push** direction and relay semantics).
-4. **Relay chain** — intermediate repeaters buffer compact telemetry and push upstream to *their* chosen backhaul neighbor when reachable.
-5. **Sink** — mothership node(s) with envybot telemetry harvest role; warehouse + Peaky fleet book consume (`initiatives/envybot-radio-daemon.md`, `initiatives/peaky-fleet-management.md`).
+2. **Zero-hop toward sink** — dest = sink. Offer to a neighbor that has heard the sink. Retry until an **ACK** (custody accepted into its buffer, not just airtime). If that neighbor dies, another heard-of-sink neighbor can take it.
+3. **Accept rule** — a node that has heard the sink accepts; a node that has not, refuses (does not take custody).
+4. **Custody leap** — after ACK, the sender may drop (or mark shipped) those records. The receiving node now owns them.
+5. **Aggregate ship** — when that node makes *its* leap, it ships **itself plus everything queued from downstream**. Same zero-hop + ACK to whoever has heard the sink next.
+6. **Sink** — mothership / collector with envybot telemetry harvest; warehouse + Peaky fleet book consume (`ops/initiatives/envybot-radio-daemon.md`, `ops/initiatives/peaky-fleet-management.md`).
 
-**Anti-patterns:** global status advert cadence as fleet telemetry; flooding telemetry on shared channels; requiring admin CLI poll of every edge node.
+Bucket-brigade along a live gradient, not a declared path.
 
-**Open (see `ops/initiatives/envyos-backlog.md` § Missing information):** backhaul direction discovery (Peaky path vs hop-to-ingest vs compass); push cadence; offline relay buffer policy; wire format; EC-011 stealth interaction.
+**Incomplete (operator 08-28):** this is an *app* (dest = sink, aggregate payload), not a network. Dest, next-hop, hop ACK, and retry belong in a real routing/delivery layer. Do **not** grow a telem-only routing stack in MeshCore. TCP/IP solved the *ideas*; what is too heavy for LoRa is the Ethernet-era *stack* (40 B headers, SYN/ARP/keepalive chatter, RTT timers in ms). Sequencing: Prns/RNS transport (`ops/initiatives/darticulum-reticulum.md`) is the bet; MeshCore EC-014 only if a field blocker forces it (R&D doctrine: no MeshCore-depth features).
+
+**Anti-patterns:** global status advert cadence as fleet telemetry; flooding telemetry on shared channels; requiring admin CLI poll of every edge node; end-to-end multi-hop send without per-leap ACK; Peaky/admin static hop list; reinventing next-hop inside a telemetry opcode.
+
+**Open (see `ops/initiatives/envyos-backlog.md` § Missing information):** transport vs app split; what counts as "heard the sink"; pick among several heard neighbors; radio ACK vs buffer-accept ACK; bundle MTU; drop-on-hop-ACK vs wait-for-sink; cadence; wire format; EC-011 stealth vs sink hearability.
 
 **Out of scope v1:** cross-mesh MQTT bridge; Prns transport (spec transport-agnostic until LoRa gate).
 
@@ -200,3 +207,6 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 | 2026-08-28 | EC-013: battery + temp telemetry history ring — compact ASCII CLI dump (`battery history`), set/get interval; builds on `TimeSeriesData` example. |
 | 2026-08-28 | EC-011: admin-only `REQ_TYPE_GET_STATUS` when stealth on — closes guest status ping fingerprint; fleet `--ping` must login. |
 | 2026-08-28 | EC-014: directional telemetry backhaul (*telemetry suction*) — zero-hop neighbor relay chain toward mothership; depends EC-013; Icebox. |
+| 2026-08-28 | EC-014 refined: known path to sink; retry zero-hop until ACK; hop ships self + queued predecessors (custody transfer). |
+| 2026-08-28 | EC-014 routing: **next hop, not set path.** Know sink dest; any node that has heard the sink may accept. |
+| 2026-08-28 | EC-014 marked incomplete: app on a real delivery layer, not a MeshCore routing project. "IP too heavy" = stack folklore, not dest/ACK/next-hop. → `darticulum-reticulum`. |
