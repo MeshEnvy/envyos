@@ -96,7 +96,7 @@ Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,
 - **Dev bench path:** `build/<git-branch>/bench/{firmware,bootloader,motatool}-<ver>/` (not `build/<distro>/`).
 - **Published path:** `build/vX.Y.Z/` (immutable after lock).
 - `meshcore` in `MANIFEST.json` → `packages-meta/meshcore/VERSION`; built by **`packages-meta/meshcore/build.sh`**
-- `bootloader` → **`build/<branch>/bench/bootloader-<ver>/`**
+- `bootloader` → **`build/<branch>/bench/bootloader-<ver>/`**. On-device `get bootloader.ver` / `EnvyBoot` UF2 stamp is packages-meta `0.9.2-evN` (`ENVYBOOT_VERSION`), not `git describe` or OTAFIX-BP tags.
 - `motatool` → **`build/<branch>/bench/motatool-<ver>/`** (artifact); working copy under bench motatool tree
 - `peaky` → local `cargo build` when pinned
 - **Firmware build:** `./envyos build meshcore` (dispatches to `packages-meta/meshcore/build.sh`). Requires staged **`motatool`** on PATH (`./envyos build motatool`) or **`MOTATOOL=`** override.

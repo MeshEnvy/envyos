@@ -143,7 +143,7 @@ build_board() {
   (
     cd "$OTAFIX"
     echo "    docker run … make BOARD=$board ENVYBOOT_VERSION=$git_version all"
-    docker run --rm -v "$PWD":/src -w /src "$IMAGE" make "BOARD=$board" "ENVYBOOT_VERSION=$git_version" all
+    docker run --rm -v "$PWD":/src -w /src "$IMAGE" make "BOARD=$board" "ENVYBOOT_VERSION=$git_version" "GIT_VERSION=$git_version" all
   )
 
   local build_dir="$OTAFIX/_build/build-$board"
