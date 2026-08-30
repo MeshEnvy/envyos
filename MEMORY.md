@@ -108,6 +108,7 @@ Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only); ~180 KB smaller. **Staging headroom ~372 KB at current app size (434 KB app in the 815 KB 0x26000–0xED000 region) — a full slim `.mota` (~426 KB) does NOT fit; deltas only** (corrected 2026-07-25; full fits only if app ≤ ~406 KB) |
+| `heltec-t096-repeater-slim` | `Heltec_t096_repeater_slim` | Heltec T096 slim repeater — no TFT/GPS/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). Same S140 v6 / `rak4631_hw` OTA as RAK4631. OTAFIX board `heltec_t096` (oltaco PR #42, landed on MeshEnvy `envyos/main`) |
 | `sensecap-p1pro-repeater-slim` | `SenseCap_Solar_repeater_slim` | SenseCAP Solar P1-Pro slim repeater — no GPS/sensors/BLE; S140 v7 app @ `0x27000`; OTAFIX `sensecap_solar_p1`. ~384 KB app → ~416 KB staging headroom (full `.mota` ~386 KB fits) |
 | `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |

@@ -15,6 +15,9 @@ otafix_board_for_env() {
     SenseCap_Solar_*)
       echo sensecap_solar_p1
       ;;
+    Heltec_t096_*)
+      echo heltec_t096
+      ;;
     *)
       echo "error: no otafix board mapping for PlatformIO env: $env" >&2
       echo "       add a case to otafix_board_for_env() in scripts/targets-lib.sh" >&2
