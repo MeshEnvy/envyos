@@ -4,11 +4,11 @@
 
 # EnvyOS package maintainer guide
 
-Guide for **component repo maintainers**: implement the EnvyOS package harness in your repo, then wire it into the **distro** ([MeshEnvy/envyos](https://github.com/MeshEnvy/envyos)) when the fleet should ship your release.
+Guide for **package repo maintainers**: implement the EnvyOS package harness in your repo, then wire it into the **distro** ([MeshEnvy/envyos](https://github.com/MeshEnvy/envyos)) when the fleet should ship your release.
 
 Normative contract: [`.cursor/skills/envyos-package/SKILL.md`](.cursor/skills/envyos-package/SKILL.md) (agent skill). Human-oriented summary below.
 
-Related: [`docs/component-release-policy.md`](component-release-policy.md), [`docs/integration-policy.md`](integration-policy.md), [`docs/distro-semver.md`](distro-semver.md).
+Related: [`docs/package-release-policy.md`](package-release-policy.md), [`docs/integration-policy.md`](integration-policy.md), [`docs/distro-semver.md`](distro-semver.md).
 
 ---
 
@@ -16,7 +16,7 @@ Related: [`docs/component-release-policy.md`](component-release-policy.md), [`do
 
 ### What you are building
 
-Each EnvyOS **component** is a standalone repo with its own semver, changelog, GitHub Releases, and a root **`./envyos`** CLI. The distro repo does **not** compile your code for release. It pins tested versions and bundles published assets.
+Each EnvyOS **package** is a standalone repo with its own semver, changelog, GitHub Releases, and a root **`./envyos`** CLI. The distro repo does **not** compile your code for release. It pins tested versions and bundles published assets.
 
 ```
 Your repo                         Distro (envyos)
@@ -28,7 +28,7 @@ Your repo                         Distro (envyos)
 
 ### Workspace layout
 
-Component repos are **siblings** under a common parent (MeshEnvy bench):
+Package repos are **siblings** under a common parent (MeshEnvy bench):
 
 ```
 $MESHENVY_ROOT/
@@ -39,7 +39,7 @@ $MESHENVY_ROOT/
   …
 ```
 
-Branch model on component forks: **`envyos/main`** (release), **`envyos/dev`** (integration). Distro uses **`main`** / **`dev`**.
+Branch model on package forks: **`envyos/main`** (release), **`envyos/dev`** (integration). Distro uses **`main`** / **`dev`**.
 
 ### Core doctrine (required)
 
@@ -132,11 +132,11 @@ Distro publish **downloads by asset name** from your GitHub Release. Pick stable
 
 | Package | Primary asset pattern | Example |
 |---------|---------------------|---------|
-| firmware | `firmware-vX.Y.Z.zip` | `firmware-v0.1.4.zip` |
-| bootloader | `bootloader-vX.Y.Z.zip` | `bootloader-v0.1.2.zip` |
+| meshcore | `meshcore-<slug>-<ver>.*` / `meshcore-<ver>.zip` | `meshcore-wismesh-tag-repeater-1.17.1-ev1.hex` |
+| adafruit-nrf52-bootloader | `adafruit-nrf52-bootloader-<board>-<ver>.uf2` | `adafruit-nrf52-bootloader-wismesh_tag-0.9.2-ev1.uf2` |
 | motatool | `motatool-<ver>-<target>.tar.gz` per platform | `motatool-0.1.2-rc0-x86_64-unknown-linux-gnu.tar.gz` |
 | mcmt-gateway | `mcmt_gateway-<ver>-py3-none-any.whl` | (when pinned) |
-| peaky | `peaky-vX.Y.Z.zip` | (when bundled) |
+| peaky | `peaky-<ver>-<target>.tar.gz` per platform | `peaky-0.5.0-aarch64-apple-darwin.tar.gz` |
 | envybot | `envybot-<ver>-py3-none-any.whl` | (when pinned) |
 
 Your `publish` script must upload assets that match what the distro expects (or you add a distro-side fetch adapter when integrating).
@@ -169,7 +169,7 @@ Non-Rust packages (PlatformIO, bootloader make-in-docker): apply the same split 
 
 ## Part 2 — Add the package to the EnvyOS distro
 
-Do this when the fleet should **ship and pin** your component in a distro release. Components that are tracked but not bench-tested stay **out** of the bundle ([`component-release-policy.md`](component-release-policy.md)).
+Do this when the fleet should **ship and pin** your package in a distro release. Packages that are tracked but not bench-tested stay **out** of the bundle ([`package-release-policy.md`](package-release-policy.md)).
 
 ### Prerequisites
 
@@ -181,32 +181,32 @@ Do this when the fleet should **ship and pin** your component in a distro releas
 
 | File | Purpose |
 |------|---------|
-| **`MANIFEST`** | Semver pin per component (`motatool=0.1.2`, …) |
-| **`COMPONENTS.lock`** | Git SHAs for pinned component repos at publish |
-| **`scripts/version.sh`** | `read_<pkg>_version`, `list_release_component_ids`, `component_build_dir`, … |
+| **`MANIFEST`** | Semver pin per package (`motatool=0.1.2`, …) |
+| **`COMPONENTS.lock`** | Git SHAs for pinned package repos at publish |
+| **`scripts/version.sh`** | `read_<pkg>_version`, `list_release_package_ids`, `package_build_dir`, … |
 | **`scripts/build-lib.sh`** | Stage/download release assets into bench tree (if not already generic) |
-| **`CHANGELOG.md`** (distro) | User-facing note when adding or bumping bundled component |
+| **`CHANGELOG.md`** (distro) | User-facing note when adding or bumping a bundled package |
 | **`.cursor/skills/envyos-package/SKILL.md`** | Registered asset names table |
 
 ### Step-by-step (distro maintainer)
 
-#### A. First-time inclusion (new bundled component)
+#### A. First-time inclusion (new bundled package)
 
-1. **Ship your component release** (Part 1) and confirm assets on GitHub.
+1. **Ship your package release** (Part 1) and confirm assets on GitHub.
 2. **Add manifest key** to `MANIFEST` on distro `dev`:
    ```ini
    my-tool=0.1.0
    ```
-3. **Extend `list_release_component_ids()`** in `scripts/version.sh` if the component is optional (see `mcmt-gateway`, `peaky` gating). Core trio today: `firmware`, `bootloader`, `motatool`.
+3. **Extend `list_release_package_ids()`** in `scripts/version.sh` if the package is optional (see `mcmt-gateway`, `peaky` gating). Core trio today: `firmware`, `bootloader`, `motatool`.
 4. **Wire version read** in `scripts/version.sh`:
    - `read_my_tool_version` → reads `MANIFEST` or your pin file
-   - `component_version_at_publish` case arm
-   - `component_build_dir` case arm (where bench cache lives)
-   - `component_zip_basename` / download path if distro expects a zip wrapper
+   - `package_version_at_publish` case arm
+   - `package_build_dir` case arm (where bench cache lives)
+   - `package_zip_basename` / download path if distro expects a zip wrapper
 5. **Implement or extend fetch** in `scripts/build-lib.sh` (or reuse `materialize_release_download`) so `./envyos build` / publish can pull your GH Release assets into `build/<branch-slot>/bench/…`.
 6. **Set sibling path** if needed (e.g. `MY_TOOL_ROOT` default `$MESHENVY_ROOT/my-tool`).
 7. **Bench test** full `./envyos build` on distro `dev` with the new pin.
-8. **Document** in distro `CHANGELOG.md` under `## [Unreleased]` (added bundled component …).
+8. **Document** in distro `CHANGELOG.md` under `## [Unreleased]` (added bundled package …).
 9. **Distro publish** when ready: `./envyos semver suggest` → `./envyos publish vX.Y.Z --yes`. That refreshes `COMPONENTS.lock`, sets `distro=`, and uploads the fleet bundle.
 
 #### B. Routine pin bump (already bundled)
@@ -216,9 +216,9 @@ Do this when the fleet should **ship and pin** your component in a distro releas
    ```bash
    ./envyos bump patch my-tool    # or edit the file
    ```
-3. Run **`./envyos build`** (or targeted component build) to stage the new GH assets.
+3. Run **`./envyos build`** (or targeted package build) to stage the new GH assets.
 4. Validate on bench.
-5. Distro **`./envyos publish`** when the fleet is ready. Semver rules: [`distro-semver.md`](distro-semver.md) (component patch → distro patch; new component or minor upstream → distro minor).
+5. Distro **`./envyos publish`** when the fleet is ready. Semver rules: [`distro-semver.md`](distro-semver.md) (package patch → distro patch; new package or minor upstream → distro minor).
 
 #### C. `COMPONENTS.lock`
 
@@ -233,7 +233,7 @@ Follow existing `firmware_sha` / `bootloader_sha` pattern in [`COMPONENTS.lock`]
 
 ### Inclusion rule
 
-> A component appears in the **distro GitHub Release bundle** only when it is **bench-gated** and listed in `list_release_component_ids` for that distro version.
+> A package appears in the **distro GitHub Release bundle** only when it is **bench-gated** and listed in `list_release_package_ids` for that distro version.
 
 Optional tools can ship releases from their own repos without being in every EnvyOS tag.
 
@@ -243,7 +243,7 @@ Optional tools can ship releases from their own repos without being in every Env
 - [ ] `./envyos prepare` + `./envyos publish` produces GH assets with registered names
 - [ ] Distro `./envyos build` stages your assets under `build/<branch-slot>/bench/…`
 - [ ] `MANIFEST` pin matches your published tag
-- [ ] Distro `./envyos publish --dry-run` lists your component in the release manifest
+- [ ] Distro `./envyos publish --dry-run` lists your package in the release manifest
 - [ ] `COMPONENTS.lock` SHA matches the tag you intend to pin
 
 ---
@@ -252,7 +252,7 @@ Optional tools can ship releases from their own repos without being in every Env
 
 | Layer | Version lives in | Build output | Release cut |
 |-------|------------------|--------------|-------------|
-| **Component** | `Cargo.toml` / `VERSION` / … | `build/<branch-slot>/`, `dist/<branch-slot>/` | `./envyos publish` |
+| **Package** | `Cargo.toml` / `VERSION` / … | `build/<branch-slot>/`, `dist/<branch-slot>/` | `./envyos publish` |
 | **Distro** | `MANIFEST` | `build/<branch-slot>/bench/…` | `./envyos publish` (fleet tag) |
 
-Questions or new component types: extend [`envyos-package` SKILL](.cursor/skills/envyos-package/SKILL.md) and this doc in the same PR.
+Questions or new package types: extend [`envyos-package` SKILL](.cursor/skills/envyos-package/SKILL.md) and this doc in the same PR.

@@ -229,7 +229,7 @@ run_full_mota_job() {
 
   echo "==> full .mota ($slug)"
   "$mt" build --fw "$fw_image" --fw-version "$FW_STAMP" \
-    --name-stem "fw-${slug}-${VER}" --out-dir "$out"
+    --name-stem "meshcore-${slug}-${VER}" --out-dir "$out"
 }
 
 run_one_delta_job() {
@@ -247,7 +247,7 @@ run_one_delta_job() {
   echo "    base: $base_hex"
   echo "    fw:   $fw_hex"
   "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "$FW_STAMP" \
-    --patch-type in-place --name-stem "fw-${slug}-${VER}" --base-version "${base_ver#v}" \
+    --patch-type in-place --name-stem "meshcore-${slug}-${VER}" --base-version "${base_ver#v}" \
     --out-dir "$out"
 }
 
@@ -296,6 +296,7 @@ build_target_firmware() {
   dest_hex="$out/$(firmware_artifact_name "$slug" "$VER" hex)"
   dest_uf2="$out/$(firmware_artifact_name "$slug" "$VER" uf2)"
   dest_zip="$out/$(firmware_artifact_name "$slug" "$VER" zip)"
+  mkdir -p "$out"
   cached_sha=""
   if [[ -f "$out/.hex-sha256" ]]; then
     cached_sha="$(tr -d '[:space:]' <"$out/.hex-sha256")"
@@ -411,7 +412,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --base)
       [[ $# -ge 2 ]] || usage
-      BASE_VER="$(normalize_component_version "$2")" || usage
+      BASE_VER="$(normalize_package_version "$2")" || usage
       shift 2
       ;;
     -h | --help)
@@ -422,7 +423,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       [[ -z "$VER" ]] || usage
-      VER="$(normalize_component_version "$1")" || usage
+      VER="$(normalize_package_version "$1")" || usage
       VER_EXPLICIT=1
       shift
       ;;
@@ -439,7 +440,7 @@ if [[ -z "$VER" ]]; then
 fi
 
 FW_VER="$VER"
-FW_STAMP="$(component_firmware_stamp "$FW_VER")"
+FW_STAMP="$(firmware_stamp_from_version "$FW_VER")"
 
 load_targets "$TARGETS_FILE"
 
@@ -482,7 +483,6 @@ else
   OUT="$(firmware_bench_root "$DISTRO_VER" "$FW_VER")"
   assert_version_not_released "$FW_VER"
 fi
-migrate_firmware_package_tree "$DISTRO_VER" "$FW_VER" || true
 export DISTRO_VER
 OUT_ROOT="$OUT"
 if ((CLEAN == 1)); then
@@ -494,7 +494,7 @@ mkdir -p "$OUT"
 GIT_SHA="$(git_short_sha "$MC")"
 BUILD_STAMP=""
 if ((CLEAN == 0)) && [[ -f "$OUT/version.txt" ]]; then
-  if [[ "$(normalize_component_version "$(head -1 "$OUT/version.txt" | tr -d '[:space:]')")" == "$VER" ]]; then
+  if [[ "$(normalize_package_version "$(head -1 "$OUT/version.txt" | tr -d '[:space:]')")" == "$VER" ]]; then
     cached_tree_sha="$(sed -n '3p' "$OUT/version.txt" 2>/dev/null | tr -d '[:space:]')"
     if [[ -z "$cached_tree_sha" || "$cached_tree_sha" == "$GIT_SHA" ]]; then
       BUILD_STAMP="$(sed -n '2p' "$OUT/version.txt" | tr -d '[:space:]')"

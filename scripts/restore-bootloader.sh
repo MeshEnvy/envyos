@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Restore released EnvyBoot trees under build/<ver>/bench/bootloader/ from GitHub Releases.
+# Restore released Adafruit nRF52 bootloader trees from GitHub Releases.
 #
 # Usage:
 #   ./scripts/restore-bootloader.sh                  # every distro in meshcore RELEASES
 #   ./scripts/restore-bootloader.sh v0.1.2
 #   ./scripts/restore-bootloader.sh --force v0.1.2
 #
-# Legacy releases (v0.1.0, v0.1.1): bootloader-vX.Y.Z.zip on the distro tag.
-# Transitional flat (v0.1.2): bl-<board>-vX.Y.Z.uf2 + recovery zip on the distro tag.
-#   Asset filenames use the pinned bootloader version (often v0.1.0), not the distro tag.
+# Legacy zip (v0.1.0, v0.1.1): bootloader-vX.Y.Z.zip
+# Transitional flat (v0.1.2–v0.1.3): bl-<board>-<ver>.uf2 + recovery zip
+# Going forward: adafruit-nrf52-bootloader-<board>-<ver>.uf2 + recovery zip
+#   Asset filenames use the pinned bootloader version, not the distro tag.
 
 set -euo pipefail
 
@@ -51,13 +52,12 @@ release_has_asset() {
 
 bootloader_tree_present() {
   local distro_ver="$1"
-  local bl_ver="${2:-$(manifest_component_version bootloader "$distro_ver" 2>/dev/null || read_bootloader_version)}"
+  local bl_ver="${2:-$(manifest_package_version bootloader "$distro_ver" 2>/dev/null || read_bootloader_version)}"
   local dir
-  migrate_bootloader_package_tree "$distro_ver" "$bl_ver" || true
   dir="$(bootloader_bench_root "$distro_ver" "$bl_ver")"
   [[ -d "$dir" ]] || return 1
   local n
-  n="$(find "$dir" -maxdepth 1 -name '*_bootloader-*.uf2' -o -name 'update-*_bootloader-*.uf2' 2>/dev/null | wc -l | tr -d ' ')"
+  n="$(find "$dir" -maxdepth 1 \( -name '*_bootloader-*.uf2' -o -name 'update-*_bootloader-*.uf2' \) 2>/dev/null | wc -l | tr -d ' ')"
   [[ "$n" -gt 0 ]]
 }
 
@@ -73,28 +73,26 @@ release_board_slug_to_otafix_board() {
 flat_asset_to_build_name() {
   local asset="$1"
   local bl_ver="$2"
-  local base="${asset%.uf2}"
-  base="${base%.zip}"
-  base="${base%.gz}"
   local ver_no_v="${bl_ver#v}"
-  local slug board
+  local slug board prefix
 
-  if [[ "$asset" == bl-*-recovery-${bl_ver}.zip ]]; then
-    slug="${asset#bl-}"
-    slug="${slug%-recovery-${bl_ver}.zip}"
-    board="$(release_board_slug_to_otafix_board "$slug")"
-    printf '%s_bootloader-%s.recovery.zip' "$board" "$ver_no_v"
-    return 0
-  fi
-
-  if [[ "$asset" == bl-*-${bl_ver}.uf2.gz || "$asset" == bl-*-${bl_ver}.uf2 ]]; then
-    slug="${asset#bl-}"
-    slug="${slug%-${bl_ver}.uf2.gz}"
-    slug="${slug%-${bl_ver}.uf2}"
-    board="$(release_board_slug_to_otafix_board "$slug")"
-    printf '%s_bootloader-%s.uf2' "$board" "$ver_no_v"
-    return 0
-  fi
+  for prefix in adafruit-nrf52-bootloader- bl-; do
+    if [[ "$asset" == ${prefix}*-recovery-${bl_ver}.zip ]]; then
+      slug="${asset#"$prefix"}"
+      slug="${slug%-recovery-${bl_ver}.zip}"
+      board="$(release_board_slug_to_otafix_board "$slug")"
+      printf '%s_bootloader-%s.recovery.zip' "$board" "$ver_no_v"
+      return 0
+    fi
+    if [[ "$asset" == ${prefix}*-${bl_ver}.uf2.gz || "$asset" == ${prefix}*-${bl_ver}.uf2 ]]; then
+      slug="${asset#"$prefix"}"
+      slug="${slug%-${bl_ver}.uf2.gz}"
+      slug="${slug%-${bl_ver}.uf2}"
+      board="$(release_board_slug_to_otafix_board "$slug")"
+      printf '%s_bootloader-%s.uf2' "$board" "$ver_no_v"
+      return 0
+    fi
+  done
 
   return 1
 }
@@ -107,16 +105,14 @@ infer_bootloader_version_from_release_assets() {
   while IFS= read -r asset || [[ -n "$asset" ]]; do
     [[ -n "$asset" ]] || continue
     case "$asset" in
-      bl-*-recovery-v*.zip)
-        ver_no_v="${asset#bl-}"
-        ver_no_v="${ver_no_v##*-recovery-v}"
+      adafruit-nrf52-bootloader-*-recovery-v*.zip | bl-*-recovery-v*.zip)
+        ver_no_v="${asset##*-recovery-v}"
         ver_no_v="${ver_no_v%.zip}"
         normalize_version "v$ver_no_v"
         return 0
         ;;
-      bl-*-v*.uf2 | bl-*-v*.uf2.gz)
-        ver_no_v="${asset#bl-}"
-        ver_no_v="${ver_no_v##*-v}"
+      adafruit-nrf52-bootloader-*-v*.uf2 | adafruit-nrf52-bootloader-*-v*.uf2.gz | bl-*-v*.uf2 | bl-*-v*.uf2.gz)
+        ver_no_v="${asset##*-v}"
         ver_no_v="${ver_no_v%.uf2.gz}"
         ver_no_v="${ver_no_v%.uf2}"
         normalize_version "v$ver_no_v"
@@ -135,7 +131,7 @@ resolve_bootloader_version_for_distro() {
     printf '%s' "$inferred"
     return 0
   fi
-  manifest_bl="$(manifest_component_version bootloader "$distro_ver" 2>/dev/null || true)"
+  manifest_bl="$(manifest_package_version bootloader "$distro_ver" 2>/dev/null || true)"
   if [[ -n "$manifest_bl" ]]; then
     normalize_version "$manifest_bl"
     return 0
@@ -196,7 +192,9 @@ restore_from_flat_release() {
   mkdir -p "$out"
   while IFS= read -r asset || [[ -n "$asset" ]]; do
     [[ -n "$asset" ]] || continue
-    [[ "$asset" == bl-*-${bl_ver}.uf2.gz || "$asset" == bl-*-${bl_ver}.uf2 || "$asset" == bl-*-recovery-${bl_ver}.zip ]] || continue
+    [[ "$asset" == bl-*-${bl_ver}.uf2.gz || "$asset" == bl-*-${bl_ver}.uf2 || "$asset" == bl-*-recovery-${bl_ver}.zip ||
+      "$asset" == adafruit-nrf52-bootloader-*-${bl_ver}.uf2.gz || "$asset" == adafruit-nrf52-bootloader-*-${bl_ver}.uf2 ||
+      "$asset" == adafruit-nrf52-bootloader-*-recovery-${bl_ver}.zip ]] || continue
     local_name="$(flat_asset_to_build_name "$asset" "$bl_ver")" || continue
     if [[ "$FORCE" -eq 0 && -f "$out/$local_name" ]]; then
       echo "    skip $local_name (present)"
@@ -221,11 +219,10 @@ restore_bootloader_for_distro() {
   local distro_ver="$1"
   local bl_ver="$2"
   distro_ver="$(normalize_version "$distro_ver")" || return 1
-  bl_ver="$(normalize_component_version "$bl_ver")" || return 1
+  bl_ver="$(normalize_package_version "$bl_ver")" || return 1
 
   if release_has_flat_bootloader_assets "$distro_ver"; then
     if [[ "$FORCE" -eq 0 ]]; then
-      migrate_bootloader_package_tree "$distro_ver" "$bl_ver" || true
       if bootloader_tree_present "$distro_ver" "$bl_ver"; then
         echo "==> $distro_ver bootloader already present (use --force to replace)"
         return 0
@@ -238,8 +235,6 @@ restore_bootloader_for_distro() {
     ls -la "$(bootloader_bench_root "$distro_ver" "$bl_ver")"
     return 0
   fi
-
-  migrate_bootloader_package_tree "$distro_ver" "$bl_ver" || true
 
   if [[ "$FORCE" -eq 0 ]] && bootloader_tree_present "$distro_ver" "$bl_ver"; then
     echo "==> $distro_ver bootloader already present (use --force to replace)"
@@ -310,7 +305,7 @@ done < <(list_restore_distros)
   exit 1
 }
 
-echo "restore bootloader → build/*/bench/bootloader-*"
+echo "restore bootloader → build/*/bench/adafruit-nrf52-bootloader-*"
 for distro in "${distros[@]}"; do
   bl_ver="$(resolve_bootloader_version_for_distro "$distro")"
   restore_bootloader_for_distro "$distro" "$bl_ver"

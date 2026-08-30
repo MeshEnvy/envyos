@@ -1,5 +1,6 @@
 class=native
 name=envybot
+title=EnvyBot
 artifact=envybot
 repo=MeshEnvy/envybot
 # Sibling checkout (not packages/). Pin: envybot= in MANIFEST.json.

@@ -2,7 +2,7 @@
   "releases": {
     "next": {
       "packages": {
-        "bootloader": {
+        "adafruit-nrf52-bootloader": {
           "repo": "MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX",
           "version": "0.9.2-ev1",
           "sha": "4d8e357cd25789f8cada5e9583b7b9cfe62a95be"
@@ -20,12 +20,17 @@
         "envybot": {
           "repo": "MeshEnvy/envybot",
           "version": "0.1.0",
-          "sha": "ba80e9f31a4ed8999c9e8fa25cdcbe2a1f6c80b0"
+          "sha": "09535512b2a9047306de802bef0c5787a06aa5ac"
         },
         "mcmt-gateway": {
           "repo": "Imperator4422/mcmt-gateway",
           "version": "0.1.0",
           "sha": "312c3f374c28a9bfd6db41b1e169f99a564aef89"
+        },
+        "peaky": {
+          "repo": "MeshEnvy/peaky-finders",
+          "version": "0.5.0",
+          "sha": "423827bd1af6715599a57d5860ee73cf2a871ac1"
         }
       }
     },

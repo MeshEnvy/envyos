@@ -3,6 +3,7 @@
 #
 # Usage:
 #   ./scripts/publish.sh [version] [--yes] [--dry-run] [--no-tag] [--no-release]
+#   --dry-run writes build/<slot>/release/RELEASE.md (GitHub notes + upload asset).
 #   ./scripts/publish.sh --release-only [version]
 #
 # Dev builds live under build/<branch>/bench/. Publish copies to build/<vX.Y.Z>/, locks, and uploads.
@@ -23,7 +24,7 @@ usage: $0 [version] [--yes] [--dry-run] [--no-tag] [--no-release]
 
 options:
   --yes           Accept changelog-suggested version without prompting
-  --dry-run       Print plan + GitHub notes and exit (no promote/lock/upload)
+  --dry-run       Print plan + write RELEASE.md (no promote/lock/upload)
   --release-only  Re-upload GitHub Release assets for an already-published distro
   --no-tag        Skip creating a local git tag
   --no-release    Skip GitHub Release upload (stage dir is still built)
@@ -31,7 +32,7 @@ options:
 examples:
   $0                          # suggest tag, prompt, promote, publish
   $0 v0.1.3 --yes             # publish explicit tag
-  $0 --dry-run                # plan, pins, GitHub notes (no writes)
+  $0 --dry-run                # plan, pins, write RELEASE.md (no promote/upload)
   $0 --release-only v0.1.0    # backfill GitHub release assets
 EOF
   exit 2
@@ -147,10 +148,10 @@ list_manifest | sed 's/^/  manifest /'
 promote_bench_to_release_tree "$BUILD_SLOT" "$PUBLISH_VER"
 populate_distro_release "$PUBLISH_VER"
 
-verify_release_components "$PUBLISH_VER"
+verify_release_packages "$PUBLISH_VER"
 
 append_released_version "$PUBLISH_VER"
-lock_release_components "$PUBLISH_VER"
+lock_release_packages "$PUBLISH_VER"
 
 ASSETS=()
 while IFS= read -r zip || [[ -n "$zip" ]]; do

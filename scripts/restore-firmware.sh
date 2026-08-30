@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# Restore released firmware trees under build/<ver>/bench/firmware/ from GitHub Releases.
+# Restore released MeshCore trees under build/<ver>/bench/meshcore-<ver>/ from GitHub Releases.
 #
 # Usage:
 #   ./scripts/restore-firmware.sh                  # all meshcore RELEASES versions
 #   ./scripts/restore-firmware.sh v0.1.0 v0.1.1
 #   ./scripts/restore-firmware.sh --force v0.1.2
 #
-# Legacy releases (v0.1.0, v0.1.1): firmware-vX.Y.Z.zip with per-slug firmware.hex trees.
-# Flat releases: gzipped .mota/.uf2 on GitHub; restored trees keep uncompressed names.
-#   fw-<slug>-<ver>-full-<mid8>.mota.gz /
-#   fw-<slug>-<ver>-delta-from-<base>-<base8>.mota.gz. v0.1.2 used plain .mota names.
+# Flat releases: gzipped meshcore-<slug>-<ver>-*.mota/.uf2; restored trees keep uncompressed names.
+# Shipped v0.1.x GitHub assets still use fw-* / firmware-*.zip names.
 
 set -euo pipefail
 
@@ -29,7 +27,7 @@ usage: $0 [--force] [vX.Y.Z]…
 
   (default)     Restore every version listed in packages-meta/meshcore/RELEASES
   vX.Y.Z        Restore one or more explicit firmware versions
-  --force       Re-download and replace (same as deleting build/<ver>/bench/firmware/)
+  --force       Re-download and replace (same as deleting build/<ver>/bench/meshcore-<ver>/)
 
 Requires: gh (GitHub CLI), unzip, python3
 EOF
@@ -88,7 +86,10 @@ release_mota_assets_for_slug() {
   for name in "${RELEASE_ASSET_CACHE[@]}"; do
     [[ "$name" == *.mota || "$name" == *.mota.gz ]] || continue
     match="$(release_asset_basename_uncompressed "$name")"
-    if [[ "$match" == fw-${slug}-${ver}-full-*.mota ]] \
+    if [[ "$match" == meshcore-${slug}-${ver}-full-*.mota ]] \
+      || [[ "$match" == meshcore-${slug}-full-${ver}.mota ]] \
+      || [[ "$match" == meshcore-${slug}-${ver}-delta-from-*.mota ]] \
+      || [[ "$match" == fw-${slug}-${ver}-full-*.mota ]] \
       || [[ "$match" == fw-${slug}-full-${ver}.mota ]] \
       || [[ "$match" == fw-${slug}-${ver}-delta-from-*.mota ]] \
       || [[ "$match" == "$(github_full_mota_name "$slug" "$ver")" ]] \
@@ -184,7 +185,7 @@ restore_slug_from_flat_assets() {
     while IFS= read -r asset || [[ -n "$asset" ]]; do
       local_name="$(release_asset_basename_uncompressed "$asset")"
       [[ -n "$local_name" && -f "$out/$local_name" ]] || continue
-      if [[ "$local_name" == *-full-*.mota || "$local_name" == *_full_*.mota || "$local_name" == fw-${slug}-full-*.mota ]]; then
+      if [[ "$local_name" == *-full-*.mota || "$local_name" == *_full_*.mota || "$local_name" == fw-${slug}-full-*.mota || "$local_name" == meshcore-${slug}-full-*.mota ]]; then
         extract_full_mota_payload "$out/$local_name" "$out/$(firmware_artifact_name "$slug" "$ver" bin)"
         echo "    → $out/$(firmware_artifact_name "$slug" "$ver" bin)"
         break
@@ -197,6 +198,9 @@ restore_from_legacy_zip() {
   local ver="$1"
   local zip_name="firmware-${ver}.zip"
   local tmp dest_root distro_root item base
+  if release_has_asset "$ver" "meshcore-${ver}.zip"; then
+    zip_name="meshcore-${ver}.zip"
+  fi
 
   echo "==> restore $ver from $zip_name"
   tmp="$(mktemp -d)"
@@ -264,8 +268,6 @@ restore_firmware_version() {
   local ver="$1"
   ver="$(normalize_version "$ver")" || return 1
 
-  migrate_legacy_firmware_tree "$ver" || true
-
   if [[ "$FORCE" -eq 1 ]]; then
     rm -rf "$(firmware_bench_root "$ver" "$ver")"
   elif firmware_version_tree_present "$ver"; then
@@ -273,7 +275,7 @@ restore_firmware_version() {
     return 0
   fi
 
-  if release_has_asset "$ver" "firmware-${ver}.zip"; then
+  if release_has_asset "$ver" "firmware-${ver}.zip" || release_has_asset "$ver" "meshcore-${ver}.zip"; then
     restore_from_legacy_zip "$ver"
     return 0
   fi

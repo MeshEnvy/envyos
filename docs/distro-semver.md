@@ -19,8 +19,8 @@ The **distro tag** is the fleet contract. **`releases.next`** is the bench integ
 | Bump | When |
 |------|------|
 | **Major** | Remove a bundled package from the release manifest, or ship a breaking fleet migration (mandatory bootloader reflash, incompatible OTA, no safe path from the previous tag). |
-| **Minor** | Add a bundled package, a component **minor/major** pin change (e.g. `0.1.x` → `0.2.0`), or expand shipped targets/platforms in a user-visible way. |
-| **Patch** | Same bundle membership; component **patch** pin changes only (`0.1.1` → `0.1.3` within the same major.minor line). Fleet-safe hotfixes. Requires OTA deltas from the immediate predecessor tag. |
+| **Minor** | Add a bundled package, a package **minor/major** pin change (e.g. `0.1.x` → `0.2.0`), or expand shipped targets/platforms in a user-visible way. |
+| **Patch** | Same bundle membership; package **patch** pin changes only (`0.1.1` → `0.1.3` within the same major.minor line). Fleet-safe hotfixes. Requires OTA deltas from the immediate predecessor tag. |
 
 Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a stable bundle contract.
 
@@ -31,13 +31,13 @@ Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a
 ./envyos semver suggest           # CHANGELOG + bundle → proposed vX.Y.Z
 ./envyos publish                  # prompt for tag (or --yes)
 ./envyos publish v0.1.3 --yes     # explicit tag
-./envyos publish --dry-run        # plan + pins + GitHub notes (no promote/upload)
+./envyos publish --dry-run        # plan + pins; writes RELEASE.md (no promote/upload)
 ```
 
-At publish, `./envyos` locks SHAs on `releases.next`, records `releases[vX.Y.Z]` from that snapshot, and writes `build/vX.Y.Z/RELEASE_MANIFEST`. GitHub Release notes include the component matrix, distro `CHANGELOG.md` **`## [Unreleased]`** (until promoted), each package's fork `CHANGELOG.md` pin section, and the asset manifest.
+At publish, `./envyos` locks SHAs on `releases.next`, records `releases[vX.Y.Z]` from that snapshot, and writes `build/vX.Y.Z/RELEASE_MANIFEST`. Notes land in `release/RELEASE.md` (dry-run writes the slot preview; publish stages the version tree). That file is a GitHub Release **asset** and the **description** (`gh --notes-file`). Body: package matrix, distro `CHANGELOG.md` **`## [Unreleased]`** (until promoted), each package pin section (fork overlay or sibling `CHANGELOG.md` for peaky/envybot), and the asset manifest. `./envyos changelog check` fails if a bundled package with Keep a Changelog headings is missing its pin section.
 
 ## CHANGELOG
 
-User-facing notes live in repo-root `CHANGELOG.md` under `## [Unreleased]`. `./envyos semver suggest` reads Unreleased bullets plus bundle diffs vs the **last published git tag** (and `MANIFEST.json` `releases`). Missing local manifests fall back to the GitHub Release component table.
+User-facing notes live in repo-root `CHANGELOG.md` under `## [Unreleased]`. `./envyos semver suggest` reads Unreleased bullets plus bundle diffs vs the **last published git tag** (and `MANIFEST.json` `releases`). Missing local manifests fall back to the GitHub Release package table.
 
-See also: [`component-release-policy.md`](component-release-policy.md).
+See also: [`package-release-policy.md`](package-release-policy.md).

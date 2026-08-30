@@ -27,7 +27,7 @@ Update MEMORY.md in the **same commit/PR** when you change anything in the table
 | OTA protocol | LoRa OTA ads/blocks, `ota` CLI, in-place delta apply, ExtraFS |
 | Build outputs | `build/<branch>/bench/`, `build/vX.Y.Z/`, `build/bases/` |
 | motatool | `packages/motatool/` checkout; staged bench binary; `packages/motatool/scripts/seeder.sh` |
-| Bootloader | `packages/bootloader/` checkout vs stock BL, which boards need OTAFIX |
+| Bootloader | `packages/adafruit-nrf52-bootloader/` checkout vs stock BL, which boards need OTAFIX |
 | Mesh / routing | Repeater behavior, next-hop retry, conflict hotspots (`Mesh.cpp`, `CommonCLI.*`) |
 | Bench / dev | Tag roles (seeder/router/client), flash paths, `motatool serve` wiring |
 | Agent skills | `.cursor/skills/envyos-{ota,scripts,meshcore}`, `motatool`, `ota-greenfield` |

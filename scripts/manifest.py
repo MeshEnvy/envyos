@@ -11,11 +11,38 @@ from pathlib import Path
 from typing import Any
 
 BENCH_TAG = "next"
-ALIASES = {"firmware": "meshcore"}
+# Lookup aliases only. Do not rewrite stored keys on save — shipped tags keep
+# "bootloader"; releases.next uses "adafruit-nrf52-bootloader".
+ALIASES = {
+    "firmware": "meshcore",
+    "bootloader": "adafruit-nrf52-bootloader",
+    "bl": "adafruit-nrf52-bootloader",
+}
+CORE_PACKAGES = ("meshcore", "adafruit-nrf52-bootloader", "motatool")
 
 
 def canonical_name(name: str) -> str:
     return ALIASES.get(name, name)
+
+
+def stored_package_key(packages: dict[str, Any], name: str) -> str | None:
+    """Key as stored on this release. Does not rewrite shipped snapshots."""
+    canon = canonical_name(name)
+    if canon in packages:
+        return canon
+    if name in packages:
+        return name
+    for alias, target in ALIASES.items():
+        if target == canon and alias in packages:
+            return alias
+    return None
+
+
+def lookup_package(packages: dict[str, Any], name: str) -> dict[str, str] | None:
+    key = stored_package_key(packages, name)
+    if key is None:
+        return None
+    return packages[key]
 
 
 def parse_tag(tag: str) -> str:
@@ -30,7 +57,7 @@ def parse_tag(tag: str) -> str:
 def fork_repo(packages_meta: Path | None, name: str) -> str:
     if packages_meta is None:
         return ""
-    pkg_file = packages_meta / name / "PACKAGE"
+    pkg_file = packages_meta / canonical_name(name) / "PACKAGE"
     if not pkg_file.is_file():
         return ""
     for line in pkg_file.read_text().splitlines():
@@ -48,7 +75,7 @@ def normalize_packages(raw: Any) -> dict[str, dict[str, str]]:
         raise SystemExit("error: packages must be an object")
     out: dict[str, dict[str, str]] = {}
     for key, row in raw.items():
-        name = canonical_name(str(key))
+        name = str(key)
         if not isinstance(row, dict):
             continue
         out[name] = {
@@ -98,7 +125,9 @@ def ensure_next_release(
     if BENCH_TAG not in releases:
         releases[BENCH_TAG] = {"packages": {}}
     packages = releases[BENCH_TAG]["packages"]
-    for name in ("meshcore", "bootloader", "motatool"):
+    if "bootloader" in packages and "adafruit-nrf52-bootloader" not in packages:
+        packages["adafruit-nrf52-bootloader"] = packages.pop("bootloader")
+    for name in CORE_PACKAGES:
         if name not in packages:
             packages[name] = {
                 "repo": fork_repo(packages_meta, name),
@@ -135,14 +164,14 @@ def bench_packages(data: dict[str, Any]) -> dict[str, dict[str, str]]:
 
 
 def bench_package(data: dict[str, Any], name: str) -> dict[str, str] | None:
-    return bench_packages(data).get(canonical_name(name))
+    return lookup_package(bench_packages(data), name)
 
 
 def release_package(data: dict[str, Any], tag: str, name: str) -> dict[str, str] | None:
     release = data["releases"].get(parse_tag(tag))
     if release is None:
         return None
-    return release["packages"].get(canonical_name(name))
+    return lookup_package(release["packages"], name)
 
 
 def ensure_bench_package(
@@ -201,9 +230,10 @@ def cmd_set_sha(args: argparse.Namespace) -> None:
     data = load(path, args.packages_meta)
     name = canonical_name(args.name)
     packages = bench_packages(data)
-    if name not in packages:
+    key = stored_package_key(packages, name)
+    if key is None:
         raise SystemExit(f"error: unknown package {name!r} in {path}")
-    packages[name]["sha"] = args.sha
+    packages[key]["sha"] = args.sha
     save(path, data, args.packages_meta)
 
 

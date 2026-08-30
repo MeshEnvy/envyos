@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# bootloader recipe — build EnvyBoot nRF52 bootloaders (in-place .mota apply) via Docker.
+# adafruit-nrf52-bootloader recipe — EnvyBoot nRF52 (in-place .mota apply) via Docker.
 #
-# Usage (via ./envyos build bootloader [args…]):
+# Usage (via ./envyos build bootloader [args…]; alias: adafruit-nrf52-bootloader, bl):
 #   ./envyos build bootloader [version] [--targets-file <path>] [--list-boards]
 #   ./envyos build bootloader [version] BOARD [BOARD…]
 #
-# version defaults to MANIFEST.json bootloader (e.g. v0.1.3).
+# version defaults to MANIFEST.json adafruit-nrf52-bootloader (e.g. 0.9.2-ev1).
 # With no BOARD args, board profiles are inferred from scripts/targets.txt.
 #
-# UF2: bootloader/_build/build-<board>/<board>_bootloader-<ver>.uf2
-# Recovery: bootloader/_build/build-<board>/<board>_bootloader-*.recovery.zip
-# Output: build/<distro>/bench/bootloader-<ver>/
+# UF2: packages/adafruit-nrf52-bootloader/_build/build-<board>/<board>_bootloader-<ver>.uf2
+# Recovery: …/<board>_bootloader-*.recovery.zip
+# Output: build/<slot>/bench/adafruit-nrf52-bootloader-<ver>/
 #
-# Requires: Docker. Submodules under bootloader/ are initialized if needed.
+# Requires: Docker. Submodules under the checkout are initialized if needed.
 
 set -euo pipefail
 
@@ -30,7 +30,7 @@ usage() {
 usage: $0 [version] [--targets-file <path>] [--list-boards]
        $0 [version] BOARD [BOARD…]
 
-  version         Optional override; default is MANIFEST.json bootloader (e.g. v0.1.0)
+  version         Optional override; default is MANIFEST.json adafruit-nrf52-bootloader
   --clean         Wipe bench bootloader tree before build (default: incremental)
   (no BOARD args) Build otafix bootloaders for base boards in targets.txt
   BOARD…          Build explicit otafix board name(s) instead
@@ -83,7 +83,7 @@ fi
 VER=""
 EXPLICIT_BOARDS=()
 if ((${#POSITIONAL[@]} > 0)); then
-  if VER="$(normalize_component_version "${POSITIONAL[0]}" 2>/dev/null)"; then
+  if VER="$(normalize_package_version "${POSITIONAL[0]}" 2>/dev/null)"; then
     EXPLICIT_BOARDS=("${POSITIONAL[@]:1}")
   else
     EXPLICIT_BOARDS=("${POSITIONAL[@]}")
@@ -96,8 +96,7 @@ fi
 
 DISTRO_VER="$(read_bench_tree_key)"
 OUT="$(bootloader_bench_root "$DISTRO_VER" "$VER")"
-migrate_bootloader_package_tree "$DISTRO_VER" "$VER" || true
-assert_component_tree_not_released bootloader "$VER"
+assert_package_tree_not_released adafruit-nrf52-bootloader "$VER"
 
 BOARDS=()
 board=""

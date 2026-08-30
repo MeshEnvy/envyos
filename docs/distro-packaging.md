@@ -6,7 +6,7 @@ EnvyOS is the **distro repo**: it owns package recipes, versioning, changelogs, 
 
 ```
 envyos/
-  packages/           # gitignored — full git checkouts (meshcore, bootloader, motatool, mcmt-gateway, meshcore-open)
+  packages/           # gitignored — full git checkouts (meshcore, adafruit-nrf52-bootloader, motatool, mcmt-gateway, meshcore-open)
   packages-meta/      # tracked — per-package recipe (build.sh, PACKAGE, VERSION, CHANGELOG, RELEASES)
   scripts/            # shared machinery — envyos CLI, version.sh, manifest.py, build-lib.sh, publish.sh
   build/              # bench + published artifact trees
@@ -47,13 +47,13 @@ CLI verbs `get`, `list`, `set-version`, `lock` operate on **`releases.next.packa
 
 `packages-meta/<pkg>/VERSION` (structured `upstream` + `ev`) feeds `-evN` bumps; `./envyos bump-ev` syncs version into `releases.next`. A copy of `MANIFEST.json` lands at `build/vX.Y.Z/MANIFEST.json`; `RELEASE_MANIFEST` remains a human-readable key=value snapshot in the build tree.
 
-Component semver history for delta bases: **`packages-meta/*/RELEASES`**.
+Package semver history for delta bases: **`packages-meta/*/RELEASES`**.
 
 ## Package classes
 
 | Class | Packages | Version form |
 |-------|----------|--------------|
-| **Patched upstream** | meshcore, bootloader, motatool | `<upstream>-evN` (e.g. `1.16.0-ev1`) |
+| **Patched upstream** | meshcore, adafruit-nrf52-bootloader, motatool | `<upstream>-evN` (e.g. `1.16.0-ev1`) |
 | **Native** | mcmt-gateway, peaky, envybot | own semver, no `-evN` |
 
 `-evN` means "carries EnvyOS overlay patches." Absence of `-evN` means stock upstream (overlay fully upstreamed).
@@ -70,7 +70,7 @@ Firmware stamps `FIRMWARE_VERSION` as packed `a.b.c.ev` (fourth byte = ev). Delt
 
 ## Releases
 
-**Fleet consumes distro GitHub Releases only.** `./envyos publish vX.Y.Z` is the sole publish path.
+**Fleet consumes distro GitHub Releases only.** `./envyos publish vX.Y.Z` is the sole publish path. Notes ship as `release/RELEASE.md` (asset) and as the GitHub Release description.
 
 The **distro tag** is the compatibility claim: bench-tested manifest of `(package, upstream-evN, fork SHA)`.
 
@@ -83,7 +83,7 @@ Shipped distro releases define which base hex archives are kept under `build/bas
 | Fork | Role |
 |------|------|
 | `packages/meshcore` | Merge workbench (`envyos/main`), upstream PR vehicle |
-| `packages/bootloader` | Same |
+| `packages/adafruit-nrf52-bootloader` | Same (nRF52 / OTAFIX; CLI aliases `bootloader`, `bl`) |
 | `packages/motatool` | Same (vk496 PR base) |
 | `packages/meshcore-open` | Flutter client workbench (`MeshEnvy/meshcore-open`; upstream `zjs81/meshcore-open`) |
 
@@ -105,10 +105,10 @@ Each bundled package has:
 
 | File | Purpose |
 |------|---------|
-| `PACKAGE` | class, upstream repo, PR bases, artifact basename |
+| `PACKAGE` | class, `title` (human name), `fork_repo` / `repo`, optional `homepage=`, PR bases, artifact basename |
 | `build.sh` | the package recipe — how EnvyOS builds/stages this package |
 | `VERSION` | `upstream=X.Y.Z`, `ev=N` (patched) or `version=X.Y.Z` (native) |
 | `CHANGELOG.md` | pointer / fallback. Overlay notes: fork `CHANGELOG.md` |
-| `RELEASES` | shipped component versions (immutable after publish; semver and `-evN`) |
+| `RELEASES` | shipped package versions (immutable after publish; semver and `-evN`) |
 
 `./envyos build <pkg>` dispatches generically to `packages-meta/<pkg>/build.sh`.

@@ -1,5 +1,8 @@
 class=native
 name=peaky
+title=Peaky Finders
 artifact=peaky
-repo=MeshEnvy/peaky_finders
-# Optional pin: peaky= in MANIFEST.json. Binaries staged from GitHub release cache.
+repo=MeshEnvy/peaky-finders
+# Sibling checkout (not packages/). Pin: peaky= in MANIFEST.json.
+# Release assets: peaky-<ver>-<target>.tar.gz (Linux x64 + macOS x64/arm64)
+artifact_tarball=peaky-{version}-{target}.tar.gz

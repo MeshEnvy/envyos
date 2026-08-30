@@ -87,12 +87,12 @@ Legacy `ota_commits` blocks (policy v1) are archive only.
 ## Versioning
 
 - **meshcore** tags (`companion-v1.17.0`): upstream provenance — input to integrate, not fleet semver.
-- **envycore** tags (`v0.1.x`): firmware release semver — tag `envyos/main` after bench (future: component GH release).
-- **envyos** distro tags (`v0.1.x`): tested component matrix — see [`distro-semver.md`](distro-semver.md).
+- **envycore** tags (`v0.1.x`): firmware release semver — tag `envyos/main` after bench (future: package GH release).
+- **envyos** distro tags (`v0.1.x`): tested package matrix — see [`distro-semver.md`](distro-semver.md).
 
 ## Related docs
 
 - Package CLI contract: [`.cursor/skills/envyos-package/SKILL.md`](../.cursor/skills/envyos-package/SKILL.md)
 - Git workflow: [`.cursor/skills/envyos-meshcore/SKILL.md`](../.cursor/skills/envyos-meshcore/SKILL.md)
-- Component releases: [`component-release-policy.md`](component-release-policy.md)
+- Package releases: [`package-release-policy.md`](package-release-policy.md)
 - Backlog: [`envycore/BACKLOG.md`](../../envycore/BACKLOG.md)

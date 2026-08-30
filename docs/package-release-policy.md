@@ -1,16 +1,16 @@
-# EnvyOS component release policy
+# EnvyOS package release policy
 
-Canonical contract for every EnvyOS distro component repo (envycore, bootloader, motatool, mcmt-gateway, peaky-finders, envybot).
+Canonical contract for every EnvyOS distro package repo (envycore, bootloader, motatool, mcmt-gateway, peaky-finders, envybot).
 
-## Optional bundle components
+## Optional bundle packages
 
-| Component | Manifest key | When bundled |
-|-----------|--------------|--------------|
+| Package | Manifest key | When bundled |
+|---------|--------------|--------------|
 | mcmt-gateway | `mcmt-gateway=` | When pinned in `MANIFEST.json` (`releases.next` has 0.1.0) |
-| peaky | `peaky=` | When pinned in `MANIFEST.json` (bench-gated) |
+| peaky | `peaky=` | When pinned in `MANIFEST.json` (`releases.next` has 0.5.0) |
 | envybot | `envybot=` | When pinned in `MANIFEST.json` (`releases.next` has 0.1.0) |
 
-Peaky and mcmt keep **independent semver** (like motatool). EnvyOS `publish.sh` mirrors their GitHub Release binaries into the distro zip; tags still land on each component repo.
+Peaky and mcmt keep **independent semver** (like motatool). EnvyOS `publish.sh` mirrors their GitHub Release binaries into the distro zip; tags still land on each package repo.
 
 ## Two layers
 
@@ -25,22 +25,22 @@ User-visible **distro** changes go under **`## [Unreleased]`** in `envyos/CHANGE
 
 [MeshEnvy/envyos](https://github.com/MeshEnvy/envyos) owns the **tested version matrix** (`MANIFEST.json`) and **one-stop release assets**. Dev builds use **`build/<branch>/bench/`**; publish promotes to **`build/vX.Y.Z/`**. See [`distro-semver.md`](distro-semver.md).
 
-After cutting a component release, bump `MANIFEST.json` in envyos when that version ships in a bundle.
+After cutting a package release, bump `MANIFEST.json` in envyos when that version ships in a bundle.
 
 ## Inclusion rule
 
-A component is bundled in a distro release only when it is **bench-gated**. Tracked-but-untested tools stay out of the manifest.
+A package is bundled in a distro release only when it is **bench-gated**. Tracked-but-untested tools stay out of the manifest.
 
 ## Per-repo reference
 
-New component? Start with [`docs/package-maintainer-guide.md`](package-maintainer-guide.md) (harness + distro wiring).
+New package? Start with [`docs/package-maintainer-guide.md`](package-maintainer-guide.md) (harness + distro wiring).
 
 | Repo | Policy doc | Release skill |
 |------|------------|---------------|
 | motatool | [motatool/docs/change-management.md](https://github.com/MeshEnvy/motatool/blob/envyos/main/docs/change-management.md) | `.cursor/skills/motatool-release/` |
 | envycore | `docs/change-management.md` | `.cursor/skills/envycore-release/` · `./envyos` |
 | bootloader | `docs/change-management.md` | `.cursor/skills/bootloader-release/` |
-| mcmt-gateway | checkout `README.md` | (wheel via `packages-meta/mcmt-gateway/build.sh`) |
+| mcmt-gateway | checkout `CHANGELOG.md` | (wheel via `packages-meta/mcmt-gateway/build.sh`) |
 | peaky-finders | [peaky_finders/docs/change-management.md](https://github.com/MeshEnvy/peaky-finders/blob/main/docs/change-management.md) | `peaky_finders/.cursor/skills/peaky-release/` |
 | envybot | sibling `CHANGELOG.md` | (wheel via `packages-meta/envybot/build.sh`) |
 

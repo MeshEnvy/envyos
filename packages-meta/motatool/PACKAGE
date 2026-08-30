@@ -1,5 +1,6 @@
 class=patched-upstream
 name=motatool
+title=motatool
 artifact=motatool
 fork_repo=MeshEnvy/motatool
 upstream_repo=vk496/motatool

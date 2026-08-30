@@ -26,9 +26,9 @@ usage: envyos <command> [args…]
 commands:
   info                              Dev HEAD, package versions, artifact status
   build [pkg…] [options…]           Build packages (default: all pinned)
-  bump-ev <pkg>                     Bump packages-meta ev counter (meshcore|bootloader|motatool)
+  bump-ev <pkg>                     Bump packages-meta ev counter (meshcore|adafruit-nrf52-bootloader|motatool)
   fetch <pkg>                       Ensure packages/<pkg> checkout exists
-  bump patch|minor|major <component>  Bump distro semver (legacy component bump)
+  bump patch|minor|major <package>  Bump package pin (legacy)
   semver suggest                    Proposed distro tag from CHANGELOG + bundle policy
   publish [options] [vX.Y.Z]        Promote branch bench → version tree, lock, upload
   publish release [vX.Y.Z]          Refresh build/<ver>/release from bench
@@ -43,7 +43,7 @@ commands:
   changelog check [vX.Y.Z]          Verify Packages table + package changelogs
   changelog delta [vX.Y.Z]          Print package version deltas for a release
 
-  build packages: meshcore (firmware) | bootloader | motatool | peaky | envybot | mcmt-gateway | all
+  build packages: meshcore (firmware) | adafruit-nrf52-bootloader (bootloader, bl) | motatool | peaky | envybot | mcmt-gateway | all
   Omit package list for full bench build (motatool → bootloader → meshcore order).
 
 examples:
@@ -70,14 +70,14 @@ cmd_info() {
   echo ""
   echo "Package checkouts (packages/)"
   printf '  meshcore    %s\n' "$(submodule_git_sha meshcore)"
-  printf '  bootloader  %s\n' "$(submodule_git_sha bootloader)"
+  printf '  adafruit-nrf52-bootloader  %s\n' "$(submodule_git_sha adafruit-nrf52-bootloader)"
   printf '  motatool    %s\n' "$(submodule_git_sha motatool)"
   printf '  meshcore-open %s\n' "$(submodule_git_sha meshcore-open)"
   printf '  mcmt-gateway %s\n' "$(submodule_git_sha mcmt-gateway)"
   echo ""
   echo "Package meta (packages-meta/)"
-  for pkg in meshcore bootloader motatool; do
-    printf '  %-12s %s\n' "$pkg" "$(read_package_version "$pkg" 2>/dev/null || echo '?')"
+  for pkg in meshcore adafruit-nrf52-bootloader motatool; do
+    printf '  %-28s %s\n' "$pkg" "$(read_package_version "$pkg" 2>/dev/null || echo '?')"
   done
   if ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
     printf '  %-12s %s\n' envybot "$ver"
@@ -85,14 +85,17 @@ cmd_info() {
   if ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
     printf '  %-12s %s\n' mcmt-gateway "$ver"
   fi
+  if ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
+    printf '  %-12s %s\n' peaky "$ver"
+  fi
   echo ""
   last_distro="$(latest_published_distro_tag 2>/dev/null || true)"
   if [[ -n "$last_distro" ]]; then
     echo "Last published distro: $last_distro"
-    for id in distro meshcore bootloader motatool; do
-      ver="$(manifest_component_version "$id" "$last_distro" 2>/dev/null || echo '?')"
-      [[ "$id" == meshcore && "$ver" == "?" ]] && ver="$(manifest_component_version firmware "$last_distro" 2>/dev/null || echo '?')"
-      printf '  %-12s %s\n' "$id" "$ver"
+    for id in distro meshcore adafruit-nrf52-bootloader motatool; do
+      ver="$(manifest_package_version "$id" "$last_distro" 2>/dev/null || echo '?')"
+      [[ "$id" == meshcore && "$ver" == "?" ]] && ver="$(manifest_package_version firmware "$last_distro" 2>/dev/null || echo '?')"
+      printf '  %-28s %s\n' "$id" "$ver"
     done
     published="$(read_release_manifest_key "$last_distro" published 2>/dev/null || echo '?')"
     printf '  published    %s\n' "$published"
@@ -102,29 +105,34 @@ cmd_info() {
     echo ""
   fi
   echo "Artifacts"
-  for key in meshcore bootloader motatool; do
+  for key in meshcore adafruit-nrf52-bootloader motatool; do
     ver="$(read_manifest_key "$key")"
     id="$(package_to_bench_id "$key")"
-    status="$(component_artifact_status "$id" "$ver")"
+    status="$(package_artifact_status "$id" "$ver")"
     if [[ "$key" == motatool ]]; then
       platforms="$(list_staged_motatool_platforms "$ver" | paste -sd, -)"
-      printf '  %-12s %-8s  %s  (%s%s)
-' "$key" "$ver" "$(component_build_dir "$id" "$ver")" "$status" \
+      printf '  %-28s %-12s  %s  (%s%s)
+' "$key" "$ver" "$(package_build_dir "$id" "$ver")" "$status" \
         "${platforms:+, $platforms}"
     else
-      printf '  %-12s %-8s  %s  (%s)
-' "$key" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
+      printf '  %-28s %-12s  %s  (%s)
+' "$key" "$ver" "$(package_build_dir "$id" "$ver")" "$status"
     fi
   done
   if ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
-    status="$(component_artifact_status envybot "$ver")"
+    status="$(package_artifact_status envybot "$ver")"
     printf '  %-12s %-8s  %s  (%s)
-' envybot "$ver" "$(component_build_dir envybot "$ver")" "$status"
+' envybot "$ver" "$(package_build_dir envybot "$ver")" "$status"
   fi
   if ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
-    status="$(component_artifact_status mcmt-gateway "$ver")"
+    status="$(package_artifact_status mcmt-gateway "$ver")"
     printf '  %-12s %-8s  %s  (%s)
-' mcmt-gateway "$ver" "$(component_build_dir mcmt-gateway "$ver")" "$status"
+' mcmt-gateway "$ver" "$(package_build_dir mcmt-gateway "$ver")" "$status"
+  fi
+  if ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
+    status="$(package_artifact_status peaky "$ver")"
+    printf '  %-12s %-8s  %s  (%s)
+' peaky "$ver" "$(package_build_dir peaky "$ver")" "$status"
   fi
 }
 
@@ -148,8 +156,8 @@ cmd_build() {
         packages+=(meshcore)
         shift
         ;;
-      bootloader | bl)
-        packages+=(bootloader)
+      bootloader | bl | adafruit-nrf52-bootloader)
+        packages+=(adafruit-nrf52-bootloader)
         shift
         ;;
       motatool | mt)
@@ -211,11 +219,12 @@ cmd_build() {
 cmd_bump_ev() {
   local pkg="${1:-}"
   [[ -n "$pkg" ]] || {
-    echo "usage: envyos bump-ev meshcore|bootloader|motatool" >&2
+    echo "usage: envyos bump-ev meshcore|adafruit-nrf52-bootloader|bootloader|motatool" >&2
     exit 2
   }
   case "$pkg" in
     firmware) pkg=meshcore ;;
+    bootloader | bl) pkg=adafruit-nrf52-bootloader ;;
   esac
   local new_ver
   new_ver="$(bump_package_ev "$pkg")"
@@ -225,7 +234,7 @@ cmd_bump_ev() {
 cmd_fetch() {
   local pkg="${1:-}"
   [[ -n "$pkg" ]] || {
-    echo "usage: envyos fetch meshcore|bootloader|motatool|mcmt-gateway|meshcore-open|envybot" >&2
+    echo "usage: envyos fetch meshcore|adafruit-nrf52-bootloader|bootloader|motatool|mcmt-gateway|meshcore-open|envybot|peaky" >&2
     exit 2
   }
   fetch_package_checkout "$pkg"
@@ -235,7 +244,7 @@ cmd_bump() {
   local level="${1:-}" id="${2:-}"
   local old new
   [[ -n "$level" && -n "$id" ]] || {
-    echo "usage: envyos bump patch|minor|major meshcore|firmware|bootloader|motatool" >&2
+    echo "usage: envyos bump patch|minor|major meshcore|firmware|adafruit-nrf52-bootloader|bootloader|motatool" >&2
     exit 2
   }
   case "$level" in
@@ -245,22 +254,22 @@ cmd_bump() {
       exit 1
       ;;
   esac
-  read -r old new < <(bump_component "$id" "$level")
+  read -r old new < <(bump_package "$id" "$level")
   echo "$id: $old → $new"
 }
 
 cmd_restore() {
-  local component="all"
+  local target="all"
   if [[ $# -ge 1 ]]; then
     case "$1" in
       firmware | fw | bootloader | bl | all)
-        component="$1"
+        target="$1"
         shift
         ;;
     esac
   fi
 
-  case "$component" in
+  case "$target" in
     firmware | fw)
       exec "$SCRIPTS/restore-firmware.sh" "$@"
       ;;
@@ -272,7 +281,7 @@ cmd_restore() {
       "$SCRIPTS/restore-bootloader.sh" "$@"
       ;;
     *)
-      echo "error: unknown restore target '$component' (want firmware, bootloader, or all)" >&2
+      echo "error: unknown restore target '$target' (want firmware, bootloader, or all)" >&2
       exit 1
       ;;
   esac

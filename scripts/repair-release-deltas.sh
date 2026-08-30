@@ -64,10 +64,10 @@ is_released_version "$DISTRO_VER" || {
   exit 1
 }
 
-FW_VER="$(manifest_component_version firmware "$DISTRO_VER")"
-FW_VER="$(normalize_component_version "$FW_VER")"
-MT_VER="$(manifest_component_version motatool "$DISTRO_VER")"
-MT_VER="$(normalize_component_version "$MT_VER")"
+FW_VER="$(manifest_package_version firmware "$DISTRO_VER")"
+FW_VER="$(normalize_package_version "$FW_VER")"
+MT_VER="$(manifest_package_version motatool "$DISTRO_VER")"
+MT_VER="$(normalize_package_version "$MT_VER")"
 
 list_repair_bases() {
   if [[ -n "$BASE_VER" ]]; then
@@ -84,12 +84,10 @@ delta_from_base_present() {
   base_label="${base_ver#v}"
   shopt -s nullglob
   for f in \
-    "$dir"/fw-"${slug}"-"${FW_VER}"-delta-from-"${base_ver}"-*.mota \
-    "$dir"/fw-"${slug}"-"${FW_VER}"-delta-from-"${base_label}"-*.mota \
-    "$dir"/fw-"${slug}"-delta-from-"${base_ver}"-*.mota \
-    "$dir"/fw-"${slug}"-delta-from-"${base_label}"-*.mota \
-    "$dir"/delta_from_"${base_ver}"*.mota \
-    "$dir"/delta_from_"${base_label}"*.mota; do
+    "$dir"/meshcore-"${slug}"-"${FW_VER}"-delta-from-"${base_ver}"-*.mota \
+    "$dir"/meshcore-"${slug}"-"${FW_VER}"-delta-from-"${base_label}"-*.mota \
+    "$dir"/meshcore-"${slug}"-delta-from-"${base_ver}"-*.mota \
+    "$dir"/meshcore-"${slug}"-delta-from-"${base_label}"-*.mota; do
     [[ -f "$f" ]] && { shopt -u nullglob; return 0; }
   done
   shopt -u nullglob
@@ -146,10 +144,10 @@ read_fw_stamp() {
   ver_txt="$root/version.txt"
   if [[ -f "$ver_txt" ]]; then
     ver_line="$(head -1 "$ver_txt" | tr -d '[:space:]')"
-    component_firmware_stamp "$ver_line"
+    firmware_stamp_from_version "$ver_line"
     return 0
   fi
-  component_firmware_stamp "$FW_VER"
+  firmware_stamp_from_version "$FW_VER"
 }
 
 build_missing_delta() {
@@ -169,7 +167,7 @@ build_missing_delta() {
   echo "    base: $base_hex"
   echo "    fw:   $fw_hex"
   "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "$fw_stamp" \
-    --patch-type in-place --name-stem "fw-${slug}-${FW_VER}" --base-version "${base_ver#v}" \
+    --patch-type in-place --name-stem "meshcore-${slug}-${FW_VER}" --base-version "${base_ver#v}" \
     --out-dir "$out"
 }
 

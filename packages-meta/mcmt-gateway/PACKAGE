@@ -1,5 +1,6 @@
 class=native
 name=mcmt-gateway
+title=MCMT Gateway
 artifact=mcmt-gateway
 repo=Imperator4422/mcmt-gateway
 # Checkout: packages/mcmt-gateway. Pin: mcmt-gateway= in MANIFEST.json.

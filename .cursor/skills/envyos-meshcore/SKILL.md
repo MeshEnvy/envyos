@@ -13,7 +13,7 @@ EnvyOS is MeshEnvy's integration distro of [MeshCore](https://github.com/meshcor
 
 **Integration policy:** [`docs/integration-policy.md`](../../docs/integration-policy.md). MeshCore companion tags merge into `envyos/main`; **vk496 is OTA upstream PR target only**, not a freshen/integrate remote.
 
-Firmware in `packages/meshcore`; bootloader in `packages/bootloader` (gitignored under envyos). **motatool** is a separate repo ([MeshEnvy/motatool](https://github.com/MeshEnvy/motatool)) — pinned in `MANIFEST.json`, fetched for bench builds. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `MANIFEST.json` at ota repo root).
+Firmware in `packages/meshcore`; Adafruit nRF52 bootloader in `packages/adafruit-nrf52-bootloader` (gitignored under envyos). **motatool** is a separate repo ([MeshEnvy/motatool](https://github.com/MeshEnvy/motatool)) — pinned in `MANIFEST.json`, fetched for bench builds. EnvyOS versioning is **independent** of upstream MeshCore release tags (see `MANIFEST.json` at ota repo root).
 
 ## Distro repos and remotes
 
@@ -21,7 +21,7 @@ Firmware in `packages/meshcore`; bootloader in `packages/bootloader` (gitignored
 |-----------|--------------------------|--------------------|---------------------|
 | `packages/meshcore/` | `MeshEnvy/meshcore-firmware` | `meshcore` `companion-v*` | `feature/ota-lora` |
 | motatool (external) | `MeshEnvy/motatool` | n/a | `main` |
-| `packages/bootloader` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `oltaco` `0.9.2-OTAFIX*` | `feature/ota-delta-apply` |
+| `packages/adafruit-nrf52-bootloader` | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `oltaco` `0.9.2-OTAFIX*` | `feature/ota-delta-apply` |
 
 All three MeshEnvy forks use **`envyos/main`** as the GitHub default branch and distro integration head.
 
@@ -169,12 +169,12 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
-- **Canonical files:** `MANIFEST.json` + `packages-meta/<pkg>/VERSION` (`meshcore`, `bootloader`, `motatool`)
-- **Build:** `./envyos build meshcore` (recipe `packages-meta/meshcore/build.sh`) → `build/<branch>/bench/firmware-<ver>/`; version override for one-off builds and auto-deltas from prior patch if present
+- **Canonical files:** `MANIFEST.json` + `packages-meta/<pkg>/VERSION` (`meshcore`, `adafruit-nrf52-bootloader`, `motatool`)
+- **Build:** `./envyos build meshcore` (recipe `packages-meta/meshcore/build.sh`) → `build/<branch>/bench/meshcore-<ver>/`; version override for one-off builds and auto-deltas from prior patch if present
 - **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `packages-meta/meshcore/build.sh` (evN encoded as 4th version component)
 - **Explicit delta base:** `./envyos build meshcore v0.1.2 --base v0.1.0` (default builds all prior bases)
 
-Bump `MANIFEST.json` component pins for integration work. Fleet tags via `./envyos publish` (`MANIFEST.json releases`).
+Bump `MANIFEST.json` package pins for integration work. Fleet tags via `./envyos publish` (`MANIFEST.json releases`).
 
 ## Agent checklist
 

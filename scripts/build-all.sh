@@ -43,7 +43,18 @@ BUILD_ENVYBOT=1
 BUILD_MCMT=1
 BUILD_RELEASE=1
 BUILD_CLEAN=0
+BUILD_FAILED=0
 MOTA_ARGS=()
+
+run_step() {
+  local label=$1
+  shift
+  if "$@"; then
+    return 0
+  fi
+  echo "error: $label failed (continuing so release/ can still stage from bench)" >&2
+  BUILD_FAILED=1
+}
 
 while (($# > 0)); do
   case "$1" in
@@ -110,7 +121,7 @@ while (($# > 0)); do
       exec "$META/meshcore/build.sh" --list-targets "${@:2}"
       ;;
     --list-boards)
-      exec "$META/bootloader/build.sh" --list-boards "${@:2}"
+      exec "$META/adafruit-nrf52-bootloader/build.sh" --list-boards "${@:2}"
       ;;
     -h | --help)
       usage
@@ -150,9 +161,9 @@ if ((BUILD_BL == 1)); then
   bl_ver="$(read_bootloader_version)"
   echo "==> bootloader ($bl_ver)"
   if ((BUILD_CLEAN == 1)); then
-    "$META/bootloader/build.sh" --clean
+    run_step bootloader "$META/adafruit-nrf52-bootloader/build.sh" --clean
   else
-    "$META/bootloader/build.sh"
+    run_step bootloader "$META/adafruit-nrf52-bootloader/build.sh"
   fi
 fi
 
@@ -161,9 +172,9 @@ if ((BUILD_MOTATOOL == 1)); then
   mt_ver="$(read_motatool_version)"
   echo "==> motatool ($mt_ver, all platforms)"
   if ((BUILD_CLEAN == 1)); then
-    "$META/motatool/build.sh" --clean
+    run_step motatool "$META/motatool/build.sh" --clean
   else
-    "$META/motatool/build.sh"
+    run_step motatool "$META/motatool/build.sh"
   fi
 fi
 
@@ -173,40 +184,40 @@ if ((BUILD_FIRMWARE == 1)); then
   echo "==> firmware + .mota ($fw_ver)"
   if ((BUILD_CLEAN == 1)); then
     if ((${#MOTA_ARGS[@]} > 0)); then
-      "$META/meshcore/build.sh" --clean "${MOTA_ARGS[@]}"
+      run_step meshcore "$META/meshcore/build.sh" --clean "${MOTA_ARGS[@]}"
     else
-      "$META/meshcore/build.sh" --clean
+      run_step meshcore "$META/meshcore/build.sh" --clean
     fi
   elif ((${#MOTA_ARGS[@]} > 0)); then
-    "$META/meshcore/build.sh" "${MOTA_ARGS[@]}"
+    run_step meshcore "$META/meshcore/build.sh" "${MOTA_ARGS[@]}"
   else
-    "$META/meshcore/build.sh"
+    run_step meshcore "$META/meshcore/build.sh"
   fi
 fi
 
 if ((BUILD_PEAKY == 1)) && ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
   echo ""
   echo "==> peaky ($ver)"
-  "$META/peaky/build.sh"
+  run_step peaky "$META/peaky/build.sh"
 fi
 
 if ((BUILD_ENVYBOT == 1)) && ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
   echo ""
   echo "==> envybot ($ver)"
-  "$META/envybot/build.sh"
+  run_step envybot "$META/envybot/build.sh"
 fi
 
 if ((BUILD_MCMT == 1)) && ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
   echo ""
   echo "==> mcmt-gateway ($ver)"
-  "$META/mcmt-gateway/build.sh"
+  run_step mcmt-gateway "$META/mcmt-gateway/build.sh"
 fi
 
 unset ENVYOS_SKIP_RELEASE
 
 if ((BUILD_RELEASE == 1)); then
   echo ""
-  populate_distro_release "$distro_ver"
+  run_step release populate_distro_release "$distro_ver"
 fi
 
 if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1 || BUILD_ENVYBOT == 1 || BUILD_MCMT == 1)); then
@@ -219,7 +230,7 @@ if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY 
     echo "    bench/motatool:   $(motatool_bench_root "$distro_ver" "$(read_motatool_version)")/"
   fi
   if ((BUILD_FIRMWARE == 1)); then
-    echo "    bench/firmware:   $(firmware_bench_root "$distro_ver" "$(read_firmware_version)")/"
+    echo "    bench/meshcore:   $(firmware_bench_root "$distro_ver" "$(read_firmware_version)")/"
   fi
   if ((BUILD_PEAKY == 1)) && ver="$(read_optional_manifest_key peaky 2>/dev/null)"; then
     echo "    bench/peaky:      $(peaky_bench_root "$distro_ver" "$ver")/"
@@ -233,4 +244,9 @@ if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY 
   if ((BUILD_RELEASE == 1)); then
     echo "    release:          $release_root/"
   fi
+fi
+
+if ((BUILD_FAILED != 0)); then
+  echo "error: one or more build steps failed" >&2
+  exit 1
 fi

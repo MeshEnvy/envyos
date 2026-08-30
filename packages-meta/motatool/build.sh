@@ -250,7 +250,7 @@ if ((${#DARWIN_PLATFORMS[@]} > 0)) && [[ "$(uname -s)" != Darwin ]]; then
 fi
 
 distro_ver="$(read_bench_tree_key)"
-mt_ver="$(normalize_component_version "$(read_motatool_version)")"
+mt_ver="$(normalize_package_version "$(read_motatool_version)")"
 migrate_motatool_package_tree "$distro_ver" "$mt_ver" || true
 mt_bench="$(motatool_bench_root "$distro_ver" "$mt_ver")"
 if ((CLEAN == 1)); then

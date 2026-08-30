@@ -30,7 +30,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-008 | Bench `-debug` target twins | `feature/debug-targets` | P2 | S | EC-001 | `-debug` twin builds and boots with log tail | backlog |
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
-| EC-012 | OTA release provenance — signed distro motas + fleet allowlist | `feature/ota-provenance` | P2 | M | EC-001 | Release mota verifies + applies with allowlisted signer; rejects unknown signer | backlog |
+| EC-012 | OTA release provenance — signed distro motas + fleet allowlist; field seeder reject unsigned | `feature/ota-provenance` | P1 | M | EC-001 | Release mota verifies + applies with allowlisted signer; seeder does not advertise/serve unsigned; rejects unknown signer | backlog |
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
@@ -180,6 +180,14 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 
 **Bench gate add-on:** guest status ping → silence; admin status ping → stats reply; relay still forwards third-party traffic.
 
+### EC-012 — OTA release provenance (design)
+
+Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. Signature is authorization.
+
+**Operator 08-30:** field seeders and apply reject anything not signed by the MeshEnvy fleet key. Auto-install already requires signed+allowlisted. Manual `ota install`, seeder advertise/USB-relay/SD-serve, and host `motatool serve` (field folder) must reject unsigned and unknown signer. Superseeder may write-to-SD for forensics; must not serve until verify-with-allowlist passes. Self-serve is unsigned by construction (EC-005): field roles must stop serving it or seeder-reject is a no-op.
+
+**Work:** sign in `build.sh` (`motatool build --sign`); `ota key` allowlist; apply reject (manual + auto); seeder index skip; disable unsigned self-serve on field roles; bench gate.
+
 ## Icebox
 
 | ID | Item | Notes |
@@ -202,6 +210,7 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 
 | Date | Note |
 |------|------|
+| 2026-08-30 | EC-012 → P1. Field seeder advertise/serve must reject unsigned (operator). Enterprise `ops/initiatives/signed-mota-deltas.md`. |
 | 2026-08-25 | Opened backlog; split `envyos/dev-pre-split` monolith into feature branches. **`envyos/main` stays on v1.16 + 0.1.3 hotfix** until items are pulled deliberately. |
 | 2026-08-25 | Reverted mistaken merge of EC-001–EC-009 to `envyos/main`. Feature branches only. |
 | 2026-08-25 | EC-011: repeater `stealth_mode` — gate self-adverts, anon owner/region/clock, node discover, OTA beacons; path hash on relay remains. |

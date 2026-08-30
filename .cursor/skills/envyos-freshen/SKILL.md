@@ -89,7 +89,7 @@ envyos_main_sha: <short after merge>
 last_integrate: YYYY-MM-DD
 ```
 
-Then publish path (envyos repo): bump `MANIFEST.json`, `./envyos build`, component tags/releases as ready — see `component-release-policy.md`.
+Then publish path (envyos repo): bump `MANIFEST.json`, `./envyos build`, package tags/releases as ready — see `package-release-policy.md`.
 
 ### EC-001 pattern
 

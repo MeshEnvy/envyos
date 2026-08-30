@@ -6,18 +6,28 @@ EnvyOS distro release notes. Versions match git tags (`v0.1.x`).
 
 ### Added
 
-- **envybot:** Native host package pinned at 0.1.0. `./envyos build envybot` stages `envybot-<ver>-py3-none-any.whl` from the sibling checkout. Book stays private.
+- **envybot:** Native host package pinned at 0.1.0 (unpublished). `./envyos build envybot` stages `envybot-<ver>-py3-none-any.whl`. Book stays private.
 - **mcmt-gateway:** Native host package pinned at 0.1.0 (`Imperator4422/mcmt-gateway`, GPL-3.0). `./envyos build mcmt-gateway` stages `mcmt_gateway-<ver>-py3-none-any.whl` via `uv build`.
+- **peaky:** Native host package pinned at 0.5.0. `./envyos build peaky` stages `peaky-<ver>-<target>.tar.gz` from the GitHub Release cache (`MeshEnvy/peaky-finders`).
+
+### Fixed
+
+- **tooling:** Full `./envyos build` stages `build/<branch>/release/` even if a later pinned package fails. Exit is still non-zero. Refresh without rebuild: `./envyos build --release-only`.
+- **tooling:** Native package pins (envybot, peaky, mcmt-gateway) use package semver (`0.1.0`), not distro `vX.Y.Z`. Bench dirs are `envybot-0.1.0`, not `envybot-v0.1.0`.
 
 ### Changed
 
-- **tooling:** Distro GitHub Release notes include each package fork `CHANGELOG.md` pin section (meshcore overlay) plus distro `CHANGELOG.md`. `./envyos publish --dry-run` prints the full notes body.
+- **tooling:** Distro GitHub Release notes include each package `CHANGELOG.md` pin section (meshcore overlay, peaky/envybot siblings) plus distro `CHANGELOG.md`. `./envyos changelog check` requires those headings. `./envyos publish --dry-run` writes `RELEASE.md` to `build/<slot>/release/` (and a published `build/vX.Y.Z/release/` if that tree exists). Publish uploads that file as an asset and uses it as the GitHub Release description. The package table uses `PACKAGE` `title=` (MeshCore, Peaky Finders, …) linked to the package home.
+- **tooling:** Distro vocabulary is **package** (not component). Helpers, docs, and release notes use `package` throughout.
+- **tooling:** Adafruit nRF52 bootloader package id is `adafruit-nrf52-bootloader` (aliases `bootloader`, `bl`). Bench and GitHub assets use `adafruit-nrf52-bootloader-<board>-<ver>.uf2`. CLI aliases `bootloader`, `bl`.
+- **tooling:** MeshCore bench dir and GitHub assets use `meshcore-<slug>-<ver>.*`. CLI aliases `firmware`, `fw`.
+
 - **tooling:** Distro-owned packaging (`packages-meta/`, upstream-evN pins, `./envyos build <pkg>`).
 - **tooling:** Bench artifacts live under `build/<git-branch>/bench/`; published releases under `build/vX.Y.Z/` (promoted at `./envyos publish`).
 - **tooling:** `./envyos publish` suggests the next tag from CHANGELOG + bundle policy (`./envyos semver suggest`; see `docs/distro-semver.md`).
 - **tooling:** `./envyos build` orchestrates bootloader, motatool (all platforms), firmware/.mota, optional peaky, and populates `build/<branch>/release/` preview.
-- **tooling:** Pre-release builds use integration branch HEAD; component git tags happen on publish only.
-- **tooling:** `./envyos restore` hydrates `build/<ver>/bench/{firmware,bootloader}` from GitHub. Auto-migrates legacy trees.
+- **tooling:** Pre-release builds use integration branch HEAD; package git tags happen on publish only.
+- **tooling:** `./envyos restore` hydrates `build/<ver>/bench/{meshcore,adafruit-nrf52-bootloader}-<ver>/` from GitHub.
 
 ## [v0.1.3] - 2026-08-23
 

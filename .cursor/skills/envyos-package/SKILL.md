@@ -1,18 +1,18 @@
 ---
 name: envyos-package
 description: >-
-  Adopt a repo into the EnvyOS component family: ./envyos CLI (info, build,
+  Adopt a repo into the EnvyOS package family: ./envyos CLI (info, build,
   prepare, publish), CHANGELOG, release skill. Template for envycore, bootloader, motatool.
   Distro repo uses a slim bundle-oriented CLI — see envyos-scripts skill.
 ---
 
 # EnvyOS package CLI
 
-Canonical contract for **component repos** (firmware, bootloader, motatool, …). The **distro** repo (`envyos`) bundles component releases; it does not replace per-package `./envyos`.
+Canonical contract for **package repos** (firmware, bootloader, motatool, …). The **distro** repo (`envyos`) bundles package releases; it does not replace per-package `./envyos`.
 
 **Reference implementations:** [`envycore`](../../../envycore/) (firmware), [`motatool`](../../../motatool/) (Rust CLI).
 
-**Integration policy:** [`docs/integration-policy.md`](../../docs/integration-policy.md). **Distro coupling:** [`docs/component-release-policy.md`](../../docs/component-release-policy.md). **Maintainer guide:** [`docs/package-maintainer-guide.md`](../../docs/package-maintainer-guide.md).
+**Integration policy:** [`docs/integration-policy.md`](../../docs/integration-policy.md). **Distro coupling:** [`docs/package-release-policy.md`](../../docs/package-release-policy.md). **Maintainer guide:** [`docs/package-maintainer-guide.md`](../../docs/package-maintainer-guide.md).
 
 ## Adoption checklist
 
@@ -139,7 +139,7 @@ Implement `release_*_path()` helpers in `scripts/version.sh` so `build`, `prepar
 
 ## Publish flow
 
-All components: **local prepare + publish**. No tag-triggered CI.
+All packages: **local prepare + publish**. No tag-triggered CI.
 
 1. `./envyos bump …` + changelog promote
 2. `./envyos prepare` — review `dist/<branch-slot>/`
@@ -150,12 +150,13 @@ All components: **local prepare + publish**. No tag-triggered CI.
 | Package | GitHub repo | Primary asset |
 |---------|-------------|---------------|
 | firmware | `MeshEnvy/meshcore-firmware` | `firmware-vX.Y.Z.zip` |
-| bootloader | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `bootloader-vX.Y.Z.zip` |
+| adafruit-nrf52-bootloader | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `adafruit-nrf52-bootloader-<board>-<ver>.uf2` (v0.1.x: `bootloader-*.zip` / `bl-*`) |
 | motatool | `MeshEnvy/motatool` | `motatool-*-<ver>.tar.gz` (per platform) |
 | envybot | `MeshEnvy/envybot` | `envybot-<ver>-py3-none-any.whl` |
 | mcmt-gateway | `Imperator4422/mcmt-gateway` | `mcmt_gateway-<ver>-py3-none-any.whl` |
+| peaky | `MeshEnvy/peaky-finders` | `peaky-<ver>-<target>.tar.gz` (per platform) |
 
-## Agent workflow (component release)
+## Agent workflow (package release)
 
 1. User-facing changes in `CHANGELOG.md` under `## [Unreleased]`
 2. `./envyos bump rc` (or patch/minor/major)

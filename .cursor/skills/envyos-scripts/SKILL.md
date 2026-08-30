@@ -10,12 +10,12 @@ description: >-
 
 **Ownership split:**
 
-| Component | Source | Recipe |
+| Package | Source | Recipe |
 |-----------|--------|--------|
-| Firmware + `.mota` | `packages/meshcore/` | `packages-meta/meshcore/build.sh` → `build/<branch>/bench/firmware-<ver>/` |
-| Bootloader | `packages/bootloader/` | `packages-meta/bootloader/build.sh` → `build/<branch>/bench/bootloader-<ver>/` |
+| Firmware + `.mota` | `packages/meshcore/` | `packages-meta/meshcore/build.sh` → `build/<branch>/bench/meshcore-<ver>/` |
+| Adafruit nRF52 bootloader | `packages/adafruit-nrf52-bootloader/` | `packages-meta/adafruit-nrf52-bootloader/build.sh` → `build/<branch>/bench/adafruit-nrf52-bootloader-<ver>/` |
 | motatool | `packages/motatool/` | `packages-meta/motatool/build.sh`; staged + **`motatool` on PATH** |
-| peaky | release cache | `packages-meta/peaky/build.sh` (only when `peaky=` pinned) |
+| peaky | GitHub Release cache | `packages-meta/peaky/build.sh` (pinned `0.5.0`) |
 | envybot | sibling `uv build` | `packages-meta/envybot/build.sh` (only when `envybot=` pinned) |
 | mcmt-gateway | `packages/mcmt-gateway/` `uv build` | `packages-meta/mcmt-gateway/build.sh` (only when `mcmt-gateway=` pinned) |
 | USB seeder | `packages/motatool/scripts/seeder.sh` | |
@@ -23,7 +23,7 @@ description: >-
 
 All builds go through **`./envyos build [pkg…]`** — it dispatches to `packages-meta/<pkg>/build.sh`. Shared machinery (`version.sh`, `build-lib.sh`, `packages-meta-lib.sh`, `targets.txt`, `targets-lib.sh`) stays in `scripts/`.
 
-Materialize forks: `./envyos fetch meshcore bootloader motatool mcmt-gateway`
+Materialize forks: `./envyos fetch meshcore bootloader motatool mcmt-gateway` (`bootloader` is an alias for `adafruit-nrf52-bootloader`)
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Materialize forks: `./envyos fetch meshcore bootloader motatool mcmt-gateway`
 | Docker | bootloader recipe (and motatool linux targets) |
 | `motatool` on PATH (or `MOTATOOL=` override) | meshcore recipe, seeder |
 | `packages/meshcore/` checkout on `envyos/main` (or `envyos/dev`) | firmware source |
-| `packages/bootloader/` checkout | bootloader build |
+| `packages/adafruit-nrf52-bootloader/` checkout | nRF52 bootloader build |
 
 ## Versioning
 
@@ -42,16 +42,16 @@ Package pins live in **`MANIFEST.json` `releases.next`** (mirrors `packages-meta
 | Key | Role |
 |-----|------|
 | `distro` | Draft/published git tag — set at `./envyos publish` |
-| `meshcore` | `upstream-evN` — `-DFIRMWARE_VERSION` stamp; `build/<branch>/bench/firmware-<ver>/<slug>/` |
-| `bootloader` | `upstream-evN` — `build/<branch>/bench/bootloader-<ver>/` |
+| `meshcore` | `upstream-evN` — `-DFIRMWARE_VERSION` stamp; `build/<branch>/bench/meshcore-<ver>/<slug>/` |
+| `adafruit-nrf52-bootloader` | `upstream-evN` — `build/<branch>/bench/adafruit-nrf52-bootloader-<ver>/` (CLI: `bootloader`, `bl`) |
 | `motatool` | `upstream-evN` — `build/<branch>/bench/motatool-<ver>/` |
-| `peaky` | optional semver pin — staged from GitHub release cache |
+| `peaky` | native semver pin — staged from GitHub Release (`peaky-<ver>-<target>.tar.gz`) |
 | `envybot` | optional semver pin — sibling wheel (`uv build`) |
 | `mcmt-gateway` | optional semver pin — `uv build` wheel |
 
 Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_manifest`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**. Meshcore overlay notes: **`packages/meshcore/CHANGELOG.md`** (publish folds the pin section into distro release notes).
 
-**Publish** — `./envyos publish [vX.Y.Z]` (run **`./envyos build`** first). `./envyos publish --dry-run` prints the plan, `releases.next` pins, and the GitHub notes body.
+**Publish** — `./envyos publish [vX.Y.Z]` (run **`./envyos build`** first). `./envyos publish --dry-run` prints the plan and `releases.next` pins, and writes `build/<slot>/release/RELEASE.md`. Publish uploads that file and uses it as the GitHub Release description.
 
 1. Suggest tag: `./envyos semver suggest` (CHANGELOG + bundle policy)
 2. Promote `build/<branch>/bench/` → `build/<ver>/`
@@ -70,7 +70,7 @@ source scripts/version.sh && list_manifest
 
 ## `./envyos build` (scripts/build-all.sh)
 
-Orchestration entry point — bootloader → motatool → firmware → peaky/envybot/mcmt (if pinned) → release tree.
+Orchestration entry point: bootloader → motatool → firmware → peaky/envybot/mcmt (if pinned) → `build/<slot>/release/`. A later package failure still stages `release/` from whatever bench exists, then exits 1. Refresh without rebuild: `./envyos build --release-only`.
 
 ```bash
 ./envyos build                       # pinned packages
@@ -88,7 +88,7 @@ Target map for the meshcore recipe. One line per shipped board/role:
 slug  platformio_env  [description…]
 ```
 
-Output: `build/<branch>/bench/firmware-<ver>/<slug>/`. Default build = **all lines**. Override with `--target <slug>`.
+Output: `build/<branch>/bench/meshcore-<ver>/<slug>/`. Default build = **all lines**. Override with `--target <slug>`.
 
 ## `packages-meta/meshcore/build.sh`
 
@@ -103,7 +103,7 @@ Builds OTA firmware from `packages/meshcore/` and packages `.mota` per slug.
 
 Requires **`motatool` on PATH** (staged build or `MOTATOOL=`).
 
-## `packages-meta/bootloader/build.sh`
+## `packages-meta/adafruit-nrf52-bootloader/build.sh`
 
 Builds **OTAFIX** nRF52 bootloader via Docker. Reads **`scripts/targets.txt`** for board list.
 
@@ -115,7 +115,7 @@ Wraps **`motatool serve`** for Tag A USB seeder.
 
 ```bash
 packages/motatool/scripts/seeder.sh /dev/cu.usbmodem1444301
-packages/motatool/scripts/seeder.sh usbmodem1444301 build/main/bench/firmware-<ver>
+packages/motatool/scripts/seeder.sh usbmodem1444301 build/main/bench/meshcore-<ver>
 ```
 
 ## Typical bench sequence
@@ -125,11 +125,11 @@ packages/motatool/scripts/seeder.sh usbmodem1444301 build/main/bench/firmware-<v
 # flash bench bootloader UF2 on Tag B
 
 ./envyos build meshcore v0.1.0
-# flash Tag B from bench firmware-v0.1.0/wismesh-tag-repeater/firmware.uf2
+# flash Tag B from bench meshcore-v0.1.0/wismesh-tag-repeater/meshcore-wismesh-tag-repeater-v0.1.0.uf2
 
 ./envyos build meshcore v0.1.1
 
-packages/motatool/scripts/seeder.sh /dev/cu.… build/main/bench/firmware-v0.1.1
+packages/motatool/scripts/seeder.sh /dev/cu.… build/main/bench/meshcore-v0.1.1
 
 # Tag B serial: ota ls → ota get N flash → ota install
 ```

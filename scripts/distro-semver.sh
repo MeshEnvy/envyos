@@ -15,7 +15,7 @@ latest_released_distro_from_registry() {
 
 bundle_ids_sorted() {
   local probe=${1:-v0.0.0}
-  list_release_component_ids "$probe" | sort
+  list_release_package_ids "$probe" | sort
 }
 
 manifest_bundle_ids() {
@@ -24,7 +24,7 @@ manifest_bundle_ids() {
   while IFS= read -r id || [[ -n "$id" ]]; do
     [[ -n "$id" ]] || continue
     printf '%s\n' "$id"
-  done < <(list_release_component_ids "$distro_ver")
+  done < <(list_release_package_ids "$distro_ver")
 }
 
 changelog_section_body() {
@@ -54,13 +54,42 @@ changelog_text_nonempty() {
 
 package_overlay_changelog_file() {
   local pkg=$1
-  local fork="$PACKAGES_ROOT/$pkg/CHANGELOG.md"
-  local meta="$PACKAGES_META_ROOT/$pkg/CHANGELOG.md"
+  local sibling="" fork meta
+  pkg="$(package_meta_id "$pkg")"
+  case "$pkg" in
+    peaky) sibling="${PEAKY_ROOT:-}/CHANGELOG.md" ;;
+    envybot) sibling="${ENVYBOT_ROOT:-}/CHANGELOG.md" ;;
+  esac
+  if [[ -n "$sibling" && -f "$sibling" ]]; then
+    printf '%s' "$sibling"
+    return 0
+  fi
+  fork="$(package_checkout_dir "$pkg")/CHANGELOG.md"
+  meta="$(package_meta_dir "$pkg")/CHANGELOG.md"
   if [[ -f "$fork" ]]; then
     printf '%s' "$fork"
   elif [[ -f "$meta" ]]; then
     printf '%s' "$meta"
   fi
+}
+
+# Match ## [0.5.0] or ## [v0.5.0] (native tags use the v prefix).
+# Also try the upstream pin without -evN (motatool 0.1.1-ev1 → v0.1.1).
+changelog_version_section_body() {
+  local ver=$1
+  local file=$2
+  local body plain upstream
+  plain="${ver#v}"
+  upstream="${plain%-ev*}"
+  for try in "$plain" "v$plain" "$ver" "$upstream" "v$upstream"; do
+    [[ -n "$try" ]] || continue
+    body="$(changelog_section_body "$try" "$file")"
+    if changelog_text_nonempty "$body"; then
+      printf '%s' "$body"
+      return 0
+    fi
+  done
+  return 1
 }
 
 # Distro Unreleased (or matching tag) plus per-package overlay notes.
@@ -83,19 +112,23 @@ changelog_body_for_distro_release() {
     out+="#### Distro"$'\n\n'"${section}"$'\n'
   fi
 
-  for pkg in meshcore bootloader motatool; do
+  for pkg in meshcore adafruit-nrf52-bootloader motatool peaky envybot mcmt-gateway; do
     file="$(package_overlay_changelog_file "$pkg")"
     [[ -n "$file" ]] || continue
     ver="$(read_release_manifest_key "$distro_ver" "$pkg" 2>/dev/null || true)"
     if [[ -z "$ver" ]]; then
       ver="$(read_package_version "$pkg" 2>/dev/null || true)"
     fi
+    if [[ -z "$ver" ]]; then
+      case "$pkg" in
+        peaky) ver="$(read_optional_manifest_key peaky 2>/dev/null || true)" ;;
+        envybot) ver="$(read_optional_manifest_key envybot 2>/dev/null || true)" ;;
+        mcmt-gateway) ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null || true)" ;;
+      esac
+    fi
     section=""
     if [[ -n "$ver" ]]; then
-      section="$(changelog_section_body "$ver" "$file")"
-    fi
-    if ! changelog_text_nonempty "$section"; then
-      section="$(changelog_unreleased_body "$file")"
+      section="$(changelog_version_section_body "$ver" "$file" || true)"
     fi
     if changelog_text_nonempty "$section"; then
       out+=$'\n'"#### ${pkg}"
@@ -115,18 +148,18 @@ changelog_has_pattern() {
   grep -Eiq "$pattern" <<<"$body"
 }
 
-component_pin_upstream() {
+package_pin_upstream() {
   local v="${1#v}"
   v="${v%-ev*}"
   printf '%s' "$v"
 }
 
 # patch | minor | major — compare upstream semver pins (ignores -evN overlay).
-component_pin_bump_level() {
+package_pin_bump_level() {
   local last=$1 cur=$2
   local last_m last_mi last_p cur_m cur_mi cur_p
-  last="$(component_pin_upstream "$last")"
-  cur="$(component_pin_upstream "$cur")"
+  last="$(package_pin_upstream "$last")"
+  cur="$(package_pin_upstream "$cur")"
   [[ "$last" == "$cur" ]] && return 1
   IFS=. read -r last_m last_mi last_p <<<"$last"
   IFS=. read -r cur_m cur_mi cur_p <<<"$cur"
@@ -178,11 +211,11 @@ bundle_set_diff_level() {
     }
   done <<<"$cur_ids"
 
-  for key in bootloader motatool mcmt-gateway peaky envybot; do
+  for key in adafruit-nrf52-bootloader motatool mcmt-gateway peaky envybot; do
     last_val="$(read_release_manifest_key "$last" "$key" 2>/dev/null || true)"
     cur_val=""
     case "$key" in
-      bootloader) cur_val="$(read_bootloader_version 2>/dev/null || true)" ;;
+      adafruit-nrf52-bootloader) cur_val="$(read_bootloader_version 2>/dev/null || true)" ;;
       motatool) cur_val="$(read_motatool_version 2>/dev/null || true)" ;;
       mcmt-gateway) cur_val="$(read_optional_manifest_key mcmt-gateway 2>/dev/null || true)" ;;
       peaky) cur_val="$(read_optional_manifest_key peaky 2>/dev/null || true)" ;;
@@ -190,7 +223,7 @@ bundle_set_diff_level() {
     esac
     [[ -n "$last_val" && -n "$cur_val" ]] || continue
     [[ "$last_val" == "$cur_val" ]] && continue
-    level="$(component_pin_bump_level "$last_val" "$cur_val")" || continue
+    level="$(package_pin_bump_level "$last_val" "$cur_val")" || continue
     case "$level" in
       major) printf '%s\n' major; return 0 ;;
       minor) max=minor ;;
@@ -268,26 +301,34 @@ print_distro_bump_summary() {
   print_distro_publish_recommendation
 }
 
-# Full console dump for `./envyos publish --dry-run`: plan, pins, GitHub notes, staged files.
+# Full console dump for `./envyos publish --dry-run`: plan, pins, writes RELEASE.md, lists staged files.
 print_distro_publish_plan() {
   local distro_ver=$1
   local slot=$2
   local git_tag=${3:-1}
   local github_release=${4:-1}
   local preview=1
-  local dir f count=0 last_dir=""
+  local dir f count=0 last_dir="" notes_dir notes_path ver_dir
 
   distro_ver="$(normalize_version "$distro_ver")"
   if is_published_distro_tag "$distro_ver" 2>/dev/null; then
     preview=0
   fi
 
-  echo "Publish plan (dry-run — no promote, lock, tag, or upload)"
+  notes_dir="$(distro_release_root "$slot")"
+  notes_path="$(write_distro_release_notes "$distro_ver" "$notes_dir" "$preview")"
+  ver_dir="$(distro_release_root "$distro_ver")"
+  if [[ -d "$ver_dir" && "$ver_dir" != "$notes_dir" ]]; then
+    write_distro_release_notes "$distro_ver" "$ver_dir" "$preview" >/dev/null
+  fi
+
+  echo "Publish plan (dry-run — writes RELEASE.md; no promote, lock, tag, or upload)"
   echo ""
   echo "Tag:            $distro_ver"
   echo "Build slot:     $slot"
   echo "Git tag:        $( ((git_tag)) && echo yes || echo no )"
   echo "GitHub release: $( ((github_release)) && echo yes || echo no )"
+  echo "Notes file:     $notes_path"
   echo ""
   print_distro_publish_recommendation
   echo ""
@@ -296,11 +337,11 @@ print_distro_publish_plan() {
   echo ""
   echo "GitHub release notes"
   echo "--------------------"
-  release_notes_for_distro "$distro_ver" "$preview"
+  cat "$notes_path"
   echo "--------------------"
   echo ""
-  echo "Staged upload files (read-only)"
-  for dir in "$(distro_release_root "$slot")" "$(distro_release_root "$distro_ver")"; do
+  echo "Staged upload files (read-only except RELEASE.md)"
+  for dir in "$notes_dir" "$ver_dir"; do
     [[ -d "$dir" ]] || continue
     [[ "$dir" == "$last_dir" ]] && continue
     last_dir="$dir"
