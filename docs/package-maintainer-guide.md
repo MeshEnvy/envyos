@@ -135,7 +135,7 @@ Distro publish **downloads by asset name** from your GitHub Release. Pick stable
 | firmware | `firmware-vX.Y.Z.zip` | `firmware-v0.1.4.zip` |
 | bootloader | `bootloader-vX.Y.Z.zip` | `bootloader-v0.1.2.zip` |
 | motatool | `motatool-<ver>-<target>.tar.gz` per platform | `motatool-0.1.2-rc0-x86_64-unknown-linux-gnu.tar.gz` |
-| mcmt-gateway | `mcmt-gateway-vX.Y.Z.zip` | (when bundled) |
+| mcmt-gateway | `mcmt_gateway-<ver>-py3-none-any.whl` | (when pinned) |
 | peaky | `peaky-vX.Y.Z.zip` | (when bundled) |
 | envybot | `envybot-<ver>-py3-none-any.whl` | (when pinned) |
 

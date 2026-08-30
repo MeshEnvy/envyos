@@ -17,12 +17,13 @@ description: >-
 | motatool | `packages/motatool/` | `packages-meta/motatool/build.sh`; staged + **`motatool` on PATH** |
 | peaky | release cache | `packages-meta/peaky/build.sh` (only when `peaky=` pinned) |
 | envybot | sibling `uv build` | `packages-meta/envybot/build.sh` (only when `envybot=` pinned) |
+| mcmt-gateway | `packages/mcmt-gateway/` `uv build` | `packages-meta/mcmt-gateway/build.sh` (only when `mcmt-gateway=` pinned) |
 | USB seeder | `packages/motatool/scripts/seeder.sh` | |
 | Distro manifest / publish | envyos | `MANIFEST.json`, `scripts/version.sh`, `scripts/publish.sh` |
 
 All builds go through **`./envyos build [pkg…]`** — it dispatches to `packages-meta/<pkg>/build.sh`. Shared machinery (`version.sh`, `build-lib.sh`, `packages-meta-lib.sh`, `targets.txt`, `targets-lib.sh`) stays in `scripts/`.
 
-Materialize forks: `./envyos fetch meshcore bootloader motatool`
+Materialize forks: `./envyos fetch meshcore bootloader motatool mcmt-gateway`
 
 ## Prerequisites
 
@@ -46,6 +47,7 @@ Package pins live in **`MANIFEST.json` `releases.next`** (mirrors `packages-meta
 | `motatool` | `upstream-evN` — `build/<branch>/bench/motatool-<ver>/` |
 | `peaky` | optional semver pin — staged from GitHub release cache |
 | `envybot` | optional semver pin — sibling wheel (`uv build`) |
+| `mcmt-gateway` | optional semver pin — `uv build` wheel |
 
 Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_manifest`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**. Meshcore overlay notes: **`packages/meshcore/CHANGELOG.md`** (publish folds the pin section into distro release notes).
 
@@ -68,7 +70,7 @@ source scripts/version.sh && list_manifest
 
 ## `./envyos build` (scripts/build-all.sh)
 
-Orchestration entry point — bootloader → motatool → firmware → peaky/envybot (if pinned) → release tree.
+Orchestration entry point — bootloader → motatool → firmware → peaky/envybot/mcmt (if pinned) → release tree.
 
 ```bash
 ./envyos build                       # pinned packages

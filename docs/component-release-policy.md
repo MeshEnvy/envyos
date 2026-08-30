@@ -6,7 +6,7 @@ Canonical contract for every EnvyOS distro component repo (envycore, bootloader,
 
 | Component | Manifest key | When bundled |
 |-----------|--------------|--------------|
-| mcmt-gateway | `mcmt-gateway=` | Distro ≥ v0.2.0 |
+| mcmt-gateway | `mcmt-gateway=` | When pinned in `MANIFEST.json` (`releases.next` has 0.1.0) |
 | peaky | `peaky=` | When pinned in `MANIFEST.json` (bench-gated) |
 | envybot | `envybot=` | When pinned in `MANIFEST.json` (`releases.next` has 0.1.0) |
 
@@ -40,7 +40,7 @@ New component? Start with [`docs/package-maintainer-guide.md`](package-maintaine
 | motatool | [motatool/docs/change-management.md](https://github.com/MeshEnvy/motatool/blob/envyos/main/docs/change-management.md) | `.cursor/skills/motatool-release/` |
 | envycore | `docs/change-management.md` | `.cursor/skills/envycore-release/` · `./envyos` |
 | bootloader | `docs/change-management.md` | `.cursor/skills/bootloader-release/` |
-| mcmt-gateway | `docs/change-management.md` | `.cursor/skills/mcmt-release/` |
+| mcmt-gateway | checkout `README.md` | (wheel via `packages-meta/mcmt-gateway/build.sh`) |
 | peaky-finders | [peaky_finders/docs/change-management.md](https://github.com/MeshEnvy/peaky-finders/blob/main/docs/change-management.md) | `peaky_finders/.cursor/skills/peaky-release/` |
 | envybot | sibling `CHANGELOG.md` | (wheel via `packages-meta/envybot/build.sh`) |
 

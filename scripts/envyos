@@ -43,7 +43,7 @@ commands:
   changelog check [vX.Y.Z]          Verify Packages table + package changelogs
   changelog delta [vX.Y.Z]          Print package version deltas for a release
 
-  build packages: meshcore (firmware) | bootloader | motatool | peaky | envybot | all
+  build packages: meshcore (firmware) | bootloader | motatool | peaky | envybot | mcmt-gateway | all
   Omit package list for full bench build (motatool → bootloader → meshcore order).
 
 examples:
@@ -73,6 +73,7 @@ cmd_info() {
   printf '  bootloader  %s\n' "$(submodule_git_sha bootloader)"
   printf '  motatool    %s\n' "$(submodule_git_sha motatool)"
   printf '  meshcore-open %s\n' "$(submodule_git_sha meshcore-open)"
+  printf '  mcmt-gateway %s\n' "$(submodule_git_sha mcmt-gateway)"
   echo ""
   echo "Package meta (packages-meta/)"
   for pkg in meshcore bootloader motatool; do
@@ -80,6 +81,9 @@ cmd_info() {
   done
   if ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
     printf '  %-12s %s\n' envybot "$ver"
+  fi
+  if ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
+    printf '  %-12s %s\n' mcmt-gateway "$ver"
   fi
   echo ""
   last_distro="$(latest_published_distro_tag 2>/dev/null || true)"
@@ -117,6 +121,11 @@ cmd_info() {
     printf '  %-12s %-8s  %s  (%s)
 ' envybot "$ver" "$(component_build_dir envybot "$ver")" "$status"
   fi
+  if ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
+    status="$(component_artifact_status mcmt-gateway "$ver")"
+    printf '  %-12s %-8s  %s  (%s)
+' mcmt-gateway "$ver" "$(component_build_dir mcmt-gateway "$ver")" "$status"
+  fi
 }
 
 cmd_semver() {
@@ -153,6 +162,10 @@ cmd_build() {
         ;;
       envybot | eb)
         packages+=(envybot)
+        shift
+        ;;
+      mcmt-gateway | mcmt)
+        packages+=(mcmt-gateway)
         shift
         ;;
       all | "")

@@ -21,6 +21,11 @@
           "repo": "MeshEnvy/envybot",
           "version": "0.1.0",
           "sha": "ba80e9f31a4ed8999c9e8fa25cdcbe2a1f6c80b0"
+        },
+        "mcmt-gateway": {
+          "repo": "Imperator4422/mcmt-gateway",
+          "version": "0.1.0",
+          "sha": "312c3f374c28a9bfd6db41b1e169f99a564aef89"
         }
       }
     },

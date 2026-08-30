@@ -102,6 +102,7 @@ Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,
 - `motatool` → **`build/<branch>/bench/motatool-<ver>/`** (artifact); working copy under bench motatool tree
 - `peaky` → local `cargo build` when pinned
 - `envybot` → sibling `uv build` wheel when pinned (`envybot-<ver>-py3-none-any.whl`)
+- `mcmt-gateway` → `packages/mcmt-gateway` `uv build` wheel when pinned (`mcmt_gateway-<ver>-py3-none-any.whl`, GPL-3.0)
 - **Firmware build:** `./envyos build meshcore` (dispatches to `packages-meta/meshcore/build.sh`). Requires staged **`motatool`** on PATH (`./envyos build motatool`) or **`MOTATOOL=`** override.
 
 ## OTA targets (`scripts/targets.txt`)

@@ -21,7 +21,7 @@ BUILD_ROOT="$OTA_ROOT/build"
 PEAKY_GITHUB_REPO="${PEAKY_GITHUB_REPO:-MeshEnvy/peaky-finders}"
 export ENVYOS_ROOT="$OTA_ROOT"
 export MANIFEST_JSON MANIFEST_PY
-export MESHCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT MESHCORE_OPEN_ROOT PEAKY_ROOT ENVYBOT_ROOT PACKAGES_ROOT PACKAGES_META_ROOT
+export MESHCORE_ROOT BOOTLOADER_SRC MCMT_ROOT MOTATOOL_ROOT MESHCORE_OPEN_ROOT PEAKY_ROOT ENVYBOT_ROOT PACKAGES_ROOT PACKAGES_META_ROOT
 
 manifest_py() {
   python3 "$MANIFEST_PY" "$MANIFEST_JSON" --packages-meta "$PACKAGES_META_ROOT" "$@"
@@ -80,6 +80,7 @@ read_firmware_version() { read_meshcore_version; }
 read_bootloader_version() { read_manifest_key bootloader; }
 read_motatool_version() { read_manifest_key motatool; }
 read_peaky_version() { read_optional_manifest_key peaky; }
+read_mcmt_gateway_version() { read_optional_manifest_key mcmt-gateway; }
 read_envybot_version() { read_optional_manifest_key envybot; }
 
 read_bootloader_version_file() { read_bootloader_version; }
@@ -136,6 +137,12 @@ read_envybot_pyproject_version() {
   awk '/^version = /{gsub(/^version = "|"$/,""); print; exit}' "$toml"
 }
 
+read_mcmt_gateway_pyproject_version() {
+  local toml="$MCMT_ROOT/pyproject.toml"
+  [[ -f "$toml" ]] || return 1
+  awk '/^version = /{gsub(/^version = "|"$/,""); print; exit}' "$toml"
+}
+
 verify_envybot_version_sync() {
   local expected="${1#v}"
   local actual
@@ -145,6 +152,19 @@ verify_envybot_version_sync() {
   }
   [[ "$actual" == "$expected" ]] || {
     echo "error: envybot/pyproject.toml version ($actual) != MANIFEST envybot ($expected)" >&2
+    return 1
+  }
+}
+
+verify_mcmt_gateway_version_sync() {
+  local expected="${1#v}"
+  local actual
+  actual="$(read_mcmt_gateway_pyproject_version)" || {
+    echo "error: mcmt-gateway repo not found at $MCMT_ROOT" >&2
+    return 1
+  }
+  [[ "$actual" == "$expected" ]] || {
+    echo "error: mcmt-gateway/pyproject.toml version ($actual) != MANIFEST mcmt-gateway ($expected)" >&2
     return 1
   }
 }
@@ -369,8 +389,6 @@ append_released_version() {
   manifest_py releases record "$ver"
   append_package_release firmware "$ver"
 }
-
-read_mcmt_gateway_version() { read_manifest_key mcmt-gateway; }
 
 read_component_manifest_sha() {
   local name=$1
@@ -626,6 +644,51 @@ ensure_envybot_wheel() {
   echo "envybot: staged $wheel"
 }
 
+ensure_mcmt_gateway_wheel() {
+  local ver=$1 dir distro wheel src
+  ver="$(normalize_version "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(mcmt_gateway_bench_root "$distro" "$ver")"
+  wheel="$dir/$(mcmt_gateway_wheel_basename "$ver")"
+
+  if [[ -f "$wheel" ]]; then
+    return 0
+  fi
+
+  [[ -d "$MCMT_ROOT" ]] || {
+    echo "error: mcmt-gateway checkout not found at $MCMT_ROOT — run ./envyos fetch mcmt-gateway" >&2
+    return 1
+  }
+
+  if is_component_tree_released mcmt-gateway "$ver"; then
+    echo "error: mcmt-gateway $ver is a released tree — $dir is immutable" >&2
+    return 1
+  fi
+
+  command -v uv >/dev/null 2>&1 || {
+    echo "error: uv not on PATH — needed to build the mcmt-gateway wheel" >&2
+    return 1
+  }
+
+  echo "mcmt-gateway: uv build ($MCMT_ROOT)"
+  (
+    cd "$MCMT_ROOT"
+    uv build
+  )
+  mkdir -p "$dir"
+  src="$(echo "$MCMT_ROOT"/dist/mcmt_gateway-"${ver#v}"-py3-none-any.whl)"
+  [[ -f "$src" ]] || {
+    echo "error: uv build did not produce $src" >&2
+    return 1
+  }
+  cp -f "$src" "$wheel"
+  if [[ -f "$MCMT_ROOT/dist/mcmt_gateway-${ver#v}.tar.gz" ]]; then
+    cp -f "$MCMT_ROOT/dist/mcmt_gateway-${ver#v}.tar.gz" "$dir/"
+  fi
+  printf '%s\n' "$ver" >"$dir/version.txt"
+  echo "mcmt-gateway: staged $wheel"
+}
+
 write_released_marker() {
   local ver="$1"
   local dir
@@ -661,8 +724,7 @@ component_build_root() {
   local id=$1 distro_ver=${2:-}
   distro_ver="${distro_ver:-$(read_bench_tree_key 2>/dev/null || echo dev)}"
   case "$id" in
-    firmware | bootloader | motatool | peaky | envybot) distro_bench_root "$distro_ver" ;;
-    mcmt-gateway) printf '%s/dist' "$MCMT_ROOT" ;;
+    firmware | bootloader | motatool | peaky | envybot | mcmt-gateway) distro_bench_root "$distro_ver" ;;
     *)
       echo "error: unknown release component: $1" >&2
       return 1
@@ -696,7 +758,7 @@ component_build_dir() {
     motatool) motatool_bench_root "$distro_ver" "$ver" ;;
     peaky) peaky_bench_root "$distro_ver" "$ver" ;;
     envybot) envybot_bench_root "$distro_ver" "$ver" ;;
-    mcmt-gateway) printf '%s/%s' "$MCMT_ROOT/dist" "$ver" ;;
+    mcmt-gateway) mcmt_gateway_bench_root "$distro_ver" "$ver" ;;
     *)
       echo "error: unknown release component: $id" >&2
       return 1
@@ -710,7 +772,7 @@ component_zip_basename() {
     firmware) printf 'firmware-%s.zip' "$ver" ;;
     bootloader) printf 'bootloader-%s.zip' "$ver" ;;
     motatool) printf 'motatool-%s.zip' "$ver" ;;
-    mcmt-gateway) printf 'mcmt-gateway-%s.zip' "$ver" ;;
+    mcmt-gateway) printf 'mcmt_gateway-%s-py3-none-any.whl' "${ver#v}" ;;
     peaky) printf 'peaky-%s.zip' "$ver" ;;
     envybot) printf 'envybot-%s-py3-none-any.whl' "${ver#v}" ;;
   esac
@@ -795,7 +857,7 @@ read_release_manifest_key() {
     val="$(manifest_py releases get "$distro_ver" "$manifest_key" version 2>/dev/null || true)"
     if [[ -n "$val" ]]; then
       case "$manifest_key" in
-        meshcore | bootloader | motatool | mcmt-gateway)
+        meshcore | bootloader | motatool)
           normalize_package_version "$val"
           ;;
         *)
@@ -950,6 +1012,10 @@ verify_release_components() {
     if [[ "$id" == envybot ]]; then
       verify_envybot_version_sync "$ver" || return 1
       ensure_envybot_wheel "$ver" || return 1
+    fi
+    if [[ "$id" == mcmt-gateway ]]; then
+      verify_mcmt_gateway_version_sync "$ver" || return 1
+      ensure_mcmt_gateway_wheel "$ver" || return 1
     fi
     dir="$(component_build_dir "$id" "$ver" "$distro_ver")"
     [[ -d "$dir" ]] || {
@@ -1111,7 +1177,7 @@ EOF
     else
       mcmt_ver="$(manifest_component_version mcmt-gateway "$distro_ver")"
     fi
-    printf -- '- \`mcmt-gateway-%s.zip\` — Meshtastic ↔ MeshCore bridge\n' "$mcmt_ver"
+    printf -- '- \`mcmt_gateway-%s-py3-none-any.whl\` — Meshtastic ↔ MeshCore bridge (`uv tool install`)\n' "${mcmt_ver#v}"
   fi
   if component_in_distro_bundle peaky "$distro_ver"; then
     if ((preview == 1)); then

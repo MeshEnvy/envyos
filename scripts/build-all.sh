@@ -13,17 +13,19 @@ usage() {
   cat >&2 <<EOF
 usage: envyos build [options] [firmware-version] [build-mota options…]
 
-  (default)         Bootloader + motatool (all platforms) + firmware/.mota + peaky/envybot (if pinned) + release/
+  (default)         Bootloader + motatool (all platforms) + firmware/.mota + peaky/envybot/mcmt (if pinned) + release/
   --bootloader-only Bootloader only
   --firmware-only   Firmware/.mota only (aliases: --mota-only, --no-bootloader)
   --motatool-only   motatool release binaries (all platforms)
   --peaky-only      Peaky host binary only
   --envybot-only    Envybot wheel only
+  --mcmt-only       mcmt-gateway wheel only
   --release-only    Refresh build/<branch>/release/ from bench (no builds)
   --clean           Wipe bench output trees and force full rebuild
   --no-release      Skip release/ after build
   --no-peaky        Skip peaky even when peaky= is pinned
   --no-envybot      Skip envybot even when envybot= is pinned
+  --no-mcmt         Skip mcmt-gateway even when mcmt-gateway= is pinned
   --list-versions   Print MANIFEST.json and exit
   --list-targets    Print scripts/targets.txt and exit
   --list-boards     Print otafix boards from targets.txt and exit
@@ -38,6 +40,7 @@ BUILD_MOTATOOL=1
 BUILD_FIRMWARE=1
 BUILD_PEAKY=1
 BUILD_ENVYBOT=1
+BUILD_MCMT=1
 BUILD_RELEASE=1
 BUILD_CLEAN=0
 MOTA_ARGS=()
@@ -53,6 +56,7 @@ while (($# > 0)); do
       BUILD_FIRMWARE=0
       BUILD_PEAKY=0
       BUILD_ENVYBOT=0
+      BUILD_MCMT=0
       BUILD_RELEASE=0
       shift
       ;;
@@ -73,6 +77,10 @@ while (($# > 0)); do
       shift
       exec "$META/envybot/build.sh" "$@"
       ;;
+    --mcmt-only)
+      shift
+      exec "$META/mcmt-gateway/build.sh" "$@"
+      ;;
     --release-only | --stage-only)
       shift
       populate_distro_release "$@"
@@ -88,6 +96,10 @@ while (($# > 0)); do
       ;;
     --no-envybot)
       BUILD_ENVYBOT=0
+      shift
+      ;;
+    --no-mcmt)
+      BUILD_MCMT=0
       shift
       ;;
     --list-versions)
@@ -117,7 +129,7 @@ while (($# > 0)); do
   esac
 done
 
-if ((BUILD_BL == 0 && BUILD_MOTATOOL == 0 && BUILD_FIRMWARE == 0 && BUILD_PEAKY == 0 && BUILD_ENVYBOT == 0 && BUILD_RELEASE == 0)); then
+if ((BUILD_BL == 0 && BUILD_MOTATOOL == 0 && BUILD_FIRMWARE == 0 && BUILD_PEAKY == 0 && BUILD_ENVYBOT == 0 && BUILD_MCMT == 0 && BUILD_RELEASE == 0)); then
   echo "error: nothing to build" >&2
   exit 1
 fi
@@ -127,7 +139,7 @@ maybe_migrate_version_bench_to_slot "$distro_ver"
 bench_root="$(distro_bench_root "$distro_ver")"
 release_root="$(distro_release_root "$distro_ver")"
 
-if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1 || BUILD_ENVYBOT == 1)); then
+if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1 || BUILD_ENVYBOT == 1 || BUILD_MCMT == 1)); then
   echo "==> EnvyOS build (slot: $distro_ver$( ((BUILD_CLEAN == 1)) && printf ', clean'))"
   list_manifest | sed 's/^/    /'
   export ENVYOS_SKIP_RELEASE=1
@@ -184,6 +196,12 @@ if ((BUILD_ENVYBOT == 1)) && ver="$(read_optional_manifest_key envybot 2>/dev/nu
   "$META/envybot/build.sh"
 fi
 
+if ((BUILD_MCMT == 1)) && ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
+  echo ""
+  echo "==> mcmt-gateway ($ver)"
+  "$META/mcmt-gateway/build.sh"
+fi
+
 unset ENVYOS_SKIP_RELEASE
 
 if ((BUILD_RELEASE == 1)); then
@@ -191,7 +209,7 @@ if ((BUILD_RELEASE == 1)); then
   populate_distro_release "$distro_ver"
 fi
 
-if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1 || BUILD_ENVYBOT == 1)); then
+if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1 || BUILD_ENVYBOT == 1 || BUILD_MCMT == 1)); then
   echo ""
   echo "==> EnvyOS build complete"
   if ((BUILD_BL == 1)); then
@@ -208,6 +226,9 @@ if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY 
   fi
   if ((BUILD_ENVYBOT == 1)) && ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
     echo "    bench/envybot:    $(envybot_bench_root "$distro_ver" "$ver")/"
+  fi
+  if ((BUILD_MCMT == 1)) && ver="$(read_optional_manifest_key mcmt-gateway 2>/dev/null)"; then
+    echo "    bench/mcmt:       $(mcmt_gateway_bench_root "$distro_ver" "$ver")/"
   fi
   if ((BUILD_RELEASE == 1)); then
     echo "    release:          $release_root/"

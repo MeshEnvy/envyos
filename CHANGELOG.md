@@ -7,6 +7,7 @@ EnvyOS distro release notes. Versions match git tags (`v0.1.x`).
 ### Added
 
 - **envybot:** Native host package pinned at 0.1.0. `./envyos build envybot` stages `envybot-<ver>-py3-none-any.whl` from the sibling checkout. Book stays private.
+- **mcmt-gateway:** Native host package pinned at 0.1.0 (`Imperator4422/mcmt-gateway`, GPL-3.0). `./envyos build mcmt-gateway` stages `mcmt_gateway-<ver>-py3-none-any.whl` via `uv build`.
 
 ### Changed
 

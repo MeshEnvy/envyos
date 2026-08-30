@@ -128,6 +128,17 @@ envybot_wheel_basename() {
   printf 'envybot-%s-py3-none-any.whl' "${ver#v}"
 }
 
+mcmt_gateway_bench_root() {
+  local tree_key=${1:-$(read_bench_tree_key)}
+  local mcmt_ver=${2:-$(read_mcmt_gateway_version 2>/dev/null || echo v0.0.0)}
+  package_bench_root "$tree_key" mcmt-gateway "$mcmt_ver"
+}
+
+mcmt_gateway_wheel_basename() {
+  local ver=${1:-$(read_mcmt_gateway_version 2>/dev/null || echo v0.0.0)}
+  printf 'mcmt_gateway-%s-py3-none-any.whl' "${ver#v}"
+}
+
 migrate_bootloader_package_tree() {
   local tree_key=$1 bl_ver=$2
   local dest src
@@ -261,6 +272,7 @@ submodule_git_sha() {
     meshcore) path="$MESHCORE_ROOT" ;;
     bootloader) path="$BOOTLOADER_SRC" ;;
     motatool) path="$MOTATOOL_ROOT" ;;
+    mcmt-gateway) path="$MCMT_ROOT" ;;
     meshcore-open) path="$MESHCORE_OPEN_ROOT" ;;
     *)
       echo "?"
@@ -1223,7 +1235,7 @@ create_distro_full_tgz() {
     if [[ -n "$ver" ]]; then
       src="$(component_build_dir mcmt-gateway "$ver" "$distro_ver")"
       if [[ -d "$src" ]]; then
-        pkg_name="mcmt-gateway-${ver#v}"
+        pkg_name="$(basename "$src")"
         [[ -d "$staging/$root_name/bench/$pkg_name" ]] || {
           cp -a "$src" "$staging/$root_name/bench/$pkg_name"
           included+=("$pkg_name")
@@ -1332,10 +1344,10 @@ populate_distro_release() {
   fi
   if component_in_distro_bundle mcmt-gateway "$distro_ver"; then
     mcmt_ver="$(read_mcmt_gateway_version)"
-    if [[ -d "$(component_build_dir mcmt-gateway "$mcmt_ver" "$distro_ver")" ]]; then
-      zip="$(create_component_zip mcmt-gateway "$mcmt_ver")"
-      dst="$release_dir/$(basename "$zip")"
-      cp -f "$zip" "$dst"
+    wheel="$(mcmt_gateway_bench_root "$distro_ver" "$mcmt_ver")/$(mcmt_gateway_wheel_basename "$mcmt_ver")"
+    if [[ -f "$wheel" ]]; then
+      dst="$release_dir/$(basename "$wheel")"
+      cp -f "$wheel" "$dst"
       staged+=("$dst")
     fi
   fi
