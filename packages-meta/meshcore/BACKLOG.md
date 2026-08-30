@@ -34,7 +34,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
-| EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | Slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full | icebox |
+| EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | NOR/mota layout first; then slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full. EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 already built. | icebox |
 | EC-017 | Admin CLI force clock backwards | `feature/clock-force` | P2 | S | EC-001 | `time force <epoch>` sets RTC when node is ahead; stock `time`/`clock sync` still refuse | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
@@ -211,6 +211,7 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 | Date | Note |
 |------|------|
+| 2026-08-30 | EC-016: EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 built. Slim firmware still icebox until NOR/mota layout. |
 | 2026-08-30 | EC-017: admin CLI force clock backwards. Stock `time`/`clock sync` refuse past; remote field repair needs a force. Enterprise `ops/initiatives/meshcore-clock-force.md`. |
 | 2026-08-30 | EC-012 → P1. Field seeder advertise/serve must reject unsigned (operator). Enterprise `ops/initiatives/signed-mota-deltas.md`. |
 | 2026-08-25 | Opened backlog; split `envyos/dev-pre-split` monolith into feature branches. **`envyos/main` stays on v1.16 + 0.1.3 hotfix** until items are pulled deliberately. |
