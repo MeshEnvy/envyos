@@ -223,7 +223,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
-- **Meshcore backlog split (2026-08-25):** EC-001–EC-009 on separate `feature/*` branches; canonical queue `packages/meshcore/BACKLOG.md`. **`envyos/main` stays v1.16 / 0.1.3** until items pulled deliberately. Monolith preserved at tag `envyos/dev-pre-split`.
+- **Meshcore backlog split (2026-08-25):** EC-002–EC-009 still on `feature/*`; canonical queue `packages-meta/meshcore/BACKLOG.md`. **EC-001 merged_main (2026-08-29):** `companion-v1.17.1` on `envyos/main` @ `3881ceb1` (integrate `2cf4a528`). Native + slim passed. Not published. Monolith tag `envyos/dev-pre-split`.
 - **P0 (operator, 2026-07-31): advert lockup on `rak4631-repeater-slim`** — admin settings change then advert → freeze; **adverts disabled in field**. Ops: `initiatives/envyos-field-stability.md`.
 - **Watchdog:** port from meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); note [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged (power-saving feed change).
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.

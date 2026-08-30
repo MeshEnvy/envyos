@@ -20,7 +20,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 
 | ID | Item | Branch | Priority | Effort | Depends | Bench gate | Status |
 |----|------|--------|----------|--------|---------|------------|--------|
-| EC-001 | MeshCore companion-v1.17 upgrade | `feature/companion-v1.17` | P1 | L | EC-000 | slim repeater build; native tests; FRESHEN.lock v2 | backlog |
+| EC-001 | MeshCore companion-v1.17.1 upgrade | `feature/companion-v1.17` | P1 | L | EC-000 | slim repeater build; native tests; FRESHEN.lock v2 | merged_main |
 | EC-002 | nRF52 hardware WDT + EnvyBoot gate | `feature/nrf52-watchdog` | P1 | M | EC-001 | WDT trip/recover; OTA apply with EnvyBoot WDT feed | backlog |
 | EC-003 | EndF version restamp on rebuild | `feature/endf-restamp` | P2 | S | EC-001 | Rebuild same version — EndF trailer matches | backlog |
 | EC-004 | doctor CLI + atomic prefs | `feature/doctor` | P1 | M | EC-001 | `doctor check`; atomic prefs save under low FS space | backlog |
@@ -33,6 +33,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist | `feature/ota-provenance` | P2 | M | EC-001 | Release mota verifies + applies with allowlisted signer; rejects unknown signer | backlog |
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
+| EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
@@ -210,3 +211,5 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 | 2026-08-28 | EC-014 refined: known path to sink; retry zero-hop until ACK; hop ships self + queued predecessors (custody transfer). |
 | 2026-08-28 | EC-014 routing: **next hop, not set path.** Know sink dest; any node that has heard the sink may accept. |
 | 2026-08-28 | EC-014 marked incomplete: app on a real delivery layer, not a MeshCore routing project. "IP too heavy" = stack folklore, not dest/ACK/next-hop. → `darticulum-reticulum`. |
+| 2026-08-29 | EC-001: merged `companion-v1.17.1` onto 1.17.0 overlay (`envyos/integrate/companion-v1.17.1`). Native tests + slim build passed. Status `bench`. Not on `envyos/main`. |
+| 2026-08-29 | EC-001 landed on `envyos/main` (`2cf4a528` integrate, `3881ceb1` lock). Pulled EnvyBoot + T096. Status `merged_main`. Not published. |

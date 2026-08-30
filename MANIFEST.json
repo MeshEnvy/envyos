@@ -9,8 +9,8 @@
         },
         "meshcore": {
           "repo": "MeshEnvy/meshcore-firmware",
-          "version": "1.16.0-ev1",
-          "sha": "70694fd9dc4b130cbd0030d720b5b8db3ffe04a2"
+          "version": "1.17.1-ev1",
+          "sha": "3881ceb19da850b0ec7036637bd361bf604ed8e6"
         },
         "motatool": {
           "repo": "MeshEnvy/motatool",
@@ -20,7 +20,6 @@
       }
     },
     "v0.1.0": {
-      "published": "2026-07-26",
       "packages": {
         "bootloader": {
           "repo": "MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX",
@@ -37,10 +36,10 @@
           "version": "0.1.0",
           "sha": ""
         }
-      }
+      },
+      "published": "2026-07-26"
     },
     "v0.1.1": {
-      "published": "2026-08-03",
       "packages": {
         "bootloader": {
           "repo": "MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX",
@@ -57,10 +56,10 @@
           "version": "0.1.0",
           "sha": ""
         }
-      }
+      },
+      "published": "2026-08-03"
     },
     "v0.1.2": {
-      "published": "2026-08-20",
       "packages": {
         "bootloader": {
           "repo": "MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX",
@@ -77,10 +76,10 @@
           "version": "0.1.0",
           "sha": ""
         }
-      }
+      },
+      "published": "2026-08-20"
     },
     "v0.1.3": {
-      "published": "2026-08-27",
       "packages": {
         "bootloader": {
           "repo": "MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX",
@@ -97,7 +96,8 @@
           "version": "0.1.1",
           "sha": ""
         }
-      }
+      },
+      "published": "2026-08-27"
     }
   }
 }
