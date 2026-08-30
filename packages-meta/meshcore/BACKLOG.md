@@ -14,7 +14,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | **Depends** | Other EC IDs whose branch must merge to `envyos/main` first |
 | **Status** | `backlog` · `in_progress` · `bench` · `merged_main` · `published` · `icebox` |
 
-**`merged_main` means git-merged to `envyos/main` only.** It is not field flash, not a distro publish, and not an upstream PR merge.
+**`merged_main` means git-merged to `envyos/main` only.** It is not field flash, not a distro publish, and not an upstream PR merge. User-facing overlay notes: fork `CHANGELOG.md` plus the README overlay table (PR links). Drop or mark `upstreamed` when a PR merges.
 
 ## Backlog
 

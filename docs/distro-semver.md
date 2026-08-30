@@ -31,10 +31,10 @@ Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a
 ./envyos semver suggest           # CHANGELOG + bundle → proposed vX.Y.Z
 ./envyos publish                  # prompt for tag (or --yes)
 ./envyos publish v0.1.3 --yes     # explicit tag
-./envyos publish --dry-run        # full publish plan (no promote/upload)
+./envyos publish --dry-run        # plan + pins + GitHub notes (no promote/upload)
 ```
 
-At publish, `./envyos` locks SHAs on `releases.next`, records `releases[vX.Y.Z]` from that snapshot, and writes `build/vX.Y.Z/RELEASE_MANIFEST`. GitHub Release notes include the component matrix, `CHANGELOG.md` **`## [Unreleased]`** body (until promoted), and the asset manifest.
+At publish, `./envyos` locks SHAs on `releases.next`, records `releases[vX.Y.Z]` from that snapshot, and writes `build/vX.Y.Z/RELEASE_MANIFEST`. GitHub Release notes include the component matrix, distro `CHANGELOG.md` **`## [Unreleased]`** (until promoted), each package's fork `CHANGELOG.md` pin section, and the asset manifest.
 
 ## CHANGELOG
 

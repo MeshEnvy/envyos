@@ -6,6 +6,7 @@ EnvyOS distro release notes. Versions match git tags (`v0.1.x`).
 
 ### Changed
 
+- **tooling:** Distro GitHub Release notes include each package fork `CHANGELOG.md` pin section (meshcore overlay) plus distro `CHANGELOG.md`. `./envyos publish --dry-run` prints the full notes body.
 - **tooling:** Distro-owned packaging (`packages-meta/`, upstream-evN pins, `./envyos build <pkg>`).
 - **tooling:** Bench artifacts live under `build/<git-branch>/bench/`; published releases under `build/vX.Y.Z/` (promoted at `./envyos publish`).
 - **tooling:** `./envyos publish` suggests the next tag from CHANGELOG + bundle policy (`./envyos semver suggest`; see `docs/distro-semver.md`).

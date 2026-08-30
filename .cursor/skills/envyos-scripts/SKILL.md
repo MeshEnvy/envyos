@@ -45,9 +45,9 @@ Package pins live in **`MANIFEST.json` `releases.next`** (mirrors `packages-meta
 | `motatool` | `upstream-evN` — `build/<branch>/bench/motatool-<ver>/` |
 | `peaky` | optional semver pin — staged from GitHub release cache |
 
-Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_manifest`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**.
+Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_manifest`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**. Meshcore overlay notes: **`packages/meshcore/CHANGELOG.md`** (publish folds the pin section into distro release notes).
 
-**Publish** — `./envyos publish [vX.Y.Z]` (run **`./envyos build`** first):
+**Publish** — `./envyos publish [vX.Y.Z]` (run **`./envyos build`** first). `./envyos publish --dry-run` prints the plan, `releases.next` pins, and the GitHub notes body.
 
 1. Suggest tag: `./envyos semver suggest` (CHANGELOG + bundle policy)
 2. Promote `build/<branch>/bench/` → `build/<ver>/`

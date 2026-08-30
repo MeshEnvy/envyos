@@ -940,7 +940,7 @@ release_notes_for_distro() {
   distro_ver="$(normalize_version "$distro_ver")"
 
   if ((preview == 1)); then
-    firmware_ver="$distro_ver"
+    firmware_ver="$(read_firmware_version)"
     bootloader_ver="$(read_bootloader_version)"
     motatool_ver="$(read_motatool_version)"
     published="$(date '+%Y-%m-%d')"

@@ -16,11 +16,9 @@ Peaky and mcmt keep **independent semver** (like motatool). EnvyOS `publish.sh` 
 | Layer | Purpose |
 |-------|---------|
 | **Git commits** | Conventional Commits for history, review, bisect. |
-| **`CHANGELOG.md`** | User-facing bullets grouped by release (Keep a Changelog). |
+| **`CHANGELOG.md`** | Distro notes in `envyos/`. Overlay notes on patched-upstream forks (meshcore) when upstream has no changelog. |
 
-User-visible changes go under **`## [Unreleased]`** in the same change set as the code. At release, promote to **`## [vX.Y.Z] - YYYY-MM-DD`**, open a fresh Unreleased, run `./scripts/changelog.sh check vX.Y.Z`, tag and push.
-
-GitHub Release bodies come from `CHANGELOG.md`, not commit subjects.
+User-visible **distro** changes go under **`## [Unreleased]`** in `envyos/CHANGELOG.md`. Overlay work goes under **`## [Unreleased]`** in the fork `CHANGELOG.md` (promote into the open `evN` heading until that pin ships). GitHub Release bodies come from those files, not commit subjects.
 
 ## Distro coupling
 

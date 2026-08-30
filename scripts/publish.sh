@@ -23,7 +23,7 @@ usage: $0 [version] [--yes] [--dry-run] [--no-tag] [--no-release]
 
 options:
   --yes           Accept changelog-suggested version without prompting
-  --dry-run       Print recommendation and exit (no promote/lock/upload)
+  --dry-run       Print plan + GitHub notes and exit (no promote/lock/upload)
   --release-only  Re-upload GitHub Release assets for an already-published distro
   --no-tag        Skip creating a local git tag
   --no-release    Skip GitHub Release upload (stage dir is still built)
@@ -31,7 +31,7 @@ options:
 examples:
   $0                          # suggest tag, prompt, promote, publish
   $0 v0.1.3 --yes             # publish explicit tag
-  $0 --dry-run                # show suggested bump only
+  $0 --dry-run                # plan, pins, GitHub notes (no writes)
   $0 --release-only v0.1.0    # backfill GitHub release assets
 EOF
   exit 2

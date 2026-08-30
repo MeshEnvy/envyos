@@ -1,13 +1,13 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts); identity and overlay notes live in **`packages-meta/`**.
+MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts). Overlay inventory + evN notes live on the meshcore fork (`README.md` § EnvyOS overlay, `CHANGELOG.md`).
 
 ## Layout
 
 | Path | Role |
 |------|------|
 | `packages/` | Gitignored workbenches — `meshcore`, `bootloader`, `motatool`, `mcmt-gateway`, `meshcore-open` |
-| `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md`, `RELEASES`, `BACKLOG.md` (meshcore) |
+| `packages-meta/<pkg>/` | Tracked recipe — `PACKAGE`, **`build.sh`**, `VERSION` (`upstream` + `ev`), `CHANGELOG.md` (pointer/fallback), `RELEASES`, `BACKLOG.md` (meshcore) |
 | `scripts/` | Shared distro machinery — `envyos` CLI, `version.sh`, `build-lib.sh`, `build-all.sh`, `publish.sh`, `targets.txt` (recipes live in `packages-meta/<pkg>/build.sh`) |
 | `build/` | Bench (`build/<branch>/bench/…`) and immutable `build/vX.Y.Z/` after publish |
 | `MANIFEST.json` | `releases.next` (bench head) + `releases[vX.Y.Z]` (immutable publish snapshots) |
@@ -76,6 +76,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 | Next-hop retry (echo-primary) | `feature/next-hop-retry` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) | `dev` | yes |
 | Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
 | FS corruption boot fsck (companion) | `feature/fs-corruption-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) (draft) | `dev` | yes |
+| ConfigSerializer `rd_len` uint16_t | `fix/config-serializer-rd-len` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3322](https://github.com/meshcore-dev/MeshCore/pull/3322) | `dev` | yes |
 
 **Sync rule:** while a PR is open, commits for that feature go to **`envyos/dev` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
 
@@ -228,7 +229,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 - **Watchdog:** port from meshcore [#1417](https://github.com/meshcore-dev/MeshCore/pull/1417), [#2405](https://github.com/meshcore-dev/MeshCore/pull/2405), [#1962](https://github.com/meshcore-dev/MeshCore/pull/1962); note [#2952](https://github.com/meshcore-dev/MeshCore/pull/2952) merged (power-saving feed change).
 - **Hop retry / mcsim:** [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) — usrflo mcsim ACK regression; keep **hop.retry=0** on fleet. Doc: `ops/docs/2026-07-31-meshcore-pr-2980-mcsim-discussion.md`.
 - **Mota matrix:** `packages-meta/meshcore/build.sh` emits `delta_from_<B>.mota` for every prior version B that has base hex for that slug (new targets skip older bases).
-- meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion)
+- meshcore-dev PRs (sync `feature/*` + `envyos/main` while open): [#2980](https://github.com/meshcore-dev/MeshCore/pull/2980) next-hop retry, [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) log tail, [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) boot fsck (draft — pending bench verify of recovery path; root cause: corrupt lfs + lazy `lfs_deorphan` on first FS write → freeze; corruption source incl. repeater `.mota` staging over ExtraFS 0xD4000 then re-role to companion), [#3322](https://github.com/meshcore-dev/MeshCore/pull/3322) ConfigSerializer `rd_len` uint16_t
 - vk496 OTA PRs (contribution target; merged on `envyos/main`): MeshCore #3 staging ceiling, motatool #1, OTAFIX #2, #4 slim, [#5](https://github.com/vk496/MeshCore/pull/5) superseeder
 - **Direction (operator, 2026-07-23): firmware SD superseeders (32 GB cards) replace `motatool serve` as the seeding path** — "being tethered to an external device is a chronic failure point." Don't invest further in serve-based seeding; motatool remains for pack/verify/delta. Enterprise context: `ops/initiatives/regional-ingestors.md`.
 - **Candidate enhancement (operator, 2026-07-25): compressed-full codec (heatshrink) for self-serve** — firmware produces a heatshrink `.mota` of its own running image (like motatool would), closing the ~55 KB gap that stops same-target peers from staging a full slim image (~426 KB mota vs ~372 KB headroom). Enables laptop-free epidemic full-image seeding between identical repeaters. Scope: new codec in OtaFormat + motatool parity + decode in the apply path (OTAFIX applies staged motas, so the bootloader is in scope too). Greenfield rules apply. **Not a showstopper — delta seeder covers today's need**; candidate for pre-Orlando OTA polish or later.

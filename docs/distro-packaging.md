@@ -64,7 +64,7 @@ Component semver history for delta bases: **`packages-meta/*/RELEASES`**.
 - **Carries** across an upstream bump when the overlay is unchanged (`1.17.0-ev5` → `1.18.0-ev5`).
 - **Bumps** when the overlay changes (feature added, patch dropped because upstream merged it, etc.).
 - **Dropped** when the overlay is empty (pure upstream).
-- **Release notes** for an ev bump live in `packages-meta/<pkg>/CHANGELOG.md`.
+- **Release notes** for an ev bump live in the fork `CHANGELOG.md` (meshcore: `packages/meshcore/CHANGELOG.md`). `packages-meta/<pkg>/CHANGELOG.md` is a pointer or fallback when the fork file is absent.
 
 Firmware stamps `FIRMWARE_VERSION` as packed `a.b.c.ev` (fourth byte = ev). Delta `.mota` bases are **hash-keyed** (`base_hash` == running image body hash); evN does not affect delta mechanics.
 
@@ -108,7 +108,7 @@ Each bundled package has:
 | `PACKAGE` | class, upstream repo, PR bases, artifact basename |
 | `build.sh` | the package recipe — how EnvyOS builds/stages this package |
 | `VERSION` | `upstream=X.Y.Z`, `ev=N` (patched) or `version=X.Y.Z` (native) |
-| `CHANGELOG.md` | user-facing overlay/release notes |
+| `CHANGELOG.md` | pointer / fallback. Overlay notes: fork `CHANGELOG.md` |
 | `RELEASES` | shipped component versions (immutable after publish; semver and `-evN`) |
 
 `./envyos build <pkg>` dispatches generically to `packages-meta/<pkg>/build.sh`.

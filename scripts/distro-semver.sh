@@ -29,6 +29,7 @@ manifest_bundle_ids() {
 
 changelog_section_body() {
   local heading=$1
+  local file=${2:-$CHANGELOG_FILE}
   awk -v want="$heading" '
     BEGIN { capture = 0 }
     /^## \[/ {
@@ -40,11 +41,71 @@ changelog_section_body() {
       next
     }
     capture { print }
-  ' "$CHANGELOG_FILE" 2>/dev/null
+  ' "$file" 2>/dev/null
 }
 
 changelog_unreleased_body() {
-  changelog_section_body "Unreleased"
+  changelog_section_body "Unreleased" "${1:-$CHANGELOG_FILE}"
+}
+
+changelog_text_nonempty() {
+  [[ -n "$(printf '%s' "${1:-}" | tr -d '[:space:]')" ]]
+}
+
+package_overlay_changelog_file() {
+  local pkg=$1
+  local fork="$PACKAGES_ROOT/$pkg/CHANGELOG.md"
+  local meta="$PACKAGES_META_ROOT/$pkg/CHANGELOG.md"
+  if [[ -f "$fork" ]]; then
+    printf '%s' "$fork"
+  elif [[ -f "$meta" ]]; then
+    printf '%s' "$meta"
+  fi
+}
+
+# Distro Unreleased (or matching tag) plus per-package overlay notes.
+changelog_body_for_distro_release() {
+  local distro_ver=$1
+  local section file ver pkg out=""
+  local heading
+
+  distro_ver="$(normalize_version "$distro_ver")"
+  heading="$distro_ver"
+  section="$(changelog_section_body "$heading")"
+  if ! changelog_text_nonempty "$section"; then
+    heading="v${distro_ver}"
+    section="$(changelog_section_body "$heading")"
+  fi
+  if ! changelog_text_nonempty "$section"; then
+    section="$(changelog_unreleased_body)"
+  fi
+  if changelog_text_nonempty "$section"; then
+    out+="#### Distro"$'\n\n'"${section}"$'\n'
+  fi
+
+  for pkg in meshcore bootloader motatool; do
+    file="$(package_overlay_changelog_file "$pkg")"
+    [[ -n "$file" ]] || continue
+    ver="$(read_release_manifest_key "$distro_ver" "$pkg" 2>/dev/null || true)"
+    if [[ -z "$ver" ]]; then
+      ver="$(read_package_version "$pkg" 2>/dev/null || true)"
+    fi
+    section=""
+    if [[ -n "$ver" ]]; then
+      section="$(changelog_section_body "$ver" "$file")"
+    fi
+    if ! changelog_text_nonempty "$section"; then
+      section="$(changelog_unreleased_body "$file")"
+    fi
+    if changelog_text_nonempty "$section"; then
+      out+=$'\n'"#### ${pkg}"
+      [[ -n "$ver" ]] && out+=" (${ver})"
+      out+=$'\n\n'"${section}"$'\n'
+    fi
+  done
+
+  changelog_text_nonempty "$out" || return 1
+  printf '%s' "$out"
 }
 
 changelog_has_pattern() {
@@ -200,4 +261,56 @@ print_distro_publish_recommendation() {
   echo "Last published:    ${last:-(none)}"
   echo "Changelog suggests: $level"
   echo "Proposed tag:      $proposed"
+}
+
+print_distro_bump_summary() {
+  print_distro_publish_recommendation
+}
+
+# Full console dump for `./envyos publish --dry-run`: plan, pins, GitHub notes, staged files.
+print_distro_publish_plan() {
+  local distro_ver=$1
+  local slot=$2
+  local git_tag=${3:-1}
+  local github_release=${4:-1}
+  local preview=1
+  local dir f count=0 last_dir=""
+
+  distro_ver="$(normalize_version "$distro_ver")"
+  if is_published_distro_tag "$distro_ver" 2>/dev/null; then
+    preview=0
+  fi
+
+  echo "Publish plan (dry-run — no promote, lock, tag, or upload)"
+  echo ""
+  echo "Tag:            $distro_ver"
+  echo "Build slot:     $slot"
+  echo "Git tag:        $( ((git_tag)) && echo yes || echo no )"
+  echo "GitHub release: $( ((github_release)) && echo yes || echo no )"
+  echo ""
+  print_distro_publish_recommendation
+  echo ""
+  echo "releases.next"
+  list_manifest | sed 's/^/  /'
+  echo ""
+  echo "GitHub release notes"
+  echo "--------------------"
+  release_notes_for_distro "$distro_ver" "$preview"
+  echo "--------------------"
+  echo ""
+  echo "Staged upload files (read-only)"
+  for dir in "$(distro_release_root "$slot")" "$(distro_release_root "$distro_ver")"; do
+    [[ -d "$dir" ]] || continue
+    [[ "$dir" == "$last_dir" ]] && continue
+    last_dir="$dir"
+    echo "  $dir"
+    while IFS= read -r f || [[ -n "$f" ]]; do
+      [[ -n "$f" ]] || continue
+      printf '    %s\n' "$(basename "$f")"
+      count=$((count + 1))
+    done < <(find "$dir" -maxdepth 1 -type f ! -name MANIFEST.txt | sort)
+  done
+  if ((count == 0)); then
+    echo "  (none — run ./envyos build to populate build/${slot}/release/)"
+  fi
 }
