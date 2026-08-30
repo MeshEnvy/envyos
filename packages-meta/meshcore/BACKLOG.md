@@ -34,6 +34,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
+| EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | Slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full | icebox |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
