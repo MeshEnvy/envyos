@@ -175,7 +175,7 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 
 **Status ping detail:** `simple_repeater/MyMesh.cpp` `handleRequest()` serves `REQ_TYPE_GET_STATUS` to guest ACL clients today (`// guests can also access this now`). Stealth closes that hole so strangers cannot confirm node presence or read uptime/battery/RSSI without an admin key.
 
-**Fleet tooling:** `peaky-nevada/scripts/poll_fleet_versions.py --ping` uses unauthenticated `req_status_sync`. On stealth nodes, ping must admin-login first (same path as full poll) or `--ping` will time out. Document in script help when EC-011 ships.
+**Fleet tooling:** `./envybot pull` always admin-logins before status. On stealth nodes, unauthenticated `req_status_sync` will time out — do not add a ping-without-login path.
 
 **Bench gate add-on:** guest status ping → silence; admin status ping → stats reply; relay still forwards third-party traffic.
 
