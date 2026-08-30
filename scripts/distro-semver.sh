@@ -178,7 +178,7 @@ bundle_set_diff_level() {
     }
   done <<<"$cur_ids"
 
-  for key in bootloader motatool mcmt-gateway peaky; do
+  for key in bootloader motatool mcmt-gateway peaky envybot; do
     last_val="$(read_release_manifest_key "$last" "$key" 2>/dev/null || true)"
     cur_val=""
     case "$key" in
@@ -186,6 +186,7 @@ bundle_set_diff_level() {
       motatool) cur_val="$(read_motatool_version 2>/dev/null || true)" ;;
       mcmt-gateway) cur_val="$(read_optional_manifest_key mcmt-gateway 2>/dev/null || true)" ;;
       peaky) cur_val="$(read_optional_manifest_key peaky 2>/dev/null || true)" ;;
+      envybot) cur_val="$(read_optional_manifest_key envybot 2>/dev/null || true)" ;;
     esac
     [[ -n "$last_val" && -n "$cur_val" ]] || continue
     [[ "$last_val" == "$cur_val" ]] && continue
@@ -206,7 +207,7 @@ bundle_set_diff_level() {
 suggest_distro_bump_level() {
   local last level
 
-  if changelog_has_pattern '(^|[[:space:]])breaking|removed bundled|drop (peaky|mcmt|motatool|bootloader)'; then
+  if changelog_has_pattern '(^|[[:space:]])breaking|removed bundled|drop (peaky|mcmt|motatool|bootloader|envybot)'; then
     printf '%s\n' major
     return 0
   fi
@@ -223,7 +224,7 @@ suggest_distro_bump_level() {
     fi
   fi
 
-  if changelog_has_pattern 'added (peaky|mcmt|mcmt-gateway|motatool|bootloader)|new board|new target|new platform'; then
+  if changelog_has_pattern 'added (peaky|mcmt|mcmt-gateway|motatool|bootloader|envybot)|new board|new target|new platform'; then
     printf '%s\n' minor
     return 0
   fi

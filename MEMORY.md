@@ -1,6 +1,6 @@
 # EnvyOS — agent memory
 
-MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater enhancements. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts). Overlay inventory + evN notes live on the meshcore fork (`README.md` § EnvyOS overlay, `CHANGELOG.md`).
+MeshEnvy's **mesh-utility distro** (Linux-shaped): firmware, host tools, and clients, pinned and bundled together. MeshCore/OTA is the current stack, not the whole product. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts). Overlay inventory + evN notes live on the meshcore fork (`README.md` § EnvyOS overlay, `CHANGELOG.md`).
 
 ## Layout
 
@@ -12,6 +12,7 @@ MeshEnvy's MeshCore distro: OTA over LoRa, routing improvements, and repeater en
 | `build/` | Bench (`build/<branch>/bench/…`) and immutable `build/vX.Y.Z/` after publish |
 | `MANIFEST.json` | `releases.next` (bench head) + `releases[vX.Y.Z]` (immutable publish snapshots) |
 | `peaky_finders/` | Workspace sibling — GitHub releases when `peaky=` pinned |
+| `../envybot/` | Workspace sibling — wheel when `envybot=` pinned |
 | `packages/meshcore-open/` | Flutter MeshCore client workbench (`MeshEnvy/meshcore-open`; `./envyos fetch meshcore-open`) |
 
 Doctrine: [`docs/distro-packaging.md`](docs/distro-packaging.md).
@@ -82,7 +83,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 
 vk496 / motatool / otafix PRs: see **Active threads** below and `envyos-meshcore` skill PR table.
 
-Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,meshcore-open}` (+ peaky sibling)`.
+Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,meshcore-open}` (+ peaky + envybot siblings)`.
 
 ## Released versions (immutable)
 
@@ -100,6 +101,7 @@ Sibling checkouts live at ``packages/{meshcore,bootloader,motatool,mcmt-gateway,
 - `bootloader` → **`build/<branch>/bench/bootloader-<ver>/`**. On-device `get bootloader.ver` / `EnvyBoot` UF2 stamp is packages-meta `0.9.2-evN` (`ENVYBOOT_VERSION`), not `git describe` or OTAFIX-BP tags.
 - `motatool` → **`build/<branch>/bench/motatool-<ver>/`** (artifact); working copy under bench motatool tree
 - `peaky` → local `cargo build` when pinned
+- `envybot` → sibling `uv build` wheel when pinned (`envybot-<ver>-py3-none-any.whl`)
 - **Firmware build:** `./envyos build meshcore` (dispatches to `packages-meta/meshcore/build.sh`). Requires staged **`motatool`** on PATH (`./envyos build motatool`) or **`MOTATOOL=`** override.
 
 ## OTA targets (`scripts/targets.txt`)

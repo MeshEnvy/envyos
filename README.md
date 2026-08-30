@@ -1,6 +1,6 @@
 # EnvyOS
 
-EnvyOS is a MeshCore-based distribution that builds upon the best open source projects and adds enhancements for a cohesive ux:
+EnvyOS is a distro of mesh-related utilities (firmware, host tools, clients). It builds on open-source projects and adds a cohesive UX. Current stack is MeshCore-based:
 
 * MeshCore
 * Bootlaoder

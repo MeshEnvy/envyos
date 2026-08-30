@@ -13,7 +13,7 @@ envyos/
   MANIFEST.json       # releases.next (bench) + releases[vX.Y.Z] (shipped)
 ```
 
-Peaky remains a workspace sibling (`peaky_finders/`); the distro consumes its GitHub releases when pinned.
+Peaky and envybot remain workspace siblings (`peaky_finders/`, `envybot/`). The distro consumes their artifacts when pinned.
 
 ## MANIFEST.json
 
@@ -54,7 +54,7 @@ Component semver history for delta bases: **`packages-meta/*/RELEASES`**.
 | Class | Packages | Version form |
 |-------|----------|--------------|
 | **Patched upstream** | meshcore, bootloader, motatool | `<upstream>-evN` (e.g. `1.16.0-ev1`) |
-| **Native** | mcmt-gateway, peaky | own semver, no `-evN` |
+| **Native** | mcmt-gateway, peaky, envybot | own semver, no `-evN` |
 
 `-evN` means "carries EnvyOS overlay patches." Absence of `-evN` means stock upstream (overlay fully upstreamed).
 

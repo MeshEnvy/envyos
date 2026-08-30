@@ -15,12 +15,13 @@ MCMT_ROOT="${MCMT_ROOT:-$PACKAGES_ROOT/mcmt-gateway}"
 MOTATOOL_ROOT="${MOTATOOL_ROOT:-$PACKAGES_ROOT/motatool}"
 MESHCORE_OPEN_ROOT="${MESHCORE_OPEN_ROOT:-$PACKAGES_ROOT/meshcore-open}"
 PEAKY_ROOT="${PEAKY_ROOT:-$MESHENVY_ROOT/peaky_finders}"
+ENVYBOT_ROOT="${ENVYBOT_ROOT:-$(cd "$OTA_ROOT/.." && pwd)/envybot}"
 
 BUILD_ROOT="$OTA_ROOT/build"
 PEAKY_GITHUB_REPO="${PEAKY_GITHUB_REPO:-MeshEnvy/peaky-finders}"
 export ENVYOS_ROOT="$OTA_ROOT"
 export MANIFEST_JSON MANIFEST_PY
-export MESHCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT MESHCORE_OPEN_ROOT PEAKY_ROOT PACKAGES_ROOT PACKAGES_META_ROOT
+export MESHCORE_ROOT BOOTLOADER_SRC MOTATOOL_ROOT MESHCORE_OPEN_ROOT PEAKY_ROOT ENVYBOT_ROOT PACKAGES_ROOT PACKAGES_META_ROOT
 
 manifest_py() {
   python3 "$MANIFEST_PY" "$MANIFEST_JSON" --packages-meta "$PACKAGES_META_ROOT" "$@"
@@ -65,7 +66,7 @@ read_manifest_key() {
   esac
 }
 
-# Optional manifest entries (peaky, mcmt-gateway) — absent until pinned for a distro bundle.
+# Optional manifest entries (peaky, mcmt-gateway, envybot) — absent until pinned for a distro bundle.
 read_optional_manifest_key() {
   local key=$1 val
   [[ -f "$MANIFEST_JSON" ]] || return 1
@@ -79,6 +80,7 @@ read_firmware_version() { read_meshcore_version; }
 read_bootloader_version() { read_manifest_key bootloader; }
 read_motatool_version() { read_manifest_key motatool; }
 read_peaky_version() { read_optional_manifest_key peaky; }
+read_envybot_version() { read_optional_manifest_key envybot; }
 
 read_bootloader_version_file() { read_bootloader_version; }
 
@@ -124,6 +126,25 @@ verify_peaky_version_sync() {
   actual="$(awk '/^\[workspace.package\]/{f=1;next} /^\[/{if(f) exit} f && /^version = /{gsub(/^version = "|"$/,""); print; exit}' "$cargo")"
   [[ "$actual" == "$expected" ]] || {
     echo "error: peaky_finders/Cargo.toml version ($actual) != MANIFEST peaky ($expected)" >&2
+    return 1
+  }
+}
+
+read_envybot_pyproject_version() {
+  local toml="$ENVYBOT_ROOT/pyproject.toml"
+  [[ -f "$toml" ]] || return 1
+  awk '/^version = /{gsub(/^version = "|"$/,""); print; exit}' "$toml"
+}
+
+verify_envybot_version_sync() {
+  local expected="${1#v}"
+  local actual
+  actual="$(read_envybot_pyproject_version)" || {
+    echo "error: envybot repo not found at $ENVYBOT_ROOT" >&2
+    return 1
+  }
+  [[ "$actual" == "$expected" ]] || {
+    echo "error: envybot/pyproject.toml version ($actual) != MANIFEST envybot ($expected)" >&2
     return 1
   }
 }
@@ -385,6 +406,10 @@ verify_components_lock() {
     sha="$(read_component_manifest_sha mcmt-gateway)"
     verify_sibling_sha "$MCMT_ROOT" "$sha" mcmt-gateway || return 1
   fi
+  if manifest_py has envybot --field version 2>/dev/null; then
+    sha="$(read_component_manifest_sha envybot)"
+    verify_sibling_sha "$ENVYBOT_ROOT" "$sha" envybot || return 1
+  fi
 }
 
 lock_manifest_checkouts() {
@@ -396,6 +421,11 @@ lock_manifest_checkouts() {
     local mcmt_sha
     mcmt_sha="$(git -C "$MCMT_ROOT" rev-parse HEAD 2>/dev/null || true)"
     [[ -n "$mcmt_sha" ]] && specs+=("mcmt-gateway=$mcmt_sha")
+  fi
+  if manifest_py has envybot --field version 2>/dev/null; then
+    local envybot_sha
+    envybot_sha="$(git -C "$ENVYBOT_ROOT" rev-parse HEAD 2>/dev/null || true)"
+    [[ -n "$envybot_sha" ]] && specs+=("envybot=$envybot_sha")
   fi
   manifest_py lock "${specs[@]}"
 }
@@ -412,6 +442,9 @@ component_in_distro_bundle() {
       ;;
     peaky)
       read_optional_manifest_key peaky >/dev/null 2>&1
+      ;;
+    envybot)
+      read_optional_manifest_key envybot >/dev/null 2>&1
       ;;
     *) return 0 ;;
   esac
@@ -548,6 +581,51 @@ ensure_peaky_release_cache() {
   }
 }
 
+ensure_envybot_wheel() {
+  local ver=$1 dir distro wheel src
+  ver="$(normalize_version "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  dir="$(envybot_bench_root "$distro" "$ver")"
+  wheel="$dir/$(envybot_wheel_basename "$ver")"
+
+  if [[ -f "$wheel" ]]; then
+    return 0
+  fi
+
+  [[ -d "$ENVYBOT_ROOT" ]] || {
+    echo "error: envybot repo not found at $ENVYBOT_ROOT" >&2
+    return 1
+  }
+
+  if is_component_tree_released envybot "$ver"; then
+    echo "error: envybot $ver is a released tree — $dir is immutable" >&2
+    return 1
+  fi
+
+  command -v uv >/dev/null 2>&1 || {
+    echo "error: uv not on PATH — needed to build the envybot wheel" >&2
+    return 1
+  }
+
+  echo "envybot: uv build ($ENVYBOT_ROOT)"
+  (
+    cd "$ENVYBOT_ROOT"
+    uv build
+  )
+  mkdir -p "$dir"
+  src="$(echo "$ENVYBOT_ROOT"/dist/envybot-"${ver#v}"-py3-none-any.whl)"
+  [[ -f "$src" ]] || {
+    echo "error: uv build did not produce $src" >&2
+    return 1
+  }
+  cp -f "$src" "$wheel"
+  if [[ -f "$ENVYBOT_ROOT/dist/envybot-${ver#v}.tar.gz" ]]; then
+    cp -f "$ENVYBOT_ROOT/dist/envybot-${ver#v}.tar.gz" "$dir/"
+  fi
+  printf '%s\n' "$ver" >"$dir/version.txt"
+  echo "envybot: staged $wheel"
+}
+
 write_released_marker() {
   local ver="$1"
   local dir
@@ -574,13 +652,16 @@ list_release_component_ids() {
   if component_in_distro_bundle peaky "$distro_ver"; then
     printf '%s\n' peaky
   fi
+  if component_in_distro_bundle envybot "$distro_ver"; then
+    printf '%s\n' envybot
+  fi
 }
 
 component_build_root() {
   local id=$1 distro_ver=${2:-}
   distro_ver="${distro_ver:-$(read_bench_tree_key 2>/dev/null || echo dev)}"
   case "$id" in
-    firmware | bootloader | motatool | peaky) distro_bench_root "$distro_ver" ;;
+    firmware | bootloader | motatool | peaky | envybot) distro_bench_root "$distro_ver" ;;
     mcmt-gateway) printf '%s/dist' "$MCMT_ROOT" ;;
     *)
       echo "error: unknown release component: $1" >&2
@@ -598,6 +679,7 @@ component_version_at_publish() {
     motatool) read_motatool_version ;;
     mcmt-gateway) read_mcmt_gateway_version ;;
     peaky) read_peaky_version ;;
+    envybot) read_envybot_version ;;
     *)
       echo "error: unknown release component: $id" >&2
       return 1
@@ -613,6 +695,7 @@ component_build_dir() {
     bootloader) bootloader_bench_root "$distro_ver" "$ver" ;;
     motatool) motatool_bench_root "$distro_ver" "$ver" ;;
     peaky) peaky_bench_root "$distro_ver" "$ver" ;;
+    envybot) envybot_bench_root "$distro_ver" "$ver" ;;
     mcmt-gateway) printf '%s/%s' "$MCMT_ROOT/dist" "$ver" ;;
     *)
       echo "error: unknown release component: $id" >&2
@@ -629,6 +712,7 @@ component_zip_basename() {
     motatool) printf 'motatool-%s.zip' "$ver" ;;
     mcmt-gateway) printf 'mcmt-gateway-%s.zip' "$ver" ;;
     peaky) printf 'peaky-%s.zip' "$ver" ;;
+    envybot) printf 'envybot-%s-py3-none-any.whl' "${ver#v}" ;;
   esac
 }
 
@@ -663,7 +747,7 @@ EOF
 
 write_release_manifest() {
   local distro_ver=$1 firmware_ver=$2 bootloader_ver=$3 motatool_ver=$4
-  local dir today peaky_ver mcmt_ver
+  local dir today peaky_ver mcmt_ver envybot_ver
   dir="$(distro_tree_root "$distro_ver")"
   today="$(date '+%Y-%m-%d')"
   mkdir -p "$dir"
@@ -682,6 +766,10 @@ EOF
   if component_in_distro_bundle peaky "$distro_ver"; then
     peaky_ver="$(read_peaky_version)"
     printf 'peaky=%s\n' "$peaky_ver" >>"$(release_manifest_path "$distro_ver")"
+  fi
+  if component_in_distro_bundle envybot "$distro_ver"; then
+    envybot_ver="$(read_envybot_version)"
+    printf 'envybot=%s\n' "$envybot_ver" >>"$(release_manifest_path "$distro_ver")"
   fi
 }
 
@@ -806,7 +894,7 @@ manifest_component_version() {
 
 ensure_release_manifest_for_backfill() {
   local distro_ver=$1
-  local firmware_ver bootloader_ver motatool_ver published mcmt_ver peaky_ver
+  local firmware_ver bootloader_ver motatool_ver published mcmt_ver peaky_ver envybot_ver
   [[ -f "$(release_manifest_path "$distro_ver")" ]] && return 0
   [[ -f "$(firmware_bench_root "$distro_ver" "$distro_ver")/RELEASE_MANIFEST" ]] && return 0
   [[ -f "$(distro_bench_root "$distro_ver")/firmware/RELEASE_MANIFEST" ]] && return 0
@@ -835,6 +923,10 @@ EOF
     peaky_ver="$(manifest_component_version peaky "$distro_ver")"
     printf 'peaky=%s\n' "$peaky_ver" >>"$(release_manifest_path "$distro_ver")"
   fi
+  if component_in_distro_bundle envybot "$distro_ver"; then
+    envybot_ver="$(manifest_component_version envybot "$distro_ver")"
+    printf 'envybot=%s\n' "$envybot_ver" >>"$(release_manifest_path "$distro_ver")"
+  fi
 }
 
 verify_release_components() {
@@ -854,6 +946,10 @@ verify_release_components() {
     if [[ "$id" == peaky ]]; then
       verify_peaky_version_sync "$ver" || return 1
       ensure_peaky_release_cache "$ver" || return 1
+    fi
+    if [[ "$id" == envybot ]]; then
+      verify_envybot_version_sync "$ver" || return 1
+      ensure_envybot_wheel "$ver" || return 1
     fi
     dir="$(component_build_dir "$id" "$ver" "$distro_ver")"
     [[ -d "$dir" ]] || {
@@ -915,6 +1011,11 @@ lock_release_components() {
     peaky_ver="$(read_peaky_version)"
     write_component_released_marker peaky "$peaky_ver" "$distro_ver"
   fi
+  if component_in_distro_bundle envybot "$distro_ver"; then
+    local envybot_ver
+    envybot_ver="$(read_envybot_version)"
+    write_component_released_marker envybot "$envybot_ver" "$distro_ver"
+  fi
   mkdir -p "$(distro_tree_root "$distro_ver")"
   cp "$MANIFEST_JSON" "$(distro_tree_root "$distro_ver")/MANIFEST.json"
 }
@@ -935,7 +1036,7 @@ collect_distro_release_assets() {
 
 release_notes_for_distro() {
   local distro_ver=$1 preview=${2:-0}
-  local firmware_ver bootloader_ver motatool_ver peaky_ver mcmt_ver published changelog_body
+  local firmware_ver bootloader_ver motatool_ver peaky_ver mcmt_ver envybot_ver published changelog_body
 
   distro_ver="$(normalize_version "$distro_ver")"
 
@@ -976,6 +1077,14 @@ EOF
     fi
     printf '| peaky | %s |\n' "$peaky_ver"
   fi
+  if component_in_distro_bundle envybot "$distro_ver"; then
+    if ((preview == 1)); then
+      envybot_ver="$(read_envybot_version)"
+    else
+      envybot_ver="$(manifest_component_version envybot "$distro_ver")"
+    fi
+    printf '| envybot | %s |\n' "$envybot_ver"
+  fi
 
   if changelog_body="$(changelog_body_for_distro_release "$distro_ver" 2>/dev/null)"; then
     cat <<EOF
@@ -990,7 +1099,7 @@ EOF
 
 ### Assets
 
-- \`envyos-<ver>-full.tgz\` — **complete offline bundle** (all firmware variants, bootloader, motatool platforms, optional peaky/mcmt; uncompressed bench tree + manifests)
+- \`envyos-<ver>-full.tgz\` — **complete offline bundle** (all firmware variants, bootloader, motatool platforms, optional peaky/mcmt/envybot; uncompressed bench tree + manifests)
 - \`fw-<slug>-<ver>-full-<id>.mota.gz\` / \`fw-<slug>-<ver>-delta-from-<base>-<id>.mota.gz\` — fleet OTA (pick one per node)
 - \`fw-<slug>-<ver>.uf2.gz\` — bench UF2 flash
 - \`bl-<board>-<ver>.uf2.gz\` / \`bl-<board>-recovery-<ver>.zip\` — EnvyBoot per board
@@ -1011,6 +1120,14 @@ EOF
       peaky_ver="$(manifest_component_version peaky "$distro_ver")"
     fi
     printf -- '- \`peaky-%s-<platform>.tar.gz\` — Peaky Finders \`peaky serve\` (pick Linux or macOS archive)\n' "${peaky_ver#v}"
+  fi
+  if component_in_distro_bundle envybot "$distro_ver"; then
+    if ((preview == 1)); then
+      envybot_ver="$(read_envybot_version)"
+    else
+      envybot_ver="$(manifest_component_version envybot "$distro_ver")"
+    fi
+    printf -- '- \`envybot-%s-py3-none-any.whl\` — fleet CLI (\`uv tool install\`)\n' "${envybot_ver#v}"
   fi
 
   cat <<EOF

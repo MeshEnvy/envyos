@@ -16,6 +16,11 @@
           "repo": "MeshEnvy/motatool",
           "version": "0.1.1-ev1",
           "sha": "65a1162951f3f0eeb39a5bd30d674daf28d5f4a7"
+        },
+        "envybot": {
+          "repo": "MeshEnvy/envybot",
+          "version": "0.1.0",
+          "sha": "ba80e9f31a4ed8999c9e8fa25cdcbe2a1f6c80b0"
         }
       }
     },

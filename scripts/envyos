@@ -43,7 +43,7 @@ commands:
   changelog check [vX.Y.Z]          Verify Packages table + package changelogs
   changelog delta [vX.Y.Z]          Print package version deltas for a release
 
-  build packages: meshcore (firmware) | bootloader | motatool | peaky | all
+  build packages: meshcore (firmware) | bootloader | motatool | peaky | envybot | all
   Omit package list for full bench build (motatool → bootloader → meshcore order).
 
 examples:
@@ -78,6 +78,9 @@ cmd_info() {
   for pkg in meshcore bootloader motatool; do
     printf '  %-12s %s\n' "$pkg" "$(read_package_version "$pkg" 2>/dev/null || echo '?')"
   done
+  if ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
+    printf '  %-12s %s\n' envybot "$ver"
+  fi
   echo ""
   last_distro="$(latest_published_distro_tag 2>/dev/null || true)"
   if [[ -n "$last_distro" ]]; then
@@ -109,6 +112,11 @@ cmd_info() {
 ' "$key" "$ver" "$(component_build_dir "$id" "$ver")" "$status"
     fi
   done
+  if ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
+    status="$(component_artifact_status envybot "$ver")"
+    printf '  %-12s %-8s  %s  (%s)
+' envybot "$ver" "$(component_build_dir envybot "$ver")" "$status"
+  fi
 }
 
 cmd_semver() {
@@ -141,6 +149,10 @@ cmd_build() {
         ;;
       peaky | pk)
         packages+=(peaky)
+        shift
+        ;;
+      envybot | eb)
+        packages+=(envybot)
         shift
         ;;
       all | "")
@@ -200,7 +212,7 @@ cmd_bump_ev() {
 cmd_fetch() {
   local pkg="${1:-}"
   [[ -n "$pkg" ]] || {
-    echo "usage: envyos fetch meshcore|bootloader|motatool|mcmt-gateway|meshcore-open" >&2
+    echo "usage: envyos fetch meshcore|bootloader|motatool|mcmt-gateway|meshcore-open|envybot" >&2
     exit 2
   }
   fetch_package_checkout "$pkg"

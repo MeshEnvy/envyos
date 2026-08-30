@@ -137,6 +137,7 @@ Distro publish **downloads by asset name** from your GitHub Release. Pick stable
 | motatool | `motatool-<ver>-<target>.tar.gz` per platform | `motatool-0.1.2-rc0-x86_64-unknown-linux-gnu.tar.gz` |
 | mcmt-gateway | `mcmt-gateway-vX.Y.Z.zip` | (when bundled) |
 | peaky | `peaky-vX.Y.Z.zip` | (when bundled) |
+| envybot | `envybot-<ver>-py3-none-any.whl` | (when pinned) |
 
 Your `publish` script must upload assets that match what the distro expects (or you add a distro-side fetch adapter when integrating).
 

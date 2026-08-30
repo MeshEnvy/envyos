@@ -117,6 +117,17 @@ peaky_bench_root() {
   package_bench_root "$tree_key" peaky "$pk_ver"
 }
 
+envybot_bench_root() {
+  local tree_key=${1:-$(read_bench_tree_key)}
+  local eb_ver=${2:-$(read_envybot_version 2>/dev/null || echo v0.0.0)}
+  package_bench_root "$tree_key" envybot "$eb_ver"
+}
+
+envybot_wheel_basename() {
+  local ver=${1:-$(read_envybot_version 2>/dev/null || echo v0.0.0)}
+  printf 'envybot-%s-py3-none-any.whl' "${ver#v}"
+}
+
 migrate_bootloader_package_tree() {
   local tree_key=$1 bl_ver=$2
   local dest src
@@ -1076,7 +1087,7 @@ bump_component() {
   local old new major minor patch
   case "$id" in
     firmware) id=meshcore ;;
-    meshcore | bootloader | motatool | mcmt-gateway | peaky) ;;
+    meshcore | bootloader | motatool | mcmt-gateway | peaky | envybot) ;;
     distro)
       echo "error: fleet tags live in MANIFEST.json releases — use ./envyos publish vX.Y.Z" >&2
       return 1
@@ -1257,7 +1268,7 @@ create_distro_full_tgz() {
 
 populate_distro_release() {
   local distro_ver=${1:-}
-  local fw_ver bl_ver mt_ver peaky_ver mcmt_ver release_dir slug src dst f board uf2 zip
+  local fw_ver bl_ver mt_ver peaky_ver mcmt_ver envybot_ver release_dir slug src dst f board uf2 zip wheel
   local -a staged=()
 
   if [[ -z "$distro_ver" ]]; then
@@ -1325,6 +1336,14 @@ populate_distro_release() {
       zip="$(create_component_zip mcmt-gateway "$mcmt_ver")"
       dst="$release_dir/$(basename "$zip")"
       cp -f "$zip" "$dst"
+      staged+=("$dst")
+    fi
+  fi
+  if envybot_ver="$(read_optional_manifest_key envybot 2>/dev/null)"; then
+    wheel="$(envybot_bench_root "$distro_ver" "$envybot_ver")/$(envybot_wheel_basename "$envybot_ver")"
+    if [[ -f "$wheel" ]]; then
+      dst="$release_dir/$(basename "$wheel")"
+      cp -f "$wheel" "$dst"
       staged+=("$dst")
     fi
   fi

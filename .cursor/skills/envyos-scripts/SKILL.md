@@ -16,6 +16,7 @@ description: >-
 | Bootloader | `packages/bootloader/` | `packages-meta/bootloader/build.sh` → `build/<branch>/bench/bootloader-<ver>/` |
 | motatool | `packages/motatool/` | `packages-meta/motatool/build.sh`; staged + **`motatool` on PATH** |
 | peaky | release cache | `packages-meta/peaky/build.sh` (only when `peaky=` pinned) |
+| envybot | sibling `uv build` | `packages-meta/envybot/build.sh` (only when `envybot=` pinned) |
 | USB seeder | `packages/motatool/scripts/seeder.sh` | |
 | Distro manifest / publish | envyos | `MANIFEST.json`, `scripts/version.sh`, `scripts/publish.sh` |
 
@@ -44,6 +45,7 @@ Package pins live in **`MANIFEST.json` `releases.next`** (mirrors `packages-meta
 | `bootloader` | `upstream-evN` — `build/<branch>/bench/bootloader-<ver>/` |
 | `motatool` | `upstream-evN` — `build/<branch>/bench/motatool-<ver>/` |
 | `peaky` | optional semver pin — staged from GitHub release cache |
+| `envybot` | optional semver pin — sibling wheel (`uv build`) |
 
 Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, `read_firmware_version`, `list_manifest`, `propose_next_distro_version`, `is_released_version`. Overlay bump: **`./envyos bump-ev <pkg>`**. Meshcore overlay notes: **`packages/meshcore/CHANGELOG.md`** (publish folds the pin section into distro release notes).
 
@@ -66,7 +68,7 @@ source scripts/version.sh && list_manifest
 
 ## `./envyos build` (scripts/build-all.sh)
 
-Orchestration entry point — bootloader → motatool → firmware → peaky (if pinned) → release tree.
+Orchestration entry point — bootloader → motatool → firmware → peaky/envybot (if pinned) → release tree.
 
 ```bash
 ./envyos build                       # pinned packages

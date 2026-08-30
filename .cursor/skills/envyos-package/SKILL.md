@@ -152,6 +152,7 @@ All components: **local prepare + publish**. No tag-triggered CI.
 | firmware | `MeshEnvy/meshcore-firmware` | `firmware-vX.Y.Z.zip` |
 | bootloader | `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` | `bootloader-vX.Y.Z.zip` |
 | motatool | `MeshEnvy/motatool` | `motatool-*-<ver>.tar.gz` (per platform) |
+| envybot | `MeshEnvy/envybot` | `envybot-<ver>-py3-none-any.whl` |
 
 ## Agent workflow (component release)
 

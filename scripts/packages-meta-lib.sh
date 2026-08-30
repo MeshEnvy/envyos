@@ -21,6 +21,7 @@ package_meta_id() {
     motatool) printf '%s' motatool ;;
     mcmt-gateway) printf '%s' mcmt-gateway ;;
     peaky) printf '%s' peaky ;;
+    envybot) printf '%s' envybot ;;
     *) printf '%s' "$1" ;;
   esac
 }
@@ -199,6 +200,17 @@ fetch_package_checkout() {
     meshcore-open)
       repo="MeshEnvy/meshcore-open"
       sha="${sha:-$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)}"
+      ;;
+    envybot)
+      dest="$ENVYBOT_ROOT"
+      if [[ -d "$dest/.git" ]]; then
+        echo "fetch: envybot already present at $dest ($(git -C "$dest" rev-parse --short HEAD))"
+        return 0
+      fi
+      echo "fetch: cloning MeshEnvy/envybot into $dest"
+      mkdir -p "$(dirname "$dest")"
+      git clone "https://github.com/MeshEnvy/envybot.git" "$dest"
+      return 0
       ;;
     *)
       echo "error: unknown package '$pkg'" >&2

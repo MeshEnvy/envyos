@@ -1,0 +1,7 @@
+class=native
+name=envybot
+artifact=envybot
+repo=MeshEnvy/envybot
+# Sibling checkout (not packages/). Pin: envybot= in MANIFEST.json.
+# Release asset: envybot-<ver>-py3-none-any.whl
+artifact_wheel=envybot-{version}-py3-none-any.whl

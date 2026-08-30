@@ -4,6 +4,10 @@ EnvyOS distro release notes. Versions match git tags (`v0.1.x`).
 
 ## [Unreleased]
 
+### Added
+
+- **envybot:** Native host package pinned at 0.1.0. `./envyos build envybot` stages `envybot-<ver>-py3-none-any.whl` from the sibling checkout. Book stays private.
+
 ### Changed
 
 - **tooling:** Distro GitHub Release notes include each package fork `CHANGELOG.md` pin section (meshcore overlay) plus distro `CHANGELOG.md`. `./envyos publish --dry-run` prints the full notes body.
