@@ -192,6 +192,9 @@ cmd_build() {
         break
         ;;
       *)
+        if is_build_version_arg "$1"; then
+          die_build_version_arg "$1"
+        fi
         packages+=("$1")
         shift
         ;;

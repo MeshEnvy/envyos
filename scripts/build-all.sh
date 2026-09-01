@@ -11,7 +11,7 @@ source "$SCRIPTS/version.sh"
 
 usage() {
   cat >&2 <<EOF
-usage: envyos build [options] [firmware-version] [build-mota options…]
+usage: envyos build [options] [build-mota options…]
 
   (default)         Bootloader + motatool (all platforms) + firmware/.mota + peaky/envybot/mcmt (if pinned) + release/
   --bootloader-only Bootloader only
@@ -134,6 +134,9 @@ while (($# > 0)); do
       break
       ;;
     *)
+      if is_build_version_arg "$1"; then
+        die_build_version_arg "$1"
+      fi
       MOTA_ARGS+=("$1")
       shift
       ;;

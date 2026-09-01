@@ -51,6 +51,18 @@ normalize_version() {
   printf 'v%s' "$v"
 }
 
+# True when $1 looks like a distro or package version (not a package name).
+is_build_version_arg() {
+  normalize_package_version "$1" >/dev/null 2>&1 || normalize_version "$1" >/dev/null 2>&1
+}
+
+die_build_version_arg() {
+  echo "error: build does not take a version argument ('$1')" >&2
+  echo "       package pin is MANIFEST.json releases.next" >&2
+  echo "       slot is git branch or ENVYOS_BUILD_SLOT" >&2
+  exit 2
+}
+
 read_manifest_key() {
   local key=$1 val
   case "$key" in
@@ -103,10 +115,16 @@ latest_released_distro_version() {
   manifest_py releases latest 2>/dev/null || printf 'v0.0.0'
 }
 
-# Match firmware CLI display: "6 Jun 2026" (no leading zero on day).
+# Firmware CLI display date: "6 Jun 2026" (no leading zero on day).
+# Derived from the package git commit so pin+SHA is a stable PIO input. Wall clock is fallback only.
 format_firmware_build_date() {
-  local d
-  d="$(LC_TIME=C date '+%d %b %Y')"
+  local repo=${1:-} d=""
+  if [[ -n "$repo" ]]; then
+    d="$(LC_TIME=C git -C "$repo" log -1 --format=%cd --date=format:'%d %b %Y' 2>/dev/null)" || d=""
+  fi
+  if [[ -z "$d" ]]; then
+    d="$(LC_TIME=C date '+%d %b %Y')"
+  fi
   printf '%s' "${d#0}"
 }
 
@@ -276,7 +294,7 @@ parse_version() {
 # True when ver is listed in MANIFEST.json releases (shipped, immutable mota tree).
 is_released_version() {
   local ver
-  ver="$(normalize_version "$1")" || return 1
+  ver="$(normalize_version "$1" 2>/dev/null)" || return 1
   manifest_py releases has "$ver" 2>/dev/null
 }
 
@@ -337,14 +355,31 @@ version_lt() {
 
 # list_known_mota_versions, resolve_base_image, verify_release_delta_matrix → build-lib.sh
 
+list_local_meshcore_pins() {
+  local d ver
+  [[ -d "$BUILD_ROOT" ]] || return 0
+  for d in "$BUILD_ROOT"/*/bench/meshcore-*; do
+    [[ -d "$d" ]] || continue
+    ver="$(basename "$d")"
+    ver="${ver#meshcore-}"
+    ver="$(normalize_package_version "$ver" 2>/dev/null)" || continue
+    printf '%s\n' "$ver"
+  done
+}
+
 list_delta_base_versions() {
   local target ver
-  # upstream-evN builds: delta bases are released distro semver firmware trees.
+  # Overlay pins: shipped v0.1.x plus any other meshcore pin already on disk (any slot).
   if normalize_package_version "$1" >/dev/null 2>&1; then
+    target="$(normalize_package_version "$1")"
     while IFS= read -r ver || [[ -n "$ver" ]]; do
       [[ -n "$ver" ]] || continue
       printf '%s\n' "$ver"
     done < <(read_registry_versions "$RELEASED_FIRMWARE_FILE")
+    while IFS= read -r ver || [[ -n "$ver" ]]; do
+      [[ -n "$ver" && "$ver" != "$target" ]] || continue
+      printf '%s\n' "$ver"
+    done < <(list_local_meshcore_pins | awk '!seen[$0]++')
     return 0
   fi
   target="$(normalize_version "$1")" || return 1

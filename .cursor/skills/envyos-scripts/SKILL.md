@@ -61,11 +61,11 @@ Helpers: **`scripts/version.sh`** — `read_build_slot`, `read_bench_tree_key`, 
 ```bash
 source scripts/version.sh && list_manifest
 ./envyos build meshcore --list-targets
-./envyos build meshcore                    # version from packages-meta/meshcore/VERSION
-./envyos build meshcore v0.1.1             # override output dir + FIRMWARE_VERSION stamp
+./envyos build meshcore                    # pin from MANIFEST.json releases.next
 ./envyos build meshcore --target wismesh-tag-repeater
-./envyos build meshcore v0.1.2 --base v0.1.0
+./envyos build meshcore --base v0.1.0
 ./envyos build meshcore --hex-only
+ENVYOS_BUILD_SLOT=heltec-bl-test ./envyos build meshcore --target heltec-t096-repeater-slim
 ```
 
 ## `./envyos build` (scripts/build-all.sh)
@@ -124,12 +124,10 @@ packages/motatool/scripts/seeder.sh usbmodem1444301 build/main/bench/meshcore-<v
 ./envyos build
 # flash bench bootloader UF2 on Tag B
 
-./envyos build meshcore v0.1.0
-# flash Tag B from bench meshcore-v0.1.0/wismesh-tag-repeater/meshcore-wismesh-tag-repeater-v0.1.0.uf2
+./envyos build meshcore --target wismesh-tag-repeater
+# flash Tag B from build/<slot>/bench/meshcore-<pin>/wismesh-tag-repeater/
 
-./envyos build meshcore v0.1.1
-
-packages/motatool/scripts/seeder.sh /dev/cu.… build/main/bench/meshcore-v0.1.1
+packages/motatool/scripts/seeder.sh /dev/cu.… build/<slot>/bench/meshcore-<pin>
 
 # Tag B serial: ota ls → ota get N flash → ota install
 ```

@@ -170,9 +170,9 @@ Conflict hotspots when merging upstream features into EnvyOS: `Mesh.cpp`, `Commo
 EnvyOS version is **not** upstream MeshCore's `companion-v1.16.0` tag scheme.
 
 - **Canonical files:** `MANIFEST.json` + `packages-meta/<pkg>/VERSION` (`meshcore`, `adafruit-nrf52-bootloader`, `motatool`)
-- **Build:** `./envyos build meshcore` (recipe `packages-meta/meshcore/build.sh`) → `build/<branch>/bench/meshcore-<ver>/`; version override for one-off builds and auto-deltas from prior patch if present
+- **Build:** `./envyos build meshcore` (recipe `packages-meta/meshcore/build.sh`) → `build/<slot>/bench/meshcore-<pin>/`. Pin is `releases.next`. Slot is git branch or `ENVYOS_BUILD_SLOT`.
 - **Firmware stamp:** `-DFIRMWARE_VERSION` via `PLATFORMIO_BUILD_FLAGS` in `packages-meta/meshcore/build.sh` (evN encoded as 4th version component)
-- **Explicit delta base:** `./envyos build meshcore v0.1.2 --base v0.1.0` (default builds all prior bases)
+- **Explicit delta base:** `./envyos build meshcore --base v0.1.0` (default builds all prior bases)
 
 Bump `MANIFEST.json` package pins for integration work. Fleet tags via `./envyos publish` (`MANIFEST.json releases`).
 

@@ -189,8 +189,9 @@ Bench: laptop seeder advertises → superseeder captures (`ota sd` shows files) 
 ./envyos build --bootloader-only
 ./envyos build --mota-only --target rak4631-repeater-slim
 ./envyos build bootloader
-./envyos build meshcore                    # firmware only → bench firmware tree
+./envyos build meshcore                    # firmware only → bench firmware tree (pin from releases.next)
 ./envyos build meshcore --list-targets
+ENVYOS_BUILD_SLOT=heltec-bl-test ./envyos build meshcore --target heltec-t096-repeater-slim
 ./scripts/publish.sh v0.1.2
 # USB seeder — motatool repo:
 /path/to/motatool/scripts/seeder.sh /dev/cu.usbmodem1444301

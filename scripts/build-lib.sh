@@ -496,11 +496,9 @@ resolve_firmware_image_in_dir() {
   return 1
 }
 
-resolve_base_image() {
-  local slug=$1 base_ver=$2
-  local dir p mota
-  base_ver="$(normalize_package_version "$base_ver")"
-  dir="$(firmware_slug_dir "$base_ver" "$base_ver" "$slug")"
+_resolve_base_image_in_dir() {
+  local dir=$1 slug=$2 base_ver=$3
+  local p mota
   for p in \
     "$(firmware_artifact_name "$slug" "$base_ver" hex)" \
     "$(firmware_artifact_name "$slug" "$base_ver" bin)"; do
@@ -520,16 +518,66 @@ resolve_base_image() {
   return 1
 }
 
+resolve_base_image() {
+  local slug=$1 base_ver=$2
+  local dir slot label
+  base_ver="$(normalize_package_version "$base_ver")"
+  label="$(package_bench_version_label "$base_ver")"
+
+  dir="$(firmware_slug_dir "$base_ver" "$base_ver" "$slug")"
+  _resolve_base_image_in_dir "$dir" "$slug" "$base_ver" && return 0
+
+  slot="$(read_bench_tree_key 2>/dev/null || true)"
+  if [[ -n "$slot" ]]; then
+    dir="$(firmware_slug_dir "$slot" "$base_ver" "$slug")"
+    _resolve_base_image_in_dir "$dir" "$slug" "$base_ver" && return 0
+  fi
+
+  for dir in "$BUILD_ROOT"/*/bench/meshcore-"$label"/"$slug"; do
+    [[ -d "$dir" ]] || continue
+    _resolve_base_image_in_dir "$dir" "$slug" "$base_ver" && return 0
+  done
+  return 1
+}
+
+# True when a locally present released firmware tree already has this slug.
+# Used to skip GitHub restore for new targets (e.g. heltec) that were never in v0.1.x zips.
+slug_in_any_released_firmware_tree() {
+  local slug=$1
+  local ver
+  while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    resolve_base_image "$slug" "$ver" >/dev/null 2>&1 && return 0
+  done < <(read_registry_versions "$RELEASED_FIRMWARE_FILE")
+  return 1
+}
+
+any_released_firmware_tree_present() {
+  local ver
+  while IFS= read -r ver || [[ -n "$ver" ]]; do
+    [[ -n "$ver" ]] || continue
+    firmware_version_tree_present "$ver" && return 0
+  done < <(read_registry_versions "$RELEASED_FIRMWARE_FILE")
+  return 1
+}
+
 ensure_firmware_bases_for_build() {
   local target_ver=$1
   shift
   local slugs=("$@")
   local base_ver slug
   local need_restore=0
+  local have_released_trees=0
+  if any_released_firmware_tree_present; then
+    have_released_trees=1
+  fi
   for base_ver in $(list_delta_base_versions "$target_ver"); do
     for slug in "${slugs[@]}"; do
       is_debug_target_slug "$slug" && continue
       resolve_base_image "$slug" "$base_ver" >/dev/null 2>&1 && continue
+      if ((have_released_trees == 1)) && ! slug_in_any_released_firmware_tree "$slug"; then
+        continue
+      fi
       need_restore=1
       break 2
     done
@@ -644,12 +692,10 @@ motatool_staged_binary_path() {
   printf '%s/motatool-%s' "$(motatool_bench_root "$distro" "$mt_ver")" "$platform"
 }
 
-resolve_motatool_bin() {
-  local ver=$1 platform path distro
-  ver="$(normalize_package_version "$ver")"
-  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+_motatool_bin_in_slot() {
+  local ver=$1 distro=$2 platform path
   platform="$(host_motatool_platform_slug)"
-  path="$(motatool_staged_binary_path "$platform" "$distro")"
+  path="$(motatool_staged_binary_path "$platform" "$distro" "$ver")"
   if [[ -x "$path" ]]; then
     printf '%s' "$path"
     return 0
@@ -658,6 +704,33 @@ resolve_motatool_bin() {
   if [[ -x "$path" ]]; then
     printf '%s' "$path"
     return 0
+  fi
+  return 1
+}
+
+resolve_motatool_bin() {
+  local ver=$1 path distro branch
+  if [[ -n "${MOTATOOL:-}" ]]; then
+    if [[ -x "$MOTATOOL" ]]; then
+      printf '%s' "$MOTATOOL"
+      return 0
+    fi
+    echo "error: MOTATOOL=$MOTATOOL is not an executable" >&2
+    return 1
+  fi
+  ver="$(normalize_package_version "$ver")"
+  distro="$(read_bench_tree_key 2>/dev/null || printf '%s' "$ver")"
+  if path="$(_motatool_bin_in_slot "$ver" "$distro")"; then
+    printf '%s' "$path"
+    return 0
+  fi
+  # Custom ENVYOS_BUILD_SLOT is for firmware trees. Reuse motatool from the git-branch bench.
+  if [[ -n "${ENVYOS_BUILD_SLOT:-}" ]]; then
+    branch="$(sanitize_build_slot "$(read_git_branch_name)")"
+    if [[ "$branch" != "$distro" ]] && path="$(_motatool_bin_in_slot "$ver" "$branch")"; then
+      printf '%s' "$path"
+      return 0
+    fi
   fi
   return 1
 }

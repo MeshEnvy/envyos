@@ -12,11 +12,16 @@ EnvyOS distro release notes. Versions match git tags (`v0.1.x`).
 
 ### Fixed
 
+- **tooling:** Overlay meshcore builds also emit in-place deltas from other pins already on disk (any slot), not only shipped `v0.1.x`.
+- **tooling:** Hex-unchanged skip still packs missing in-place deltas (`--base` or a newly visible pin). Previously a second `./envyos build meshcore --base …` was a no-op.
+- **tooling:** MeshCore `FIRMWARE_BUILD_DATE` is the package commit date, not wall-clock or per-slot. Same pin + SHA keeps PlatformIO flags stable across `ENVYOS_BUILD_SLOT`s.
+- **tooling:** `./envyos build meshcore` with `ENVYOS_BUILD_SLOT` reuses motatool from the git-branch bench (or `MOTATOOL=`) instead of requiring a per-slot rebuild.
 - **tooling:** Full `./envyos build` stages `build/<branch>/release/` even if a later pinned package fails. Exit is still non-zero. Refresh without rebuild: `./envyos build --release-only`.
 - **tooling:** Native package pins (envybot, peaky, mcmt-gateway) use package semver (`0.1.0`), not distro `vX.Y.Z`. Bench dirs are `envybot-0.1.0`, not `envybot-v0.1.0`.
 
 ### Changed
 
+- **tooling:** `./envyos build` no longer takes a version argument. MeshCore pin is `MANIFEST.json` `releases.next`. Slot is git branch or `ENVYOS_BUILD_SLOT`. Distro tag is still chosen at `./envyos publish`.
 - **tooling:** Distro GitHub Release notes include each package `CHANGELOG.md` pin section (meshcore overlay, peaky/envybot siblings) plus distro `CHANGELOG.md`. `./envyos changelog check` requires those headings. `./envyos publish --dry-run` writes `RELEASE.md` to `build/<slot>/release/` (and a published `build/vX.Y.Z/release/` if that tree exists). Publish uploads that file as an asset and uses it as the GitHub Release description. The package table uses `PACKAGE` `title=` (MeshCore, Peaky Finders, …) linked to the package home.
 - **tooling:** Distro vocabulary is **package** (not component). Helpers, docs, and release notes use `package` throughout.
 - **tooling:** Adafruit nRF52 bootloader package id is `adafruit-nrf52-bootloader` (aliases `bootloader`, `bl`). Bench and GitHub assets use `adafruit-nrf52-bootloader-<board>-<ver>.uf2`. CLI aliases `bootloader`, `bl`.

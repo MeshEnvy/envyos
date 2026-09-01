@@ -2,14 +2,14 @@
 # meshcore recipe — build firmware (+ optional .mota) for targets in scripts/targets.txt.
 #
 # Usage (via ./envyos build meshcore [args…]):
-#   ./envyos build meshcore                    # firmware version from packages-meta/meshcore/VERSION
-#   ./envyos build meshcore v0.1.1             # override firmware version (output dir + device ver)
+#   ./envyos build meshcore                    # pin from MANIFEST.json releases.next
 #   ./envyos build meshcore --target wismesh-tag-repeater
 #   ./envyos build meshcore --debug            # *-debug twins only
 #   ./envyos build meshcore --release          # field slugs only (skip *-debug)
-#   ./envyos build meshcore v0.1.2 --base v0.1.0   # delta from one base only
+#   ./envyos build meshcore --base v0.1.0      # delta from one base only
 #   ./envyos build meshcore --hex-only         # stock MeshCore (no EndF / OTA)
 #   ./envyos build meshcore --list-targets
+# Slot is git branch or ENVYOS_BUILD_SLOT. Pin is never a CLI version arg.
 #
 # Requires: PlatformIO (`pio`). Full .mota packaging also needs staged motatool.
 
@@ -86,10 +86,10 @@ drain_mota_pool() {
 
 usage() {
   cat >&2 <<EOF
-usage: $0 [version] [--target <slug>]… [--release|--debug] [--base <version>] [--hex-only] [--targets-file <path>]
+usage: $0 [--target <slug>]… [--release|--debug] [--base <version>] [--hex-only] [--targets-file <path>]
        $0 [--mota-jobs <n>] [--delta-jobs <n>] --list-targets [--targets-file <path>]
 
-  version         Optional override for MANIFEST.json meshcore pin (output dir + -DFIRMWARE_VERSION).
+  Pin is MANIFEST.json releases.next (packages-meta/meshcore/VERSION). Slot is git branch or ENVYOS_BUILD_SLOT.
   --target        Build one target slug (repeatable; default: all targets in targets.txt)
   --release       With no --target: field slugs only (skip *-debug)
   --debug         With no --target: *-debug twins only (does not wipe field artifacts)
@@ -103,14 +103,14 @@ usage: $0 [version] [--target <slug>]… [--release|--debug] [--base <version>] 
 
 examples:
   $0
-  $0 v0.1.1
   $0 --target wismesh-tag-repeater --target rak4631-repeater
   $0 --release
   $0 --debug
   $0 --target rak4631-repeater-slim-debug
-  $0 v0.1.2 --base v0.1.0
+  $0 --base v0.1.0
   $0 --hex-only
   $0 --list-targets
+  ENVYOS_BUILD_SLOT=heltec-bl-test $0 --target heltec-t096-repeater-slim
 EOF
   exit 2
 }
@@ -251,6 +251,37 @@ run_one_delta_job() {
     --out-dir "$out"
 }
 
+delta_mota_present() {
+  local dir=$1 slug=$2 ver=$3 base_ver=$4
+  local f base_label
+  base_label="${base_ver#v}"
+  shopt -s nullglob
+  for f in \
+    "$dir"/meshcore-"${slug}"-"${ver}"-delta-from-"${base_ver}"-*.mota \
+    "$dir"/meshcore-"${slug}"-"${ver}"-delta-from-"${base_label}"-*.mota \
+    "$dir"/meshcore-"${slug}"-delta-from-"${base_ver}"-*.mota \
+    "$dir"/meshcore-"${slug}"-delta-from-"${base_label}"-*.mota; do
+    [[ -f "$f" ]] && { shopt -u nullglob; return 0; }
+  done
+  shopt -u nullglob
+  return 1
+}
+
+# Hex-unchanged skip must not drop --base / newly visible pins.
+slug_missing_delta_mota() {
+  local slug="$1"
+  local job base_ver base_hex out
+  out="$(firmware_slug_dir "$DISTRO_VER" "$VER" "$slug")"
+  while IFS= read -r job || [[ -n "$job" ]]; do
+    [[ -n "$job" ]] || continue
+    IFS='|' read -r _ base_ver base_hex <<<"$job"
+    if ! delta_mota_present "$out" "$slug" "$VER" "$base_ver"; then
+      return 0
+    fi
+  done < <(collect_delta_jobs_for_slug "$slug")
+  return 1
+}
+
 queue_mota_jobs_for_slug() {
   local mt="$1"
   local slug="$2"
@@ -346,7 +377,8 @@ build_target_firmware() {
 
   if [[ "$HEX_ONLY" -eq 1 ]]; then
     echo "    (--hex-only: skipping .mota packaging)"
-  elif [[ "$CLEAN" -eq 0 && -n "$cached_sha" && "$cached_sha" == "$hex_sha" ]]; then
+  elif [[ "$CLEAN" -eq 0 && -n "$cached_sha" && "$cached_sha" == "$hex_sha" ]] &&
+    ! slug_missing_delta_mota "$slug"; then
     echo "    skip motatool ($slug): firmware hex unchanged (use --clean to repack)"
   else
     echo "    queue motatool jobs for $slug"
@@ -360,8 +392,6 @@ LIST_ONLY=0
 HEX_ONLY=0
 CLEAN=0
 TARGET_SET=all
-VER=""
-VER_EXPLICIT=0
 BASE_VER=""
 MOTA_JOBS="${ENVYOS_MOTA_JOBS:-${ENVYOS_DELTA_JOBS:-}}"
 SELECTED=()
@@ -422,10 +452,8 @@ while [[ $# -gt 0 ]]; do
       usage
       ;;
     *)
-      [[ -z "$VER" ]] || usage
-      VER="$(normalize_package_version "$1")" || usage
-      VER_EXPLICIT=1
-      shift
+      echo "error: unexpected argument '$1' (meshcore pin is releases.next; slot is git branch or ENVYOS_BUILD_SLOT)" >&2
+      usage
       ;;
   esac
 done
@@ -435,10 +463,7 @@ if [[ "$LIST_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-if [[ -z "$VER" ]]; then
-  VER="$(read_firmware_version)" || usage
-fi
-
+VER="$(read_firmware_version)" || usage
 FW_VER="$VER"
 FW_STAMP="$(firmware_stamp_from_version "$FW_VER")"
 
@@ -474,15 +499,9 @@ else
   done
 fi
 
-if [[ "$VER_EXPLICIT" -eq 1 ]]; then
-  DISTRO_VER="$VER"
-  OUT="$(firmware_bench_root "$DISTRO_VER" "$VER")"
-  assert_version_not_released "$VER"
-else
-  DISTRO_VER="$(read_bench_tree_key)"
-  OUT="$(firmware_bench_root "$DISTRO_VER" "$FW_VER")"
-  assert_version_not_released "$FW_VER"
-fi
+DISTRO_VER="$(read_bench_tree_key)"
+OUT="$(firmware_bench_root "$DISTRO_VER" "$FW_VER")"
+assert_version_not_released "$FW_VER"
 export DISTRO_VER
 OUT_ROOT="$OUT"
 if ((CLEAN == 1)); then
@@ -492,18 +511,9 @@ if ((CLEAN == 1)); then
 fi
 mkdir -p "$OUT"
 GIT_SHA="$(git_short_sha "$MC")"
-BUILD_STAMP=""
-if ((CLEAN == 0)) && [[ -f "$OUT/version.txt" ]]; then
-  if [[ "$(normalize_package_version "$(head -1 "$OUT/version.txt" | tr -d '[:space:]')")" == "$VER" ]]; then
-    cached_tree_sha="$(sed -n '3p' "$OUT/version.txt" 2>/dev/null | tr -d '[:space:]')"
-    if [[ -z "$cached_tree_sha" || "$cached_tree_sha" == "$GIT_SHA" ]]; then
-      BUILD_STAMP="$(sed -n '2p' "$OUT/version.txt" | tr -d '[:space:]')"
-    fi
-  fi
-fi
-BUILD_STAMP="${BUILD_STAMP:-$(format_firmware_build_date)}"
-if ((CLEAN == 0)) && [[ -f "$OUT/version.txt" ]] && [[ "$(sed -n '2p' "$OUT/version.txt" | tr -d '[:space:]')" == "$BUILD_STAMP" ]]; then
-  echo "incremental: reusing build stamp $BUILD_STAMP (PlatformIO cache in $MC/.pio/build/)"
+BUILD_STAMP="$(format_firmware_build_date "$MC")"
+if ((CLEAN == 0)); then
+  echo "incremental: build stamp $BUILD_STAMP (meshcore $GIT_SHA; PlatformIO cache in $MC/.pio/build/)"
 fi
 FW_VER_LABEL="${FW_VER}-${GIT_SHA}"
 write_mota_version_txt "$OUT" "$VER" "$BUILD_STAMP" "$GIT_SHA"
