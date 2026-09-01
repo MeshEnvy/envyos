@@ -36,6 +36,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
 | EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | NOR/mota layout first; then slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full. EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 already built. | icebox |
 | EC-017 | Admin CLI force clock backwards | `feature/clock-force` | P2 | S | EC-001 | `time force <epoch>` sets RTC when node is ahead; stock `time`/`clock sync` still refuse | backlog |
+| EC-018 | Repeater neighbor keepalive (no public advert) | `feature/neighbor-keepalive` | P2 | M | EC-001 | Periodic probe + direct pong; table TTL; stealth-safe (no anon discover/advert) | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
@@ -174,6 +175,7 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 | OTA beacons | on | off |
 | `REQ_TYPE_GET_STATUS` (status ping) | guest + admin | **admin only** — drop (reply_len 0) for non-admin senders |
 | Path hash on relay | on | on (unchanged) |
+| Neighbor table refresh | zero-hop advert + `discover.neighbors` | **EC-018 keepalive** (stock discover stays off) |
 
 **Status ping detail:** `simple_repeater/MyMesh.cpp` `handleRequest()` serves `REQ_TYPE_GET_STATUS` to guest ACL clients today (`// guests can also access this now`). Stealth closes that hole so strangers cannot confirm node presence or read uptime/battery/RSSI without an admin key.
 
@@ -188,6 +190,16 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 **Operator 08-30:** field seeders and apply reject anything not signed by the MeshEnvy fleet key. Auto-install already requires signed+allowlisted. Manual `ota install`, seeder advertise/USB-relay/SD-serve, and host `motatool serve` (field folder) must reject unsigned and unknown signer. Superseeder may write-to-SD for forensics; must not serve until verify-with-allowlist passes. Self-serve is unsigned by construction (EC-005): field roles must stop serving it or seeder-reject is a no-op.
 
 **Work:** sign in `build.sh` (`motatool build --sign`); `ota key` allowlist; apply reject (manual + auto); seeder index skip; disable unsigned self-serve on field roles; bench gate.
+
+### EC-018 — neighbor keepalive (design)
+
+**Goal:** Repeaters refresh the neighbor table after public adverts are off, without restoring `NODE_DISCOVER_RESP` or self-advert.
+
+**Today:** table is RAM, no TTL; updates from zero-hop repeater adverts or `discover.neighbors`. Fleet interim (09-01): remote discover + GET; UI 7-day filter. Enterprise: `ops/initiatives/meshcore-neighbor-keepalive.md`.
+
+**Candidate:** periodic probe; neighbor answers with a **direct pong** (pubkey + SNR). Age-out stale slots on-device. Silent to anonymous callers when stealth is on (EC-011). Wire format not locked.
+
+**Fleet after ship:** drop remote `discover.neighbors`; GET only.
 
 ## Icebox
 
@@ -211,6 +223,7 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 | Date | Note |
 |------|------|
+| 2026-09-01 | EC-018: neighbor keepalive after adverts-off. Fleet discover-on-poll is interim. Enterprise `ops/initiatives/meshcore-neighbor-keepalive.md`. |
 | 2026-08-30 | EC-016: EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 built. Slim firmware still icebox until NOR/mota layout. |
 | 2026-08-30 | EC-017: admin CLI force clock backwards. Stock `time`/`clock sync` refuse past; remote field repair needs a force. Enterprise `ops/initiatives/meshcore-clock-force.md`. |
 | 2026-08-30 | EC-012 → P1. Field seeder advertise/serve must reject unsigned (operator). Enterprise `ops/initiatives/signed-mota-deltas.md`. |
