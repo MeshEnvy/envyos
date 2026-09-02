@@ -37,6 +37,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | NOR/mota layout first; then slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full. EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 already built. | icebox |
 | EC-017 | Admin CLI force clock backwards | `feature/clock-force` | P2 | S | EC-001 | `time force <epoch>` sets RTC when node is ahead; stock `time`/`clock sync` still refuse | backlog |
 | EC-018 | Repeater neighbor keepalive (no public advert) | `feature/neighbor-keepalive` | P2 | M | EC-001 | Periodic probe + direct pong; table TTL; stealth-safe (no anon discover/advert) | backlog |
+| EC-019 | Slim full-mota field path — seeder admit signed fulls + OTAFIX `CODEC_FULL` apply | `feature/ota-rejoin` | P1 | M | EC-001 | Slim RAK/T096 stage a same-size full (measured). Seeders capture+serve signed fulls. nRF52 apply accepts `CODEC_FULL`. Orphan / OS-switch without a host-packed delta. WisMesh/companion stay delta-only. | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
@@ -201,6 +202,33 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 **Fleet after ship:** drop remote `discover.neighbors`; GET only.
 
+### EC-019 — slim full-mota field path (design)
+
+**Doctrine (operator 09-02, locked):** signed full `.mota` is first-class on **RAK4631 slim** and **Heltec T096 slim**. Superseeders capture and serve those fulls. “Deltas only” is retired for slim. Deltas stay the cheap hop when `base_hash` matches. WisMesh Tag repeater / companion still cannot stage a same-size full.
+
+**Why it opened:** `mota_nrf52_stage_plan` + real artifacts. Window `[0x26000, 0xED000)`. Same-size slim fulls fit. Max stageable mota on 1.17.1-ev1: **454656** B (RAK) / **450560** B (T096). v0.1.3 RAK: **421888** B. July 426/372 figures are stale. 1.16→1.17 CC310 shrink is why slack grew (~24 KB → ~90 KB on slim).
+
+**Still blocked at apply:** `ota_apply_mota_nrf52` refuses `CODEC_FULL` (`not an in-place delta`). Staging a full does nothing until OTAFIX + app accept it.
+
+**Work**
+
+1. Drop `ota_seeder_is_delta` for slim targets (or admit any signed mota the DUT can stage). Capture **and** serve signed fulls. Unsigned self-serve may land on SD; do not advertise it (EC-012).
+2. nRF52 apply + OTAFIX: `CODEC_FULL` writes the reconstructed image into `[APP_BASE, APP_BASE+image_len)` when it fits below the staged container.
+3. Publish continues to emit full + `delta_from_*` per slim slug. Superseeder library = latest signed full + delta matrix.
+4. Heatshrink compressed-full stays for WisMesh / companion only.
+
+**Field options this unlocks**
+
+- Orphan / custom-hash slim: pull latest signed full, no host-packed delta.
+- OS-switch: stage a whole other OS if the full ≤ max mota for the running image.
+- Epidemic slim roll: seed one signed full; peers stage it.
+
+**Bench gate**
+
+1. Slim DUT on unpublished hex. Superseeder serves a **signed** published full for that target. `ota ls` shows it.
+2. DUT `ota get` / `ota install` → running `body_hash` matches published. Next official delta applies.
+3. WisMesh Tag still rejects same-size full at stage. Unsigned self-serve is not advertised.
+
 ## Icebox
 
 | ID | Item | Notes |
@@ -223,6 +251,7 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 | Date | Note |
 |------|------|
+| 2026-09-02 | EC-019: slim full-mota doctrine locked. Seeders admit signed fulls on RAK/T096 slim. OTAFIX `CODEC_FULL` apply still required. Enterprise `ops/initiatives/ota-rollout.md`. |
 | 2026-09-01 | EC-018: neighbor keepalive after adverts-off. Fleet discover-on-poll is interim. Enterprise `ops/initiatives/meshcore-neighbor-keepalive.md`. |
 | 2026-08-30 | EC-016: EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 built. Slim firmware still icebox until NOR/mota layout. |
 | 2026-08-30 | EC-017: admin CLI force clock backwards. Stock `time`/`clock sync` refuse past; remote field repair needs a force. Enterprise `ops/initiatives/meshcore-clock-force.md`. |
