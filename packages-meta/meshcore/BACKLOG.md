@@ -24,8 +24,8 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-002 | nRF52 hardware WDT + EnvyBoot gate | `feature/nrf52-watchdog` | P1 | M | EC-001 | WDT trip/recover; OTA apply with EnvyBoot WDT feed | backlog |
 | EC-003 | EndF version restamp on rebuild | `feature/endf-restamp` | P2 | S | EC-001 | Rebuild same version — EndF trailer matches | backlog |
 | EC-004 | doctor CLI + atomic prefs | `feature/doctor` | P1 | M | EC-001 | `doctor check`; atomic prefs save under low FS space | backlog |
-| EC-005 | OTA self-serve policy (merkle bench + disable) | `feature/ota-self-serve-policy` | P2 | S | EC-001 | No self-serve hash traffic at boot | backlog |
-| EC-006 | OTA catalog filter + cache layout | `feature/ota-catalog-filter` | P2 | M | EC-001 | `ota ls` filtered to own target | backlog |
+| EC-005 | OTA self-serve policy (merkle bench + disable) | `feature/ota-self-serve-policy` | P2 | S | EC-001 | Superseded — keep synthetic, do not disable | icebox |
+| EC-006 | `ota ls` installable-only + apply-identity listing | `feature/ota-catalog-filter` | P2 | M | EC-001 | `ota ls` lists only installable fulls/deltas; pages are content-only; no `1n`/`99999s`; line uses apply-identity tokens | backlog |
 | EC-007 | Firmware identity codegen | `feature/firmware-identity-codegen` | P2 | S | EC-001 | Release rebuild only touches generated identity | backlog |
 | EC-008 | Bench `-debug` target twins | `feature/debug-targets` | P2 | S | EC-001 | `-debug` twin builds and boots with log tail | backlog |
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
@@ -38,8 +38,63 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-017 | Admin CLI force clock backwards | `feature/clock-force` | P2 | S | EC-001 | `time force <epoch>` sets RTC when node is ahead; stock `time`/`clock sync` still refuse | backlog |
 | EC-018 | Repeater neighbor keepalive (no public advert) | `feature/neighbor-keepalive` | P2 | M | EC-001 | Periodic probe + direct pong; table TTL; stealth-safe (no anon discover/advert) | backlog |
 | EC-019 | Slim full-mota field path — seeder admit signed fulls + OTAFIX `CODEC_FULL` apply | `feature/ota-rejoin` | P1 | M | EC-001 | Slim RAK/T096 stage a same-size full (measured). Seeders capture+serve signed fulls. nRF52 apply accepts `CODEC_FULL`. Orphan / OS-switch without a host-packed delta. WisMesh/companion stay delta-only. | backlog |
+| EC-020 | Drop on-device `OtaTargets.h`; host maps `target_id` → env | `feature/ota-target-client` | P2 | S | EC-001 | `ota status`/`ls` print hex only; `seed allow add` hex-only; no `OtaTargets.h` in image. Envybot names `5c6ab408`. | backlog |
+| EC-021 | OTA serve self + slot; never fetch a second copy of running image | `feature/ota-serve-self-and-slot` | P2 | S | EC-001 | `wantRow` skips self mid / same EndF image; slot served after reboot; `ota get` self → ERR | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
+
+### EC-006 — `ota ls` installable-only + apply-identity listing (design)
+
+**Trigger (operator 09-02, companion USB):**
+
+```
+> ota ls
+Updates nearby (3 src) — `ota get <#>` to download:
+ 1) v0.1.0 full [RAK_WisMesh_Tag_companion_radio_ble] 1n 99999s
+ +4 more
+> ota ls 2
+Updates nearby (3 src) — `ota get <#>` to download:
+ 2) v0.1.0 full [RAK_WisMesh_Tag_companion_radio_ble] 1n 99999s
+ +3 more
+```
+
+**Problems**
+
+1. `ota ls N` repeats the header and `+N more` footer. Subsequent pages should be **rows only**.
+2. `1n` (seeder count) and `99999s` (age cap) are noise.
+3. PIO env in `[brackets]` wastes the 160 B reply and does not match host artifacts.
+4. Catalog shows motas that cannot apply on this node.
+
+**Doctrine (operator 09-02)**
+
+- List only what **can install**:
+  - **full** whose `hw_id` and `target_id` both match this device
+  - **delta** whose `base_hash` matches running `EndF.body_hash`
+- Line content aligns with envyos / `motatool name` apply-identity tokens (same fields as the `.mota` basename). Host names are `fw-<slug>-<ver>-full-hwid.<hw>-to.<body16>-mid.<mid8>.mota` and `…-delta-hwid.<hw>-from.<old>-to.<new>-mid.<mid8>.mota`. On-device, drop `fw-<slug>-` (EC-020: no env table). Keep `ver`, `full|delta`, `hwid`, `from`/`to`, `mid`.
+- Drop `n_seeders` and age from the line.
+- First page may keep a one-line header. `ota ls N` (N>1) is content only: no “Updates nearby…”, no repeated `+N more`.
+
+**Today**
+
+- `OtaCli.cpp` prints header + `ver codec [env|yours] Nn Ns` every page.
+- `HaveRow` is 16 B: `mid target_id fw_version codec flags have_count`. No `hw_id`, no `base_hash`, no dest body. Fulls can be filtered by `target_id` now (`target_id` is hw+role, so it implies `hw_id` for well-formed motas). Deltas cannot be filtered by base until the catalog carries `base_hash`.
+- Original cherry-pick also mentioned cache layout. Listing + installable filter is the 09-02 spec.
+
+**Work**
+
+1. Filter `ota ls` to the installable set above. Hide other targets / other-base deltas.
+2. Reprint with apply-identity tokens. No env string, no `1n`/`99999s`.
+3. Pagination: later pages are rows only.
+4. Grow `HaveRow` if `base_hash` (and dest body / short `hw_id`) are required to decide or to print `from`/`to`/`hwid` without fetching the manifest.
+
+**Bench gate**
+
+1. Mix on air: own-target full, other-target full, delta for this `body_hash`, delta for another base.
+2. `ota ls` shows only the own-target full and the matching delta. Other-target full and other-base delta absent.
+3. `ota ls 2` is rows only (no header, no repeated footer).
+4. A line is parseable as apply-identity tokens (ver, full|delta, hwid, from/to if known, mid). No `n`/`s` suffix pair.
+
+**Adjacent:** EC-020 (hex / no `OtaTargets.h`). EC-021 (do not fetch running self). Whether the running self-serve full appears in `ls` is open.
 
 ### EC-013 — telemetry history (design)
 
@@ -188,9 +243,9 @@ EC-001 includes freshen overlay: SenseCAP slim OTA env, NOR/SD seeder allow CLI.
 
 Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. Signature is authorization.
 
-**Operator 08-30:** field seeders and apply reject anything not signed by the MeshEnvy fleet key. Auto-install already requires signed+allowlisted. Manual `ota install`, seeder advertise/USB-relay/SD-serve, and host `motatool serve` (field folder) must reject unsigned and unknown signer. Superseeder may write-to-SD for forensics; must not serve until verify-with-allowlist passes. Self-serve is unsigned by construction (EC-005): field roles must stop serving it or seeder-reject is a no-op.
+**Operator 08-30:** field seeders and apply reject anything not signed by the MeshEnvy fleet key. Auto-install already requires signed+allowlisted. Manual `ota install`, seeder advertise/USB-relay/SD-serve, and host `motatool serve` (field folder) must reject unsigned and unknown signer. Superseeder may write-to-SD for forensics; must not serve until verify-with-allowlist passes. Self-serve stays unsigned (EC-021: keep advertising the synthetic; never fetch a second copy; seeders still must not treat it as an installable release).
 
-**Work:** sign in `build.sh` (`motatool build --sign`); `ota key` allowlist; apply reject (manual + auto); seeder index skip; disable unsigned self-serve on field roles; bench gate.
+**Work:** sign in `build.sh` (`motatool build --sign`); `ota key` allowlist; apply reject (manual + auto); seeder index skip; bench gate. Do not disable field self-serve (EC-005 superseded).
 
 ### EC-018 — neighbor keepalive (design)
 
@@ -231,10 +286,19 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 2. DUT `ota get` / `ota install` → running `body_hash` matches published. Next official delta applies.
 3. WisMesh Tag still rejects same-size full at stage. Unsigned self-serve is not advertised.
 
+### EC-021 — serve self + slot (design)
+
+Enterprise: `ops/initiatives/ota-serve-self-and-slot.md`.
+
+Keep `ota_serve_self`. Never `startFetch` a mid that is view0, or a full whose image matches running EndF. Always advertise a valid stage-slot container (including after reboot). Boot must not `reset_session` a COMPLETE *other* mota out of the serve set.
+
+Supersedes EC-005 “disable self-serve.”
+
 ## Icebox
 
 | ID | Item | Notes |
 |----|------|-------|
+| EC-005 | Disable unsigned self-serve | **Superseded 09-02 by EC-021.** Keep synthetic. |
 | EC-010 | Companion FS wedge | Deferred to v0.3.0 per dev monolith changelog |
 | — | App-side bootloader mota (app writes BL slot) | Idea 09-02. Complementary write path: app updates BL, BL updates app. Field new OTAFIX without USB. No EC id. |
 
@@ -254,6 +318,9 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 | Date | Note |
 |------|------|
+| 2026-09-02 | EC-006 expanded: `ota ls` installable-only (full = matching hw+target; delta = matching base_hash). Apply-identity listing. Later pages content-only. Drop `1n`/`99999s`. Enterprise `ops/initiatives/envyos-backlog.md`. |
+| 2026-09-02 | EC-021: keep synthetic self-serve; never fetch a second copy of running image; serve the stage slot across reboot. EC-005 disable plan iceboxed. Enterprise `ops/initiatives/ota-serve-self-and-slot.md`. |
+| 2026-09-02 | EC-020: drop on-device target-name table. Client lookup. Enterprise `ops/initiatives/ota-target-name-client.md`. |
 | 2026-09-02 | EC-019: slim full-mota doctrine locked. Seeders admit signed fulls on RAK/T096 slim. OTAFIX `CODEC_FULL` apply still required. Complementary write path noted (app updates BL). Enterprise `ops/initiatives/ota-rollout.md`. |
 | 2026-09-01 | EC-018: neighbor keepalive after adverts-off. Fleet discover-on-poll is interim. Enterprise `ops/initiatives/meshcore-neighbor-keepalive.md`. |
 | 2026-08-30 | EC-016: EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 built. Slim firmware still icebox until NOR/mota layout. |
