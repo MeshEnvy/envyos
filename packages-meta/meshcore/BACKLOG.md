@@ -217,6 +217,8 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 3. Publish continues to emit full + `delta_from_*` per slim slug. Superseeder library = latest signed full + delta matrix.
 4. Heatshrink compressed-full stays for WisMesh / companion only.
 
+**Fielding a new OTAFIX (09-02 idea, not this item):** complementary write path. The bootloader cannot overwrite itself. The **app** writes the BL slot. Sequence: today’s in-place app delta → firmware that applies a bootloader `.mota` → reboot → new OTAFIX applies `CODEC_FULL`. USB only for stock BL. No EC id yet. Ops: `initiatives/ota-rollout.md`.
+
 **Field options this unlocks**
 
 - Orphan / custom-hash slim: pull latest signed full, no host-packed delta.
@@ -234,6 +236,7 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 | ID | Item | Notes |
 |----|------|-------|
 | EC-010 | Companion FS wedge | Deferred to v0.3.0 per dev monolith changelog |
+| — | App-side bootloader mota (app writes BL slot) | Idea 09-02. Complementary write path: app updates BL, BL updates app. Field new OTAFIX without USB. No EC id. |
 
 ## Done
 
@@ -251,7 +254,7 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 | Date | Note |
 |------|------|
-| 2026-09-02 | EC-019: slim full-mota doctrine locked. Seeders admit signed fulls on RAK/T096 slim. OTAFIX `CODEC_FULL` apply still required. Enterprise `ops/initiatives/ota-rollout.md`. |
+| 2026-09-02 | EC-019: slim full-mota doctrine locked. Seeders admit signed fulls on RAK/T096 slim. OTAFIX `CODEC_FULL` apply still required. Complementary write path noted (app updates BL). Enterprise `ops/initiatives/ota-rollout.md`. |
 | 2026-09-01 | EC-018: neighbor keepalive after adverts-off. Fleet discover-on-poll is interim. Enterprise `ops/initiatives/meshcore-neighbor-keepalive.md`. |
 | 2026-08-30 | EC-016: EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 built. Slim firmware still icebox until NOR/mota layout. |
 | 2026-08-30 | EC-017: admin CLI force clock backwards. Stock `time`/`clock sync` refuse past; remote field repair needs a force. Enterprise `ops/initiatives/meshcore-clock-force.md`. |
