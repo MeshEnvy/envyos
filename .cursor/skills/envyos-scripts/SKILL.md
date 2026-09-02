@@ -102,7 +102,7 @@ Builds OTA firmware from `packages/meshcore/` and packages `.mota` per slug.
 3. `motatool build --fw … --out-dir` → full `.mota`
 4. Delta from each prior release with base hex for that slug
 
-**Incremental:** hex unchanged + one full + all deltas → skip motatool. **Remake** deletes slug `*.mota` first (motatool names fulls by merkle mid8, so old fulls would otherwise accumulate and pollute `release/`). **`./envyos build --clean`** (full default build) wipes `build/<slot>/bench/` + `release/` for the branch, then rebuilds bootloader, motatool, meshcore, and pinned peaky/envybot/mcmt from scratch. Scoped builds (`--firmware-only`, `--motatool-only`, …) pass `--clean` to that recipe only.
+**Incremental:** hex unchanged + one full + all deltas → skip motatool. **Remake** deletes slug `*.mota` first (names include body hashes + mid, so old fulls would otherwise accumulate). **`./envyos build --clean`** (full default build) wipes `build/<slot>/bench/` + `release/` for the branch, then rebuilds bootloader, motatool, meshcore, and pinned peaky/envybot/mcmt from scratch. Scoped builds (`--firmware-only`, `--motatool-only`, …) pass `--clean` to that recipe only. One-time old-name rewrite: `scripts/rename-motas.sh`.
 
 Requires **`motatool` on PATH** (staged build or `MOTATOOL=`).
 

@@ -34,8 +34,10 @@ motatool build --base old.hex --fw new.hex --patch-type in-place --out delta.mot
 motatool verify ./build/motas/**/*.mota
 motatool verify signed.mota --pub signer.key.pub
 
-# Inspect manifest
-motatool inspect ./build/motas/**/fw_*_full_*.mota
+# Inspect / name
+motatool inspect ./build/motas/**/fw-*-full-*.mota
+motatool name update.mota --name-stem fw-rak4631-repeater-slim-0.1.3
+motatool name delta.mota --fw new.hex --name-stem fw-rak4631-repeater-slim-0.1.3
 
 # Ed25519 keypair
 motatool keygen --out signer.key
@@ -51,7 +53,7 @@ Or via bench wrapper: **`motatool/scripts/seeder.sh <serial> [dir]`** (motatool 
 
 - Input: `.hex` (Intel HEX parsed to flat image) or `.bin`, or `https://` URL
 - Identity from **EndF trailer** (override with `--target-env`, `--target-id`, `--fw-version`, `--hw-id`)
-- Output naming: `fw_<target_id>_<version>_full_<mid>.mota`
+- Output naming: `{stem}-full-hwid.{hw}-to.{body16}-mid.{mid8}.mota` (deltas: `{stem}-delta-hwid.{hw}-from.{old16}-to.{new16}-mid.{mid8}.mota`)
 - Produces merkle tree (1024-byte blocks default), manifest, optional Ed25519 signature
 
 ## `build --base` — delta patches

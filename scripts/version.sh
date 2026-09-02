@@ -1294,7 +1294,7 @@ EOF
 
 - \`RELEASE.md\` — these notes (same text as the GitHub Release description)
 - \`envyos-<ver>-full.tgz\` — **complete offline bundle** (all firmware variants, bootloader, motatool platforms, optional peaky/mcmt/envybot; uncompressed bench tree + manifests)
-- \`meshcore-<slug>-<ver>-full-<id>.mota.gz\` / \`meshcore-<slug>-<ver>-delta-from-<base>-<id>.mota.gz\` — fleet OTA (pick one per node)
+- \`fw-<slug>-<ver>-full-hwid.<hw>-to.<body>-mid.<mid>.mota.gz\` / \`fw-<slug>-<ver>-delta-hwid.<hw>-from.<old>-to.<new>-mid.<mid>.mota.gz\` — fleet OTA (pick one per node)
 - \`meshcore-<slug>-<ver>.uf2.gz\` — bench UF2 flash
 - \`adafruit-nrf52-bootloader-<board>-<ver>.uf2.gz\` / \`adafruit-nrf52-bootloader-<board>-recovery-<ver>.zip\` — Adafruit nRF52 bootloader per board
 - \`motatool-<ver>-<platform>.tar.gz\` — bench motatool (pick your OS/arch)

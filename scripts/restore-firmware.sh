@@ -91,6 +91,7 @@ release_mota_assets_for_slug() {
       || [[ "$match" == meshcore-${slug}-${ver}-delta-from-*.mota ]] \
       || [[ "$match" == fw-${slug}-${ver}-full-*.mota ]] \
       || [[ "$match" == fw-${slug}-full-${ver}.mota ]] \
+      || [[ "$match" == fw-${slug}-${ver}-delta-*.mota ]] \
       || [[ "$match" == fw-${slug}-${ver}-delta-from-*.mota ]] \
       || [[ "$match" == "$(github_full_mota_name "$slug" "$ver")" ]] \
       || [[ "$match" == fw-${slug}-delta-from-*.mota ]]; then

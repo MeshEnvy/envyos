@@ -21,6 +21,12 @@ EnvyOS distro release notes. Versions match git tags (`v0.1.x`).
 
 ### Changed
 
+- **tooling:** `.mota` assets use apply-identity names
+  (`fw-<slug>-<ver>-full-hwid.<hw>-to.<body16>-mid.<mid8>.mota` /
+  `fw-<slug>-<ver>-delta-hwid.<hw>-from.<old16>-to.<new16>-mid.<mid8>.mota`).
+  Hex/uf2 stay `meshcore-<slug>-<ver>.*`. `scripts/rename-motas.sh` migrates
+  existing trees and GitHub release motas.
+
 - **tooling:** `./envyos build` no longer takes a version argument. MeshCore pin is `MANIFEST.json` `releases.next`. Slot is git branch or `ENVYOS_BUILD_SLOT`. Distro tag is still chosen at `./envyos publish`.
 - **tooling:** Distro GitHub Release notes include each package `CHANGELOG.md` pin section (meshcore overlay, peaky/envybot siblings) plus distro `CHANGELOG.md`. `./envyos changelog check` requires those headings. `./envyos publish --dry-run` writes `RELEASE.md` to `build/<slot>/release/` (and a published `build/vX.Y.Z/release/` if that tree exists). Publish uploads that file as an asset and uses it as the GitHub Release description. The package table uses `PACKAGE` `title=` (MeshCore, Peaky Finders, …) linked to the package home.
 - **tooling:** Distro vocabulary is **package** (not component). Helpers, docs, and release notes use `package` throughout.

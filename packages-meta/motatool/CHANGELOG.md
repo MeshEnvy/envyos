@@ -12,6 +12,11 @@ Upstream origin: [vk496/motatool](https://github.com/vk496/motatool). Do not cop
 
 ## [Unreleased]
 
+- `.mota` filenames are apply-identity:
+  `…-full-hwid.<hw>-to.<new-body16>-mid.<mid8>.mota` and
+  `…-delta-hwid.<hw>-from.<old-body16>-to.<new-body16>-mid.<mid8>.mota`.
+  Empty `hw_id` is `none`. `motatool name` prints that basename (deltas need `--fw`).
+  Dropped `--base-version`.
 - Name `Heltec_t096_repeater_slim` and `Heltec_t096_seeder` in `src/targets.rs`.
 
 ## [v0.1.2-rc0] - 2026-08-25

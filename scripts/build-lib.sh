@@ -383,10 +383,15 @@ firmware_artifact_name() {
   esac
 }
 
-github_full_mota_name() {
+mota_name_stem() {
   local slug=$1 ver=$2
   ver="$(firmware_artifact_ver_label "$ver")"
-  printf 'meshcore-%s-%s-full-*.mota' "$slug" "$ver"
+  printf 'fw-%s-%s' "$slug" "$ver"
+}
+
+github_full_mota_name() {
+  local slug=$1 ver=$2
+  printf '%s-full-*.mota' "$(mota_name_stem "$slug" "$ver")"
 }
 
 bootloader_flat_slug() {
@@ -502,6 +507,7 @@ resolve_firmware_image_in_dir() {
     return 0
   fi
   for mota in \
+    "$dir"/fw-"${slug}"-*-full-*.mota \
     "$dir"/meshcore-"${slug}"-*-full-*.mota \
     "$dir"/meshcore-"${slug}"-full-*.mota; do
     [[ -f "$mota" ]] || continue
@@ -524,6 +530,7 @@ _resolve_base_image_in_dir() {
     fi
   done
   for mota in \
+    "$dir"/fw-"${slug}"-*-full-*.mota \
     "$dir"/meshcore-"${slug}"-*-full-*.mota \
     "$dir"/meshcore-"${slug}"-full-*.mota; do
     [[ -f "$mota" ]] || continue
@@ -1044,6 +1051,8 @@ find_firmware_delta_motas() {
   local f
   shopt -s nullglob
   for f in \
+    "$dir"/fw-"${slug}"-"${ver}"-delta-*.mota \
+    "$dir"/fw-"${slug}"-*-delta-*.mota \
     "$dir"/meshcore-"${slug}"-"${ver}"-delta-from-*.mota \
     "$dir"/meshcore-"${slug}"-delta-from-*.mota; do
     [[ -f "$f" ]] && printf '%s\n' "$(basename "$f")"

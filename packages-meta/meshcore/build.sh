@@ -229,7 +229,7 @@ run_full_mota_job() {
 
   echo "==> full .mota ($slug)"
   "$mt" build --fw "$fw_image" --fw-version "$FW_STAMP" \
-    --name-stem "meshcore-${slug}-${VER}" --out-dir "$out"
+    --name-stem "$(mota_name_stem "$slug" "$VER")" --out-dir "$out"
 }
 
 run_one_delta_job() {
@@ -247,7 +247,7 @@ run_one_delta_job() {
   echo "    base: $base_hex"
   echo "    fw:   $fw_hex"
   "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "$FW_STAMP" \
-    --patch-type in-place --name-stem "meshcore-${slug}-${VER}" --base-version "${base_ver#v}" \
+    --patch-type in-place --name-stem "$(mota_name_stem "$slug" "$VER")" \
     --out-dir "$out"
 }
 
@@ -257,6 +257,8 @@ delta_mota_present() {
   base_label="${base_ver#v}"
   shopt -s nullglob
   for f in \
+    "$dir"/fw-"${slug}"-"${ver}"-delta-*.mota \
+    "$dir"/fw-"${slug}"-*-delta-*.mota \
     "$dir"/meshcore-"${slug}"-"${ver}"-delta-from-"${base_ver}"-*.mota \
     "$dir"/meshcore-"${slug}"-"${ver}"-delta-from-"${base_label}"-*.mota \
     "$dir"/meshcore-"${slug}"-delta-from-"${base_ver}"-*.mota \

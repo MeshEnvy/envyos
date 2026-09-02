@@ -84,6 +84,8 @@ delta_from_base_present() {
   base_label="${base_ver#v}"
   shopt -s nullglob
   for f in \
+    "$dir"/fw-"${slug}"-"${FW_VER}"-delta-*.mota \
+    "$dir"/fw-"${slug}"-*-delta-*.mota \
     "$dir"/meshcore-"${slug}"-"${FW_VER}"-delta-from-"${base_ver}"-*.mota \
     "$dir"/meshcore-"${slug}"-"${FW_VER}"-delta-from-"${base_label}"-*.mota \
     "$dir"/meshcore-"${slug}"-delta-from-"${base_ver}"-*.mota \
@@ -167,7 +169,7 @@ build_missing_delta() {
   echo "    base: $base_hex"
   echo "    fw:   $fw_hex"
   "$mt" build --base "$base_hex" --fw "$fw_hex" --fw-version "$fw_stamp" \
-    --patch-type in-place --name-stem "meshcore-${slug}-${FW_VER}" --base-version "${base_ver#v}" \
+    --patch-type in-place --name-stem "$(mota_name_stem "$slug" "$FW_VER")" \
     --out-dir "$out"
 }
 
