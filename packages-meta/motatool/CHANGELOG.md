@@ -12,6 +12,8 @@ Upstream origin: [vk496/motatool](https://github.com/vk496/motatool). Do not cop
 
 ## [Unreleased]
 
+- Name `Heltec_t096_repeater_slim` and `Heltec_t096_seeder` in `src/targets.rs`.
+
 ## [v0.1.2-rc0] - 2026-08-25
 
 Pre-release: EnvyOS package harness (`./envyos build`, `prepare`, `publish`); local cross-platform dist, no CI release workflow.

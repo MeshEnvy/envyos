@@ -10,5 +10,6 @@
 wismesh-tag-repeater   RAK_WisMesh_Tag_repeater              WisMesh Tag repeater (OTA bench seeder/DUT)
 rak4631-repeater-slim   RAK_4631_repeater_slim                RAK4631 slim repeater (no OLED/sensors/BLE)
 heltec-t096-repeater-slim Heltec_t096_repeater_slim           Heltec T096 slim repeater (no TFT/GPS/sensors/BLE)
+heltec-t096-seeder      Heltec_t096_seeder                    Heltec T096 USB OTA seeder (slim + folder relay)
 rak4631-superseeder     RAK_4631_superseeder                  RAK4631 slim + SD superseeder (field cache)
 wismesh-tag-client-ble  RAK_WisMesh_Tag_companion_radio_ble   WisMesh Tag companion (BLE)
