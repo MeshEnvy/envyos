@@ -21,7 +21,7 @@ usage: envyos build [options] [build-mota options…]
   --envybot-only    Envybot wheel only
   --mcmt-only       mcmt-gateway wheel only
   --release-only    Refresh build/<branch>/release/ from bench (no builds)
-  --clean           Wipe bench output trees and force full rebuild
+  --clean           Wipe build/<slot>/bench + release, then rebuild all packages
   --no-release      Skip release/ after build
   --no-peaky        Skip peaky even when peaky= is pinned
   --no-envybot      Skip envybot even when envybot= is pinned
@@ -152,6 +152,15 @@ distro_ver="$(read_bench_tree_key)"
 maybe_migrate_version_bench_to_slot "$distro_ver"
 bench_root="$(distro_bench_root "$distro_ver")"
 release_root="$(distro_release_root "$distro_ver")"
+
+# Full default build: bootloader + motatool + firmware (optional peaky/envybot/mcmt follow).
+is_full_bench_build() {
+  ((BUILD_BL == 1 && BUILD_MOTATOOL == 1 && BUILD_FIRMWARE == 1))
+}
+
+if ((BUILD_CLEAN == 1)) && is_full_bench_build; then
+  clean_distro_working_slot "$distro_ver"
+fi
 
 if ((BUILD_BL == 1 || BUILD_MOTATOOL == 1 || BUILD_FIRMWARE == 1 || BUILD_PEAKY == 1 || BUILD_ENVYBOT == 1 || BUILD_MCMT == 1)); then
   echo "==> EnvyOS build (slot: $distro_ver$( ((BUILD_CLEAN == 1)) && printf ', clean'))"

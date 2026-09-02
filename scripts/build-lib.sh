@@ -217,6 +217,22 @@ maybe_populate_distro_release() {
   populate_distro_release
 }
 
+# Full ./envyos build --clean: empty the working slot (bench + release + manifest).
+# Does not touch other slots (e.g. build/v0.1.x/) or published build/vX.Y.Z/ trees.
+clean_distro_working_slot() {
+  local tree_key=$1
+  local bench release manifest
+  tree_key="$(normalize_tree_key "$tree_key")"
+  bench="$(distro_bench_root "$tree_key")"
+  release="$(distro_release_root "$tree_key")"
+  manifest="$(release_manifest_path "$tree_key")"
+  if [[ -d "$bench" || -d "$release" || -f "$manifest" ]]; then
+    echo "==> clean slot $tree_key: wipe bench + release"
+    rm -rf "$bench" "$release"
+    rm -f "$manifest"
+  fi
+}
+
 # --- git / registry ---
 
 git_short_sha() {

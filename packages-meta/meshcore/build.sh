@@ -267,6 +267,24 @@ delta_mota_present() {
   return 1
 }
 
+# Incremental skip is valid only when slug dir has one full .mota (not stale remakes).
+slug_has_single_full_mota() {
+  local slug="$1"
+  local dir=$2
+  local f count=0
+  shopt -s nullglob
+  for f in "$dir"/*-full-*.mota "$dir"/*_full_*.mota; do
+    [[ -f "$f" ]] || continue
+    ((count++)) || true
+    if ((count > 1)); then
+      shopt -u nullglob
+      return 1
+    fi
+  done
+  shopt -u nullglob
+  ((count == 1))
+}
+
 # Hex-unchanged skip must not drop --base / newly visible pins.
 slug_missing_delta_mota() {
   local slug="$1"
@@ -288,6 +306,7 @@ queue_mota_jobs_for_slug() {
   local out="$3"
   local job
 
+  rm -f "$out"/*.mota
   spawn_mota_job run_full_mota_job "$mt" "$slug" "$out"
   while IFS= read -r job || [[ -n "$job" ]]; do
     [[ -n "$job" ]] || continue
@@ -378,7 +397,7 @@ build_target_firmware() {
   if [[ "$HEX_ONLY" -eq 1 ]]; then
     echo "    (--hex-only: skipping .mota packaging)"
   elif [[ "$CLEAN" -eq 0 && -n "$cached_sha" && "$cached_sha" == "$hex_sha" ]] &&
-    ! slug_missing_delta_mota "$slug"; then
+    ! slug_missing_delta_mota "$slug" && slug_has_single_full_mota "$slug" "$out"; then
     echo "    skip motatool ($slug): firmware hex unchanged (use --clean to repack)"
   else
     echo "    queue motatool jobs for $slug"

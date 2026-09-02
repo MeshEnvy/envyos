@@ -70,10 +70,11 @@ ENVYOS_BUILD_SLOT=heltec-bl-test ./envyos build meshcore --target heltec-t096-re
 
 ## `./envyos build` (scripts/build-all.sh)
 
-Orchestration entry point: bootloader → motatool → firmware → peaky/envybot/mcmt (if pinned) → `build/<slot>/release/`. A later package failure still stages `release/` from whatever bench exists, then exits 1. Refresh without rebuild: `./envyos build --release-only`.
+Orchestration entry point: bootloader → motatool → firmware → peaky/envybot/mcmt (if pinned) → `build/<slot>/release/`. A later package failure still stages `release/` from whatever bench exists, then exits 1. Refresh without rebuild: `./envyos build --release-only`. **`--clean`** on the full default build wipes `build/<slot>/bench/` + `release/` first (all packages, orphan pins included); scoped `--*-only` modes clean that recipe only.
 
 ```bash
 ./envyos build                       # pinned packages
+./envyos build --clean               # wipe slot bench + release, rebuild all
 ./envyos build --bootloader-only
 ./envyos build --mota-only
 ./envyos build --list-targets
@@ -100,6 +101,8 @@ Builds OTA firmware from `packages/meshcore/` and packages `.mota` per slug.
 2. Copy `firmware.hex`, `.uf2`, `.zip` → output dir
 3. `motatool build --fw … --out-dir` → full `.mota`
 4. Delta from each prior release with base hex for that slug
+
+**Incremental:** hex unchanged + one full + all deltas → skip motatool. **Remake** deletes slug `*.mota` first (motatool names fulls by merkle mid8, so old fulls would otherwise accumulate and pollute `release/`). **`./envyos build --clean`** (full default build) wipes `build/<slot>/bench/` + `release/` for the branch, then rebuilds bootloader, motatool, meshcore, and pinned peaky/envybot/mcmt from scratch. Scoped builds (`--firmware-only`, `--motatool-only`, …) pass `--clean` to that recipe only.
 
 Requires **`motatool` on PATH** (staged build or `MOTATOOL=`).
 
@@ -136,6 +139,7 @@ packages/motatool/scripts/seeder.sh /dev/cu.… build/<slot>/bench/meshcore-<pin
 
 | Symptom | Check |
 |---------|-------|
+| Multiple full `.mota` per slug / bloated `release/` | Re-run `./envyos build meshcore` (remake wipes slug motas); or full `./envyos build --clean` |
 | motatool not found | `./envyos build motatool --host-only`; or `MOTATOOL=` |
 | Delta rejected at apply | `base_hash` vs `ota self` on device |
 | `bootloader: apply` missing | Tag B not on OTAFIX |
