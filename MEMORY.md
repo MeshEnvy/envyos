@@ -92,6 +92,8 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 | **v0.1.0** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · **`firmware-v0.1.0.zip`** · **`build/motas/v0.1.0/`** |
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
+**Next distro tag (operator 2026-09-04): `v0.2.0`.** Minor bump for **EC-001** MeshCore **companion-v1.17.1** on `envyos/main`. v1.17 migrates settings to **JSON**; **no safe rollback to 1.16** after upgrade. Ops: `initiatives/envyos-backlog.md` § Next release. Release notes draft: `meshenvy.org/blog/envyos-0-2-0/`.
+
 - Listed in **`MANIFEST.json` `releases`** (keyed by fleet tag, each with a `packages` snapshot); released package trees (`.released` markers) are immutable.
 - **`./scripts/publish.sh [version]`** — promote bench → `build/vX.Y.Z/`, lock SHAs, record release snapshot, GitHub Release (`RELEASE.md` asset + description). `--dry-run` writes `build/<slot>/release/RELEASE.md`.
 - **`MANIFEST.json`** — `releases.next` (WIP bench pins) + shipped `releases[vX.Y.Z]`. `packages-meta/*/RELEASES` holds package semver history for deltas.

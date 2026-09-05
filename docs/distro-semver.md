@@ -19,7 +19,7 @@ The **distro tag** is the fleet contract. **`releases.next`** is the bench integ
 | Bump | When |
 |------|------|
 | **Major** | Remove a bundled package from the release manifest, or ship a breaking fleet migration (mandatory bootloader reflash, incompatible OTA, no safe path from the previous tag). |
-| **Minor** | Add a bundled package, a package **minor/major** pin change (e.g. `0.1.x` → `0.2.0`), or expand shipped targets/platforms in a user-visible way. |
+| **Minor** | Add a bundled package, a package **minor/major** pin change (e.g. `0.1.x` → `0.2.0`), or expand shipped targets/platforms in a user-visible way. **Next cut (2026-09-04): `v0.2.0`** for MeshCore v1.17.1 — settings JSON migration; no rollback to v1.16. |
 | **Patch** | Same bundle membership; package **patch** pin changes only (`0.1.1` → `0.1.3` within the same major.minor line). Fleet-safe hotfixes. Requires OTA deltas from the immediate predecessor tag. |
 
 Pre-1.0 (`0.y.z`): policy still applies for operator clarity; `1.0.0` can mark a stable bundle contract.
