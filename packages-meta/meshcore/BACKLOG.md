@@ -40,6 +40,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-019 | Slim full-mota field path — seeder admit signed fulls + OTAFIX `CODEC_FULL` apply | `feature/ota-rejoin` | P1 | M | EC-001 | Slim RAK/T096 stage a same-size full (measured). Seeders capture+serve signed fulls. nRF52 apply accepts `CODEC_FULL`. Orphan / OS-switch without a host-packed delta. WisMesh/companion stay delta-only. | backlog |
 | EC-020 | Drop on-device `OtaTargets.h`; host maps `target_id` → env | `feature/ota-target-client` | P2 | S | EC-001 | `ota status`/`ls` print hex only; `seed allow add` hex-only; no `OtaTargets.h` in image. Envybot names `5c6ab408`. | backlog |
 | EC-021 | OTA serve self + slot; never fetch a second copy of running image | `feature/ota-serve-self-and-slot` | P2 | S | EC-001 | `wantRow` skips self mid / same EndF image; slot served after reboot; `ota get` self → ERR | backlog |
+| EC-022 | EndF not reported (`ota self` empty / Target `00000000`) — MOTA broken | `feature/endf-report` | P0 | S | EC-001 | One T096: `ota self` prints valid EndF after chosen flash path; mota identity matches on-disk trailer | bench |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 

@@ -233,6 +233,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
+- **EndF / MOTA (09-05):** **EC-022 bench-fixed** on `envyos/main`. Zip+nrfutil wrote a valid trailer; `ota self` still empty. Cause: nRF52 `verify_body` used CC310 `CRYS_HASH` on the flash body (SRAM DMA only). Software SHA-256 in `FirmwareInfo.cpp`. One T096: `base_hash=574D111DF1BE764C` `target=F683C465`. Rest of bag/bench still old image.
 - **T096 solar power (09-05):** FEM rail, `radio.rxps`, power-ladder **parked** `feature/t096-power-ev2` @ `ec98e264`. `envyos/main` = try CLI only. Corridor bag stays `1.17.1.1` + book LNA off.
 - **Signed mota / fleet-key reject (08-30):** `ops/initiatives/signed-mota-deltas.md`; EC-012 P1; publish still unsigned; field seeders must not serve unsigned.
 - **Meshcore backlog split (2026-08-25):** EC-002–EC-009 still on `feature/*`; canonical queue `packages-meta/meshcore/BACKLOG.md`. **EC-001 merged_main (2026-08-29):** `companion-v1.17.1` on `envyos/main` @ `3881ceb1` (integrate `2cf4a528`). Native + slim passed. Not published. Monolith tag `envyos/dev-pre-split`.
