@@ -78,6 +78,7 @@ MeshEnvy fork: `origin` → `MeshEnvy/meshcore-firmware`. Cross-fork PRs use `--
 | Log tail serial | `feature/log-tail-serial` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#2991](https://github.com/meshcore-dev/MeshCore/pull/2991) | `dev` | yes |
 | FS corruption boot fsck (companion) | `feature/fs-corruption-check` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3012](https://github.com/meshcore-dev/MeshCore/pull/3012) (draft) | `dev` | yes |
 | ConfigSerializer `rd_len` uint16_t | `fix/config-serializer-rd-len` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3322](https://github.com/meshcore-dev/MeshCore/pull/3322) | `dev` | yes |
+| CLI `try` (confirm-or-revert prefs) | `feature/cli-try` | [meshcore-dev/MeshCore](https://github.com/meshcore-dev/MeshCore) | [#3358](https://github.com/meshcore-dev/MeshCore/pull/3358) (draft) | `dev` | yes |
 
 **Sync rule:** while a PR is open, commits for that feature go to **`envyos/dev` and the PR branch** (push both). Unrelated features stay separate. See skill § Open PR sync policy.
 
@@ -92,7 +93,7 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 | **v0.1.0** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.0) · **`firmware-v0.1.0.zip`** · **`build/motas/v0.1.0/`** |
 | **v0.1.1** | **Released** — frozen, do not rebuild or delete | [GitHub Release](https://github.com/MeshEnvy/envyos/releases/tag/v0.1.1) · **`firmware-v0.1.1.zip`** · **`build/motas/v0.1.1/`** |
 
-**Next distro tag (operator 2026-09-04): `v0.2.0`.** Minor bump for **EC-001** MeshCore **companion-v1.17.1** on `envyos/main`. v1.17 migrates settings to **JSON**; **no safe rollback to 1.16** after upgrade. Ops: `initiatives/envyos-backlog.md` § Next release. Release notes draft: `meshenvy.org/blog/envyos-0-2-0/`.
+**Next distro tag (operator 2026-09-04): `v0.2.0`.** Meshcore pin **`1.17.1-ev2`** (not ev1). Minor bump for **EC-001** MeshCore **companion-v1.17.1** plus T096 solar-power extras already in the meshcore package. v1.17 migrates settings to **JSON**; **no safe rollback to 1.16** after upgrade. **Flash corridor T096s to this pin before they leave.** Ops: `initiatives/envyos-backlog.md` § Next release. Release notes draft: `meshenvy.org/blog/envyos-0-2-0/`. Overlay notes: `packages/meshcore/CHANGELOG.md` `[Unreleased]`.
 
 - Listed in **`MANIFEST.json` `releases`** (keyed by fleet tag, each with a `packages` snapshot); released package trees (`.released` markers) are immutable.
 - **`./scripts/publish.sh [version]`** — promote bench → `build/vX.Y.Z/`, lock SHAs, record release snapshot, GitHub Release (`RELEASE.md` asset + description). `--dry-run` writes `build/<slot>/release/RELEASE.md`.
@@ -115,7 +116,7 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **Own full `.mota` fits** in `[0x26000, 0xED000)`. Measured: v0.1.3 slack ~24 KB; 1.17.1-ev1 slack ~90 KB (max mota **454656** B). WisMesh Tag / companion still do not. Apply still rejects `CODEC_FULL`. |
-| `heltec-t096-repeater-slim` | `Heltec_t096_repeater_slim` | Heltec T096 slim repeater — no TFT/GPS/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **09-04:** `T096_FEM_RAIL_GATING` (VFEM on for RX until Stage 2 proves off-path), `radio.rxps` CLI (SX126x duty-cycle, default off), book `rxgain`/`fem_rxgain`/`powersaving`. Bench ladder envs `Heltec_t096_pwr_stage0`…`5`. `begin()` drives GPS/TFT off. Same S140 v6 / `rak4631_hw` OTA as RAK4631. OTAFIX `heltec_t096`. |
+| `heltec-t096-repeater-slim` | `Heltec_t096_repeater_slim` | Heltec T096 slim repeater — no TFT/GPS/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **In tree for `v0.2.0` / `1.17.1-ev2`:** `T096_FEM_RAIL_GATING`, `radio.fem.vfem`, `radio.rxps` (default off), GPS/TFT held off in `begin()`. Bench ladder `Heltec_t096_pwr_stage0`…`5`. Stock MeshCore `powersaving` / `radio.fem.rxgain` / `radio.rxgain` still apply from the book. Same S140 v6 / `rak4631_hw` OTA as RAK4631. OTAFIX `heltec_t096`. |
 | `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
@@ -232,6 +233,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
+- **T096 solar power → `v0.2.0` / `1.17.1-ev2` (09-04):** FEM rail gating, `radio.fem.vfem`, repeater `radio.rxps`, slim GPS/TFT hold. In tree. Flash bag before corridor depart. Changelog `[Unreleased]`.
 - **Signed mota / fleet-key reject (08-30):** `ops/initiatives/signed-mota-deltas.md`; EC-012 P1; publish still unsigned; field seeders must not serve unsigned.
 - **Meshcore backlog split (2026-08-25):** EC-002–EC-009 still on `feature/*`; canonical queue `packages-meta/meshcore/BACKLOG.md`. **EC-001 merged_main (2026-08-29):** `companion-v1.17.1` on `envyos/main` @ `3881ceb1` (integrate `2cf4a528`). Native + slim passed. Not published. Monolith tag `envyos/dev-pre-split`.
 - **P0 (operator, 2026-07-31): advert lockup on `rak4631-repeater-slim`** — admin settings change then advert → freeze; **adverts disabled in field**. Ops: `initiatives/envyos-field-stability.md`.
