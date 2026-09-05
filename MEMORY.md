@@ -1,6 +1,6 @@
 # EnvyOS — agent memory
 
-MeshEnvy's **mesh-utility distro** (Linux-shaped): firmware, host tools, and clients, pinned and bundled together. MeshCore/OTA is the current stack, not the whole product. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts). Overlay inventory + evN notes live on the meshcore fork (`README.md` § EnvyOS overlay, `CHANGELOG.md`).
+MeshEnvy's **mesh operating system distro** (Linux-shaped): a growing set of applications pinned and released together, including user applications, repeaters, utilities, and more. MeshCore/OTA is the current stack, not the whole product. **Distro repo** — `./envyos` CLI, `MANIFEST.json`, `packages-meta/`, publish/verify. Upstream forks live under **`packages/`** (gitignored checkouts). Overlay inventory + evN notes live on the meshcore fork (`README.md` § EnvyOS overlay, `CHANGELOG.md`).
 
 ## Layout
 
@@ -115,7 +115,7 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 | `wismesh-tag-repeater` | `RAK_WisMesh_Tag_repeater` | WisMesh Tag repeater (bench DUT) |
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **Own full `.mota` fits** in `[0x26000, 0xED000)`. Measured: v0.1.3 slack ~24 KB; 1.17.1-ev1 slack ~90 KB (max mota **454656** B). WisMesh Tag / companion still do not. Apply still rejects `CODEC_FULL`. |
-| `heltec-t096-repeater-slim` | `Heltec_t096_repeater_slim` | Heltec T096 slim repeater — no TFT/GPS/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **09-03:** `begin()` drives `GPS_EN` inactive + TFT backlight off. `powersaving` / FEM LNA are book apply prefs, not slim defaults. Same S140 v6 / `rak4631_hw` OTA as RAK4631. Same-size full **stages** (1.17.1-ev1 slack ~89 KB; max mota **450560** B). OTAFIX board `heltec_t096` (oltaco PR #42, landed on MeshEnvy `envyos/main`) |
+| `heltec-t096-repeater-slim` | `Heltec_t096_repeater_slim` | Heltec T096 slim repeater — no TFT/GPS/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **09-04:** `T096_FEM_RAIL_GATING` (VFEM on for RX until Stage 2 proves off-path), `radio.rxps` CLI (SX126x duty-cycle, default off), book `rxgain`/`fem_rxgain`/`powersaving`. Bench ladder envs `Heltec_t096_pwr_stage0`…`5`. `begin()` drives GPS/TFT off. Same S140 v6 / `rak4631_hw` OTA as RAK4631. OTAFIX `heltec_t096`. |
 | `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |
