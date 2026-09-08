@@ -41,6 +41,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-020 | Drop on-device `OtaTargets.h`; host maps `target_id` → env | `feature/ota-target-client` | P2 | S | EC-001 | `ota status`/`ls` print hex only; `seed allow add` hex-only; no `OtaTargets.h` in image. Envybot names `5c6ab408`. | backlog |
 | EC-021 | OTA serve self + slot; never fetch a second copy of running image | `feature/ota-serve-self-and-slot` | P2 | S | EC-001 | `wantRow` skips self mid / same EndF image; slot served after reboot; `ota get` self → ERR | backlog |
 | EC-022 | EndF not reported (`ota self` empty / Target `00000000`) — MOTA broken | `feature/endf-report` | P0 | S | EC-001 | One T096: `ota self` prints valid EndF after chosen flash path; mota identity matches on-disk trailer | bench |
+| EC-023 | Repeater `privacy.location_fuzz` — fuzzed coords on anon/advert; admin gets true | `feature/location-fuzz` | P2 | M | EC-001 | Pref miles (0=exact); anon location + advert return salted offset; admin ACL returns true prefs lat/lon | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
@@ -248,6 +249,23 @@ Enterprise: `ops/initiatives/signed-mota-deltas.md`. Merkle/hash is integrity. S
 
 **Work:** sign in `build.sh` (`motatool build --sign`); `ota key` allowlist; apply reject (manual + auto); seeder index skip; bench gate. Do not disable field self-serve (EC-005 superseded).
 
+### EC-023 — location fuzz (design)
+
+**Goal:** On-device enforcement of approximate public location. Anon callers and adverts see a stable fuzzed position; admin ACL members get exact stake coords from prefs.
+
+**Pref:** `privacy.location_fuzz` — float miles. `0` = serve exact lat/lon (today's behavior). Example: `1.5` = offset 0.75–1.5 mi along a great circle (same SHA256 bearing+distance scheme as envybot `public_advert_position`, with device-held salt).
+
+| Caller | Location source |
+|--------|-----------------|
+| Anonymous / guest | Fuzzed coords derived from true prefs + fuzz pref |
+| Admin ACL | True `lat`/`lon` prefs |
+
+**Surfaces:** advert lat/lon; anon location REQ responses. USB serial unchanged (physical access).
+
+**Interim (09-07):** envybot apply pushes offset coords at provision time. Firmware item closes the bypass (remote `set lat`, wrong on-air value, book drift).
+
+**Enterprise:** `ops/initiatives/privacy-by-default-acl.md`; public policy `meshenvy.org/writing/the-privacy-problem`.
+
 ### EC-018 — neighbor keepalive (design)
 
 **Goal:** Repeaters refresh the neighbor table after public adverts are off, without restoring `NODE_DISCOVER_RESP` or self-advert.
@@ -319,6 +337,7 @@ Supersedes EC-005 “disable self-serve.”
 
 | Date | Note |
 |------|------|
+| 2026-09-08 | EC-023: repeater `privacy.location_fuzz` pref — fuzzed anon/advert location; admin ACL gets true coords. Mirrors envybot salted offset; on-device enforcement. Enterprise `ops/initiatives/privacy-by-default-acl.md`. |
 | 2026-09-02 | EC-006 expanded: `ota ls` installable-only (full = matching hw+target; delta = matching base_hash). Apply-identity listing. Later pages content-only. Drop `1n`/`99999s`. Enterprise `ops/initiatives/envyos-backlog.md`. |
 | 2026-09-02 | EC-021: keep synthetic self-serve; never fetch a second copy of running image; serve the stage slot across reboot. EC-005 disable plan iceboxed. Enterprise `ops/initiatives/ota-serve-self-and-slot.md`. |
 | 2026-09-02 | EC-020: drop on-device target-name table. Client lookup. Enterprise `ops/initiatives/ota-target-name-client.md`. |
