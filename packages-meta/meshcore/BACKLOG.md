@@ -31,7 +31,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist; field seeder reject unsigned | `feature/ota-provenance` | P1 | M | EC-001 | Release mota verifies + applies with allowlisted signer; seeder does not advertise/serve unsigned; rejects unknown signer | backlog |
-| EC-013 | Battery + temp telemetry history ring + CLI dump | `feature/telemetry-history` | P2 | M | EC-001 | `battery history` compact line; set/get interval; survives reboot (FS) | backlog |
+| EC-013 | GET_STATUS+temp ring + `GET_METRICS(since)` catch-up | `feature/telemetry-history` | P2 | M | EC-001 | Ring samples live structs; `GET_METRICS(since)` pages same blobs; live GET_STATUS/TELEMETRY unchanged; survives reboot (FS) | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
 | EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | NOR/mota layout first; then slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full. EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 already built. | icebox |
@@ -98,84 +98,56 @@ Updates nearby (3 src) — `ota get <#>` to download:
 
 **Adjacent:** EC-020 (hex / no `OtaTargets.h`). EC-021 (do not fetch running self). Whether the running self-serve full appears in `ls` is open.
 
-### EC-013 — telemetry history (design)
+### EC-013 — metrics ring + `GET_METRICS(since)` (design)
 
-**Goal:** Ring-buffer recent battery voltage and (when present) board/sensor temperature. Configurable sample interval. One-line CLI dump suitable for serial, BLE, and remote CLI (fits ~160-byte reply with pagination).
+**Locked 2026-09-11.** Enterprise: `ops/initiatives/meshcore-metrics-ring.md`.
 
-**Prior art:** `examples/simple_sensor/TimeSeriesData.{h,cpp}` — in-RAM float ring, interval-gated `recordData()`. Promote to `src/helpers/TelemetryHistory.*`, switch samples to `uint8_t` encoded values, add FS persistence.
+The node already answers `GET_STATUS` and `GET_TELEMETRY`. This is a ring of those same snapshots.
 
-**Sampling**
+- Sample the live `RepeaterStats` + temp on `metrics.interval` into `metrics.slots`.
+- Live `GET_STATUS` / `GET_TELEMETRY` stay unchanged.
+- `GET_METRICS(since)` pages stored snapshots newer than T. That is the catch-up.
 
-| Stream | Source | When |
-|--------|--------|------|
-| Battery | `_board` ADC / `getBootVoltage()` path where available | Every interval if board reports voltage |
-| Temp | `SensorManager` or onboard sensor | Every interval when sensor present; omit slot char when absent |
+No new data model. Envybot inserts catch-up rows the same way it inserts a live poll.
 
-**Prefs (persisted in node prefs / sidecar file)**
+**Sample:** full `RepeaterStats` (56 B) + `temp_c_x10` (i16, sentinel if no sensor) = 58 B, plus on-device `sample_ts`. Same fields as `normalize_status_payload` + telemetry temp. Not neighbors, ACL, OTA, firmware, or extra Cayenne channels.
+
+**Prefs (always on; no logging toggle)**
 
 | Key | Default | Notes |
 |-----|---------|-------|
-| `battery.history.interval` | 300 | Seconds between samples; min 60 |
-| `battery.history.slots` | 288 | Fixed at compile time for v1 (24 h @ 5 min) |
-| `temp.history.interval` | 300 | Same as battery unless split later |
+| `metrics.interval` | 3600 | Seconds; min 60 |
+| `metrics.slots` | 72 | Runtime `<=` compile max 168. Changing interval or slots resets the ring |
 
-CLI: `get battery.history.interval`, `set battery.history.interval <sec>` (mirror for `temp`).
+**Sync:** repeater `REQ_TYPE_GET_METRICS` **0x04** (`since_unix`; `0` = oldest in ring). Reply page ~16 B header (`ver`, `interval`, `n`, `more`, `oldest_ts`, `first_ts`) + N × 58 B samples. ~2 samples/page. Repeat with `since = last_ts` until `more=0`. If `oldest_ts > since + interval`, the hole is unrecoverable.
 
-**Wire encoding — printable byte**
+Capacity: 24 h miss @ 1 h → 12 pages (vs 48 hourly GET pairs). Full 72-slot backfill → 36 pages. Caught up → 1 short `n=0` page. 5 min interval is USB/serial only (24 h miss → ~144 pages).
 
-Each sample is one ASCII char: `ch = '!' + value` where `value` is 0–93 (`!` … `~`).
-
-| Stream | `value` meaning | Decode |
-|--------|-----------------|--------|
-| Battery | Tenths of volt | `V = value / 10.0` (42 → 4.2 V) |
-| Temp | Whole °C offset | `T = value - 40` (-40 … +53 °C) |
-| Missing / gap | `_` (0x5F) | No sample this slot (sensor absent or pre-fill) |
-
-Examples: 4.2 V → `value=42` → `'K'`; 22 °C → `value=62` → `'o'`.
-
-**Dump format**
-
-Oldest→newest, one line:
+**CLI**
 
 ```
-<start_unix>|<interval_sec>|B:<battery_chars>|T:<temp_chars>
+get/set metrics.interval
+get/set metrics.slots
+metrics                 # now + ring meta
+metrics since <unix>    # remote: one page + next=; serial: all matching lines
+metrics clear
 ```
 
-- `start_unix` — RTC epoch of oldest slot (0 if buffer not yet filled).
-- `interval_sec` — active sample period.
-- `B:` — battery run only.
-- `T:` — temp run only (may be shorter or all `_` when no sensor).
+Bump `last_reply` to 160 if remote pages are long.
 
-Combined interleaved (optional alias `telemetry history`):
+**Persistence:** `/metrics` — header + `{ts, RepeaterStats, temp}`. Max 168 × 62 B ≈ 10.4 KB. Load at boot.
 
-```
-<start_unix>|<interval_sec>|:<interleaved>
-```
-
-Each slot contributes two chars when both streams exist: battery then temp (`KoooKK...`). Temp-only-absent slots use `_` for the temp char.
-
-**CLI surface**
-
-| Command | Action |
-|---------|--------|
-| `battery history` | Full `B:` dump |
-| `temp history` | Full `T:` dump |
-| `telemetry history` | Interleaved `:` form |
-| `battery history clear` | Zero ring + reset `start_unix` |
-| `get/set battery.history.interval <sec>` | Interval prefs |
-
-**Pagination:** If payload exceeds reply buffer (~140 chars body), support `battery history <offset>` where offset is slot index (0 = oldest). Reply prefix `> part <offset>/<total>|` then truncated payload.
-
-**Persistence:** Small file on InternalFS/LittleFS (`/tel_hist`) — header (magic, version, start_unix, interval, write_idx) + raw uint8 slot arrays. Load at boot; append on sample; wear-friendly (rewrite whole file every N samples or use circular file — v1 may be RAM-only with FS save on interval if EC-004 atomic prefs lands first).
+**Prior art:** `examples/simple_sensor/TimeSeriesData.{h,cpp}` + sensor `GET_AVG_MIN_MAX` (0x04 on that role). Promote to `src/helpers/MetricsHistory.*`. Do not ship the 08-28 printable-byte / min-max design.
 
 **Bench gate**
 
-1. `set battery.history.interval 10`; wait ≥3 samples.
-2. `battery history` → `start_unix>0`, `interval=10`, three monotonic-ish `B:` chars decodable to plausible voltage.
-3. Reboot → history still present (if FS enabled).
-4. Board without temp → `T:` all `_` or empty; no crash.
+1. `set metrics.interval 10`; wait ≥3 samples. Serial `metrics since 0` shows three `RepeaterStats`+temp rows with increasing `sample_ts`.
+2. Binary `GET_METRICS(since=0)` pages the same blobs; envybot-shaped unpack matches a live `GET_STATUS` + temp.
+3. `GET_METRICS(since=last_ts)` returns `n=0` when caught up.
+4. Reboot → ring still present (FS).
+5. Slim without temp → sentinel; no crash. Live `GET_STATUS` unchanged.
 
-**Out of scope v1:** LPP export, mesh-side pull, motatool parser (follow-on once format stable).
+**Out of scope v1:** min/max/mean instead of the struct; JSON over LoRa; neighbors/ACL/OTA in this opcode; push/beacon (EC-014).
 
 ### EC-014 — directional telemetry backhaul (design sketch)
 
@@ -187,7 +159,7 @@ Each slot contributes two chars when both streams exist: battery then temp (`Koo
 
 **Rough model (operator 08-28)**
 
-1. **Sample locally** — EC-013 ring (battery, temp, optional traffic/neighbor stats later).
+1. **Sample locally** — EC-013 ring (`RepeaterStats` + temp; `GET_METRICS(since)` is pull catch-up).
 2. **Zero-hop toward sink** — dest = sink. Offer to a neighbor that has heard the sink. Retry until an **ACK** (custody accepted into its buffer, not just airtime). If that neighbor dies, another heard-of-sink neighbor can take it.
 3. **Accept rule** — a node that has heard the sink accepts; a node that has not, refuses (does not take custody).
 4. **Custody leap** — after ACK, the sender may drop (or mark shipped) those records. The receiving node now owns them.
@@ -337,6 +309,7 @@ Supersedes EC-005 “disable self-serve.”
 
 | Date | Note |
 |------|------|
+| 2026-09-11 | EC-013 redesigned: ring of live `GET_STATUS`+temp; `GET_METRICS(since)` catch-up. Live GETs unchanged. Drops 08-28 printable spark / min-max. Enterprise `ops/initiatives/meshcore-metrics-ring.md`. |
 | 2026-09-08 | EC-023: repeater `privacy.location_fuzz` pref — fuzzed anon/advert location; admin ACL gets true coords. Mirrors envybot salted offset; on-device enforcement. Enterprise `ops/initiatives/privacy-by-default-acl.md`. |
 | 2026-09-02 | EC-006 expanded: `ota ls` installable-only (full = matching hw+target; delta = matching base_hash). Apply-identity listing. Later pages content-only. Drop `1n`/`99999s`. Enterprise `ops/initiatives/envyos-backlog.md`. |
 | 2026-09-02 | EC-021: keep synthetic self-serve; never fetch a second copy of running image; serve the stage slot across reboot. EC-005 disable plan iceboxed. Enterprise `ops/initiatives/ota-serve-self-and-slot.md`. |
