@@ -42,6 +42,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-021 | OTA serve self + slot; never fetch a second copy of running image | `feature/ota-serve-self-and-slot` | P2 | S | EC-001 | `wantRow` skips self mid / same EndF image; slot served after reboot; `ota get` self → ERR | backlog |
 | EC-022 | EndF not reported (`ota self` empty / Target `00000000`) — MOTA broken | `feature/endf-report` | P0 | S | EC-001 | One T096: `ota self` prints valid EndF after chosen flash path; mota identity matches on-disk trailer | bench |
 | EC-023 | Repeater `privacy.location_fuzz` — fuzzed coords on anon/advert; admin gets true | `feature/location-fuzz` | P2 | M | EC-001 | Pref miles (0=exact); anon location + advert return salted offset; admin ACL returns true prefs lat/lon | backlog |
+| EC-024 | Room relay — DM submit, flood live, base_seq+bitmask catch-up | `feature/room-relay` | Icebox | L | EC-001 | Client DM post → ack → one flood; piggyback last_contiguous_seq + 128-bit window bitmap; hub DM-repairs gaps; seq-ordered client contract | backlog |
 
 EC-001 is the first integrate under [`integration-policy.md`](../../envyos/docs/integration-policy.md) v2: merge companion into `envyos/main`, no vk496 OTA replay.
 
