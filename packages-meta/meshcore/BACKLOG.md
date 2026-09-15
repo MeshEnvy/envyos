@@ -31,7 +31,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist; field seeder reject unsigned | `feature/ota-provenance` | P1 | M | EC-001 | Release mota verifies + applies with allowlisted signer; seeder does not advertise/serve unsigned; rejects unknown signer | backlog |
-| EC-013 | GET_STATUS+temp ring + `GET_METRICS(since)` catch-up | `feature/telemetry-history` | P2 | M | EC-001 | Ring samples live structs; `GET_METRICS(since)` pages same blobs; live GET_STATUS/TELEMETRY unchanged; survives reboot (FS) | backlog |
+| EC-013 | Basic readings ring (V, temp, NF, RSSI, SNR, …) + `GET_METRICS(since)` | `feature/telemetry-history` | P2 | M | EC-001 | One ring of raw readings; `GET_METRICS(since)` dumps the miss in one catch-up; live GET_STATUS/TELEMETRY unchanged; survives reboot (FS) | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
 | EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | NOR/mota layout first; then slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full. EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 already built. | icebox |
@@ -99,19 +99,32 @@ Updates nearby (3 src) — `ota get <#>` to download:
 
 **Adjacent:** EC-020 (hex / no `OtaTargets.h`). EC-021 (do not fetch running self). Whether the running self-serve full appears in `ls` is open.
 
-### EC-013 — metrics ring + `GET_METRICS(since)` (design)
+### EC-013 — basic readings ring + `GET_METRICS(since)` (design)
 
-**Locked 2026-09-11.** Enterprise: `ops/initiatives/meshcore-metrics-ring.md`.
+**Locked 2026-09-11** (ring + catch-up). **Reframed 2026-09-14:** one feature, one log, one pull — temperature is not a separate item. Enterprise: `ops/initiatives/meshcore-metrics-ring.md`.
 
-The node already answers `GET_STATUS` and `GET_TELEMETRY`. This is a ring of those same snapshots.
+The node already answers `GET_STATUS` and `GET_TELEMETRY`. This is a ring of those same **raw** snapshots. Fleet manager check-in (`GET_METRICS(since)`) dumps every channel together.
 
-- Sample the live `RepeaterStats` + temp on `metrics.interval` into `metrics.slots`.
+**One sample, all basic readings together** (not a temp log + an RF log):
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `batt_milli_volts` | `RepeaterStats` | Voltage |
+| `temp_c_x10` | MCU / board telem | Sentinel if no sensor |
+| `noise_floor` | `RepeaterStats` | Instantaneous |
+| `last_rssi` | `RepeaterStats` | Last packet, not interval-sampled |
+| `last_snr` | `RepeaterStats` | Last packet, ×4 (same as live GET) |
+| rest of `RepeaterStats` | live GET_STATUS | Raw counters (rx/tx, airtime, flood/direct, dups, errors, uptime, queue). Not rates. |
+
+- Sample live `RepeaterStats` + temp on `metrics.interval` into `metrics.slots`.
 - Live `GET_STATUS` / `GET_TELEMETRY` stay unchanged.
-- `GET_METRICS(since)` pages stored snapshots newer than T. That is the catch-up.
+- `GET_METRICS(since)` pages stored snapshots newer than T. One opcode pulls the whole row.
 
 No new data model. Envybot inserts catch-up rows the same way it inserts a live poll.
 
-**Sample:** full `RepeaterStats` (56 B) + `temp_c_x10` (i16, sentinel if no sensor) = 58 B, plus on-device `sample_ts`. Same fields as `normalize_status_payload` + telemetry temp. Not neighbors, ACL, OTA, firmware, or extra Cayenne channels.
+**Do not store derived readings on the node.** No min/max/mean, utilization %, packet rates, health scores, interpolated points, or extra Cayenne channels. Host can derive those from the raw ring.
+
+**Sample:** full `RepeaterStats` (56 B) + `temp_c_x10` (i16, sentinel if no sensor) = 58 B, plus on-device `sample_ts`. Same fields as `normalize_status_payload` + telemetry temp. Not neighbors, ACL, OTA, firmware.
 
 **Prefs (always on; no logging toggle)**
 
@@ -142,13 +155,13 @@ Bump `last_reply` to 160 if remote pages are long.
 
 **Bench gate**
 
-1. `set metrics.interval 10`; wait ≥3 samples. Serial `metrics since 0` shows three `RepeaterStats`+temp rows with increasing `sample_ts`.
-2. Binary `GET_METRICS(since=0)` pages the same blobs; envybot-shaped unpack matches a live `GET_STATUS` + temp.
+1. `set metrics.interval 10`; wait ≥3 samples. Serial `metrics since 0` shows three rows (voltage, temp, noise floor, last RSSI/SNR, rest of `RepeaterStats`) with increasing `sample_ts`.
+2. Binary `GET_METRICS(since=0)` pages the same blobs; envybot-shaped unpack matches a live `GET_STATUS` + temp. One pull, all channels.
 3. `GET_METRICS(since=last_ts)` returns `n=0` when caught up.
 4. Reboot → ring still present (FS).
-5. Slim without temp → sentinel; no crash. Live `GET_STATUS` unchanged.
+5. Slim without temp → sentinel; no crash. Live `GET_STATUS` unchanged. No min/max/mean on device.
 
-**Out of scope v1:** min/max/mean instead of the struct; JSON over LoRa; neighbors/ACL/OTA in this opcode; push/beacon (EC-014).
+**Out of scope v1:** on-device derived (min/max/mean, utilization, rates); JSON over LoRa; neighbors/ACL/OTA in this opcode; per-channel opcodes or separate temp vs RF logs; push/beacon (EC-014).
 
 ### EC-014 — directional telemetry backhaul (design sketch)
 
@@ -160,7 +173,7 @@ Bump `last_reply` to 160 if remote pages are long.
 
 **Rough model (operator 08-28)**
 
-1. **Sample locally** — EC-013 ring (`RepeaterStats` + temp; `GET_METRICS(since)` is pull catch-up).
+1. **Sample locally** — EC-013 basic-readings ring (`RepeaterStats` + temp; `GET_METRICS(since)` is one pull of the miss).
 2. **Zero-hop toward sink** — dest = sink. Offer to a neighbor that has heard the sink. Retry until an **ACK** (custody accepted into its buffer, not just airtime). If that neighbor dies, another heard-of-sink neighbor can take it.
 3. **Accept rule** — a node that has heard the sink accepts; a node that has not, refuses (does not take custody).
 4. **Custody leap** — after ACK, the sender may drop (or mark shipped) those records. The receiving node now owns them.
@@ -310,6 +323,7 @@ Supersedes EC-005 “disable self-serve.”
 
 | Date | Note |
 |------|------|
+| 2026-09-14 | EC-013 reframed: one basic-readings ring (voltage, temp, noise floor, RSSI, SNR + raw GET_STATUS counters). One `GET_METRICS(since)` dump at fleet check-in. No derived on device. Still one feature, not a new ID. |
 | 2026-09-11 | EC-013 redesigned: ring of live `GET_STATUS`+temp; `GET_METRICS(since)` catch-up. Live GETs unchanged. Drops 08-28 printable spark / min-max. Enterprise `ops/initiatives/meshcore-metrics-ring.md`. |
 | 2026-09-08 | EC-023: repeater `privacy.location_fuzz` pref — fuzzed anon/advert location; admin ACL gets true coords. Mirrors envybot salted offset; on-device enforcement. Enterprise `ops/initiatives/privacy-by-default-acl.md`. |
 | 2026-09-02 | EC-006 expanded: `ota ls` installable-only (full = matching hw+target; delta = matching base_hash). Apply-identity listing. Later pages content-only. Drop `1n`/`99999s`. Enterprise `ops/initiatives/envyos-backlog.md`. |
