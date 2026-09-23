@@ -31,7 +31,7 @@ Enterprise index: `ops/initiatives/envyos-backlog.md` (summary rows only).
 | EC-009 | Release tooling + changelog docs | `chore/release-tooling` | P2 | S | EC-001 | `./envyos` + CHANGELOG + publish skeleton | in_progress |
 | EC-011 | Repeater `stealth_mode` — minimize discovery-plane leaks | `feature/stealth-mode` | P2 | M | EC-001 | Stealth slim: no self-advert/anon/discover/OTA beacon; admin-only status ping; still relays | backlog |
 | EC-012 | OTA release provenance — signed distro motas + fleet allowlist; field seeder reject unsigned | `feature/ota-provenance` | P1 | M | EC-001 | Release mota verifies + applies with allowlisted signer; seeder does not advertise/serve unsigned; rejects unknown signer | backlog |
-| EC-013 | Basic readings ring (V, temp, NF, RSSI, SNR, …) + `GET_METRICS(since)` | `feature/telemetry-history` | P2 | M | EC-001 | One ring of raw readings; `GET_METRICS(since)` dumps the miss in one catch-up; live GET_STATUS/TELEMETRY unchanged; survives reboot (FS) | backlog |
+| EC-013 | Basic readings ring (V, temp, NF, RSSI, SNR, …) + `GET_METRICS(since)` | `feature/telemetry-history` | **P1** | M | EC-001 | One ring of raw readings; `GET_METRICS(since)` dumps the miss in one catch-up; live GET_STATUS/TELEMETRY unchanged; survives reboot (FS). **09-23: before the east bag** so pulls are daily, not hourly. | backlog |
 | EC-014 | Directional telemetry backhaul — zero-hop custody toward known sink | `feature/telemetry-backhaul` | Icebox | L | EC-013 | Know sink dest (not a set path); next-hop to any node that has heard the sink; ACK then ship self + predecessors | backlog |
 | EC-015 | Login reply echoes sender_timestamp (keep node clock) | `feature/login-reply-tag` | Icebox | S | EC-001 | Trailing 4-byte request tag on LOGIN_OK/fail; companion `request_timestamp`; CLI `NN|` and binary REQ already tagged | backlog |
 | EC-016 | SenseCAP P1-Pro NOR superseeder (2 MB QSPI cache) | `feature/sensecap-qspi-seeder` | Icebox | M | EC-001 | NOR/mota layout first; then slim + superseeder in `targets.txt`; NOR mount; RF capture; DUT pull; skip-if-full. EnvyBoot `sensecap_solar_p1` 0.9.2-ev1 already built. | icebox |
@@ -323,6 +323,7 @@ Supersedes EC-005 “disable self-serve.”
 
 | Date | Note |
 |------|------|
+| 2026-09-23 | EC-013 raised to **P1**. Operator wants the daily readings log on the image before more field deploys (hourly pulls are too much traffic). |
 | 2026-09-14 | EC-013 reframed: one basic-readings ring (voltage, temp, noise floor, RSSI, SNR + raw GET_STATUS counters). One `GET_METRICS(since)` dump at fleet check-in. No derived on device. Still one feature, not a new ID. |
 | 2026-09-11 | EC-013 redesigned: ring of live `GET_STATUS`+temp; `GET_METRICS(since)` catch-up. Live GETs unchanged. Drops 08-28 printable spark / min-max. Enterprise `ops/initiatives/meshcore-metrics-ring.md`. |
 | 2026-09-08 | EC-023: repeater `privacy.location_fuzz` pref — fuzzed anon/advert location; admin ACL gets true coords. Mirrors envybot salted offset; on-device enforcement. Enterprise `ops/initiatives/privacy-by-default-acl.md`. |

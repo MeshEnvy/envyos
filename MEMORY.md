@@ -233,6 +233,7 @@ Pre-deployment — **no production fleet, no field migrations**. Breaking `.mota
 ## Active threads
 
 <!-- In-flight work only; delete when done -->
+- **EC-013 daily log (09-23):** P1. Operator wants it on the image before more field deploys so fleet pulls are daily, not hourly. Not built. Ops: `initiatives/meshcore-metrics-ring.md`.
 - **EndF / MOTA (09-05):** **EC-022 bench-fixed** on `envyos/main`. Zip+nrfutil wrote a valid trailer; `ota self` still empty. Cause: nRF52 `verify_body` used CC310 `CRYS_HASH` on the flash body (SRAM DMA only). Software SHA-256 in `FirmwareInfo.cpp`. One T096: `base_hash=574D111DF1BE764C` `target=F683C465`. Rest of bag/bench still old image.
 - **T096 solar power (09-05):** FEM rail, `radio.rxps`, power-ladder **parked** `feature/t096-power-ev2` @ `ec98e264`. `envyos/main` = try CLI only. Corridor bag stays `1.17.1.1` + book LNA off.
 - **Signed mota / fleet-key reject (08-30):** `ops/initiatives/signed-mota-deltas.md`; EC-012 P1; publish still unsigned; field seeders must not serve unsigned.
