@@ -117,6 +117,7 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 | `rak4631-repeater` | `RAK_4631_repeater` | RAK4631 repeater |
 | `rak4631-repeater-slim` | `RAK_4631_repeater_slim` | RAK4631 slim repeater — no OLED/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). **Own full `.mota` fits** in `[0x26000, 0xED000)`. Measured: v0.1.3 slack ~24 KB; 1.17.1-ev1 slack ~90 KB (max mota **454656** B). WisMesh Tag / companion still do not. Apply still rejects `CODEC_FULL`. |
 | `heltec-t096-repeater-slim` | `Heltec_t096_repeater_slim` | Heltec T096 slim repeater — no TFT/GPS/sensors/BLE (`BLE_DFU_DISABLED`; MCU temp only). Corridor bag on stock MeshCore prefs + book LNA off (09-05). **Parked on `feature/t096-power-ev2`:** FEM rail gating, `radio.fem.vfem`, `radio.rxps`, GPS/TFT hold, power-ladder bench envs. Same S140 v6 / `rak4631_hw` OTA as RAK4631. OTAFIX `heltec_t096`. |
+| `xiao-nrf52-repeater-slim` | `Xiao_nrf52_repeater_slim` | Seeed XIAO nRF52840 + Wio-SX1262 kit. Slim repeater, no sensors/BLE. S140 v7 app @ `0x27000` (not RAK `0x26000`). OTAFIX `xiao_nrf52840_ble`. |
 | `rak4631-superseeder` | `RAK_4631_superseeder` | RAK4631 slim + RAK15002 SD — field superseeder (`OTA_SD_SEEDER`; promiscuous capture to `/motas/` on SD, serve all; flash staging reserved for self-update) |
 | `rak4631-client-ble` | `RAK_4631_companion_radio_ble` | RAK4631 companion (BLE) |
 | `wismesh-tag-client-ble` | `RAK_WisMesh_Tag_companion_radio_ble` | WisMesh Tag companion (BLE) |

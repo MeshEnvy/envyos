@@ -18,6 +18,9 @@ otafix_board_for_env() {
     Heltec_t096_*)
       echo heltec_t096
       ;;
+    Xiao_nrf52_*)
+      echo xiao_nrf52840_ble
+      ;;
     *)
       echo "error: no otafix board mapping for PlatformIO env: $env" >&2
       echo "       add a case to otafix_board_for_env() in scripts/targets-lib.sh" >&2
