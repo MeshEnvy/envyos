@@ -1,6 +1,6 @@
 ---
 description: Keep open upstream PRs in sync with their MeshEnvy feature branches and envyos/main
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Upstream PR sync
