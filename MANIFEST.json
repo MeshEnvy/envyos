@@ -4,8 +4,8 @@
       "packages": {
         "adafruit-nrf52-bootloader": {
           "repo": "MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX",
-          "version": "0.9.2-ev1",
-          "sha": "4d8e357cd25789f8cada5e9583b7b9cfe62a95be"
+          "version": "0.9.2-ev2",
+          "sha": "3720cb414969c53c0e603542dcb30739cc824da9"
         },
         "meshcore": {
           "repo": "MeshEnvy/meshcore-firmware",

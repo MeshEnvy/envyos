@@ -102,7 +102,7 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 - **Dev release preview:** `build/<git-branch>/release/` (gzipped GitHub-shaped set). Full `./envyos build` always stages this after bench packages; a later package failure does not skip it. Refresh: `./envyos build --release-only`.
 - **Published path:** `build/vX.Y.Z/` (immutable after lock — no rebuild/delete). **Rename-only** apply-identity mota names (`scripts/rename-motas.sh`) are allowed; bytes stay the same.
 - `meshcore` in `MANIFEST.json` → `packages-meta/meshcore/VERSION`; built by **`packages-meta/meshcore/build.sh`** → **`build/<branch>/bench/meshcore-<ver>/`**. GitHub hex/uf2 `meshcore-<slug>-<ver>.*`. Motas `fw-<slug>-<ver>-full|delta-hwid.<hw>-[from.<old>-]to.<body>-mid.<mid>.mota`. CLI aliases `firmware`, `fw`. **Remake wipes slug `*.mota` before repack** (one full + fresh deltas; hex/uf2 stay for incremental skip). **`./envyos build --clean`** wipes `build/<slot>/bench/` + `release/` for the branch slot, then rebuilds every package from scratch (scoped `--*-only` builds use per-package `--clean` only).
-- `adafruit-nrf52-bootloader` (CLI aliases `bootloader`, `bl`) → **`build/<branch>/bench/adafruit-nrf52-bootloader-<ver>/`**. GitHub assets `adafruit-nrf52-bootloader-<board>-<ver>.uf2`. On-device `get bootloader.ver` / `EnvyBoot` UF2 stamp is packages-meta `0.9.2-evN` (`ENVYBOOT_VERSION`), not `git describe` or OTAFIX-BP tags. Shipped `releases[v0.1.x]` keep the `bootloader` key.
+- `adafruit-nrf52-bootloader` (CLI aliases `bootloader`, `bl`) → **`build/<branch>/bench/adafruit-nrf52-bootloader-<ver>/`**. GitHub assets `adafruit-nrf52-bootloader-<board>-<ver>.uf2`. On-device `get bootloader.ver` / `EnvyBoot` UF2 stamp is packages-meta `0.9.2-evN` (`ENVYBOOT_VERSION`), not `git describe` or OTAFIX-BP tags. Shipped `releases[v0.1.x]` keep the `bootloader` key. **Bench head `0.9.2-ev2`:** blank app stays on USB CDC/UF2. `0xA8` is not used as the no-app reset (that magic is BLE DFU). `bootloader_dfu_start` clears `BOOTLOADER_COMPLETE` left by SoftDevice finalize, otherwise the DFU wait returns immediately and the chip resets into BLE before USB enumerates. Xiao's only LED is red at ~3 Hz for both USB-unmounted and BLE, so those states look the same.
 - `motatool` → **`build/<branch>/bench/motatool-<ver>/`** (artifact); working copy under bench motatool tree
 - `peaky` → GitHub Release cache when pinned (`peaky-<ver>-<target>.tar.gz`; `0.5.0`). Publish notes read sibling `peaky_finders/CHANGELOG.md` `## [v0.5.0]`.
 - `envybot` → sibling `uv build` wheel when pinned (`envybot-<ver>-py3-none-any.whl`; `0.1.0`, unpublished)
@@ -124,7 +124,7 @@ Sibling checkouts live at ``packages/{meshcore,adafruit-nrf52-bootloader,motatoo
 
 Add a line to `targets.txt` to ship another board/role.
 
-**Parked (not in `targets.txt`):** SenseCAP P1-Pro — PIO `SenseCap_Solar_repeater_slim` / `SenseCap_Solar_superseeder` exist; OTAFIX `sensecap_solar_p1` (S140 v7, app @ `0x27000`). EnvyBoot **0.9.2-ev1** built 2026-08-30 (`packages-meta/adafruit-nrf52-bootloader/build.sh sensecap_solar_p1`). Slim firmware deferred until NOR/mota layout (EC-016).
+**Parked (not in `targets.txt`):** SenseCAP P1-Pro — PIO `SenseCap_Solar_repeater_slim` / `SenseCap_Solar_superseeder` exist; OTAFIX `sensecap_solar_p1` (S140 v7, app @ `0x27000`). EnvyBoot **0.9.2-ev2** on shipped OTAFIX boards in `targets.txt` (blank-app USB default). SenseCAP slim still deferred until NOR/mota layout (EC-016).
 
 ## nRF52 OTA flash layout (RAK4631)
 
