@@ -9,8 +9,8 @@
         },
         "meshcore": {
           "repo": "MeshEnvy/meshcore-firmware",
-          "version": "1.17.1-ev1",
-          "sha": "3881ceb19da850b0ec7036637bd361bf604ed8e6"
+          "version": "1.17.1-ev2",
+          "sha": "f7237643e6f088b091e817f4afe697971092ce54"
         },
         "motatool": {
           "repo": "MeshEnvy/motatool",
