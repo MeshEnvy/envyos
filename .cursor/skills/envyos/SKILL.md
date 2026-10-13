@@ -27,7 +27,7 @@ The distro repo is [`MeshEnvy/envyos`](https://github.com/MeshEnvy/envyos). It o
 
 Peaky and envybot are workspace siblings the distro can pin. They are not inside the envyos git repo.
 
-MeshCore/OTA is the current stack, not the whole product definition. Do not treat today's package list as the ceiling.
+MeshCore/OTA is the current radio stack, not the whole product definition. MeshCore is **not** EnvyOS's kernel analogue. A Linux distro is defined around a kernel; EnvyOS is defined around pinned packages. Do not treat today's package list as the ceiling.
 
 ## What it is not
 
@@ -35,9 +35,11 @@ Do **not** call EnvyOS:
 
 - "MeshEnvy's MeshCore fork"
 - "the firmware fork"
+- "the firmware distro"
 - "EnvyOS firmware" when you mean the whole distro
 - "a mesh repeater distro"
 - "a mesh-utility distro"
+- "the MeshCore distro" (MeshCore is one package)
 
 The **custom MeshCore build** is one package inside the distro. Repeaters are one class of application the distro ships. The distro is the integration and release layer around all of those applications.
 

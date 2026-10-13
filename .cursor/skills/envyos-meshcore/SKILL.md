@@ -7,9 +7,11 @@ description: >-
   vk496 remotes, upstream PRs, or submodule bumps.
 ---
 
-# EnvyOS MeshCore distro
+# EnvyOS meshcore package (git / OTA)
 
-EnvyOS is MeshEnvy's integration distro of [MeshCore](https://github.com/meshcore-dev/MeshCore). **`envyos/main` is the integration head on every MeshEnvy fork** in the OTA stack — firmware, motatool, and otafix.
+This skill is the **meshcore / OTA package workflow** inside EnvyOS. EnvyOS is the mesh OS distro (packages, pins, releases), not “the MeshCore distro.” Product definition: [`.cursor/skills/envyos/SKILL.md`](../envyos/SKILL.md).
+
+**`envyos/main` is the integration head on every MeshEnvy fork** in the current OTA stack — meshcore firmware, motatool, and otafix.
 
 **Integration policy:** [`docs/integration-policy.md`](../../docs/integration-policy.md). MeshCore companion tags merge into `envyos/main`; **vk496 is OTA upstream PR target only**, not a freshen/integrate remote.
 

@@ -1,6 +1,6 @@
 # EnvyOS
 
-EnvyOS is a distro of mesh-related utilities (firmware, host tools, clients). It builds on open-source projects and adds a cohesive UX. Current stack is MeshCore-based:
+EnvyOS is MeshEnvy's mesh operating system distro: a growing set of applications pinned and released together (user applications, repeaters, utilities, and more). It builds on open-source projects and adds a cohesive UX. The current radio stack is MeshCore (one package, not the product definition):
 
 * MeshCore
 * Bootlaoder
